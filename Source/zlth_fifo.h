@@ -2,38 +2,49 @@
 
 #include <array>
 #include <JuceHeader.h>
-template <typename T>
+
+template <typename T, int Capacity = 32>
 struct Fifo
 {
-    bool push(const T& t)
+    T* getWriteBuffer()
     {
         auto write = fifo.write(1);
         if (write.blockSize1 > 0)
         {
-            buffers[write.startIndex1] = t;
-            return true;
+            return &buffers[write.startIndex1];
         }
-        return false;
+        return nullptr;
     }
-    bool pull(T& t)
+    void finishedWrite()
+    {
+        fifo.finishedWrite(1);
+    }
+    T* getReadBuffer()
     {
         auto read = fifo.read(1);
         if (read.blockSize1 > 0)
         {
-            t = buffers[read.startIndex1];
-            return true;
+            return &buffers[read.startIndex1];
         }
-        return false;
+        return nullptr;
+    }
+    void finishedRead()
+    {
+        fifo.finishedRead(1);
     }
     int getNumAvailableForReading() const
     {
         return fifo.getNumReady();
     }
+    T& getBufferAt(int index)
+    {
+        return buffers[index];
+    }
 private:
-    std::array<T, 32> buffers;
-    juce::AbstractFifo fifo{32};
-    std::mutex mutex;
+    std::array<T, Capacity> buffers;
+    juce::AbstractFifo fifo {Capacity};
 };
+
 template <int Capacity>
 struct AudioBufferFifo
 {

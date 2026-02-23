@@ -1,6 +1,14 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include <vector>
+#include "zlth_fifo.h"
+#include "zlth_dsp_fft.h"
+#include "zlth_dsp_window.h"
+#include "zlth_dsp_window_coefficients.h"
+#include "zlth_simd.h"
+#include "lnf.h"
+
 struct SpectrumRenderData
 {
     std::vector<float> spectrumPath;
@@ -8,179 +16,139 @@ struct SpectrumRenderData
     float leftDB = -100.0f;
     float rightDB = -100.0f;
 };
+
 class PathProducer
 {
 public:
-    PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf): leftChannelFifo(&leftScsf), rightChannelFifo(&rightScsf)
+    PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf): channelFifoL(&leftScsf), channelFifoR(&rightScsf)
     {
-        fftBuffer.setSize(1, FFT_OUT_SIZE, false, true, true);
+        fftBuffer.setSize(1, FFT_SIZE, false, true, true);
         monoBufferL.setSize(1, FFT_SIZE, false, true, true);
         monoBufferR.setSize(1, FFT_SIZE, false, true, true);
-        monoAverageBuffer.setSize(1, FFT_SIZE, false, true, true);
-        peakFallVelocity.assign(RENDER_OUT_SIZE, 0.0f);
-        peakHoldDecibels.assign(RENDER_OUT_SIZE, -std::numeric_limits<float>::infinity());
-        currentDecibels.assign(RENDER_OUT_SIZE, -std::numeric_limits<float>::infinity());
-        Gains.assign(RENDER_OUT_SIZE, 0.0f);
-        SmoothGains.assign(RENDER_OUT_SIZE, 0.0f);
-    };
+        decibelsPeak.assign(FFT_SIZE_HALF, -100.0f);
+        gainsBuffer.assign(FFT_SIZE_HALF, 0.0f);
+        windowTable.assign(FFT_SIZE, 0.0f);
+        decibelsCurrent.assign(FFT_SIZE_HALF, 0.0f);
+        zlth::dsp::window::fill_window(windowTable, zlth::dsp::window::coefficients::blackman_harris_92);
+        zlth::simd::multiply(windowTable, windowTable.size() / std::accumulate(windowTable.begin(), windowTable.end(), 0.0));
+        for (int i = 0; i < 32; ++i)
+        {
+            auto& data = pathFifo.getBufferAt(i);
+            data.spectrumPath.assign(FFT_SIZE_HALF, -100.0f);
+            data.peakHoldPath.assign(FFT_SIZE_HALF, -100.0f);
+        }
+    }
     void process(double sampleRate)
     {
-        juce::AudioBuffer<float> leftIncomingBuffer, rightIncomingBuffer;
-        bool aaa = false;
-        while (leftChannelFifo->getNumCompleteBuffersAvailable() > 0 && rightChannelFifo->getNumCompleteBuffersAvailable() > 0)
+        juce::AudioBuffer<float> incomingBufferL, incomingBufferR;
+        while (channelFifoL->getNumCompleteBuffersAvailable() > 0 && channelFifoR->getNumCompleteBuffersAvailable() > 0)
         {
-            if (leftChannelFifo->getAudioBuffer(leftIncomingBuffer) && rightChannelFifo->getAudioBuffer(rightIncomingBuffer))
+            if (channelFifoL->getAudioBuffer(incomingBufferL) && channelFifoR->getAudioBuffer(incomingBufferR))
             {
-                aaa = true;
-                const int incomingSize = leftIncomingBuffer.getNumSamples();
-                currentLeftGain = leftIncomingBuffer.getMagnitude(0, 0, incomingSize);
-                currentRightGain = rightIncomingBuffer.getMagnitude(0, 0, incomingSize);
-                const int copySize = FFT_SIZE - incomingSize;
-                monoBufferL.copyFrom(0, 0, monoBufferL.getReadPointer(0, incomingSize), copySize);
-                monoBufferR.copyFrom(0, 0, monoBufferR.getReadPointer(0, incomingSize), copySize);
-                monoBufferL.copyFrom(0, copySize, leftIncomingBuffer.getReadPointer(0), incomingSize);
-                monoBufferR.copyFrom(0, copySize, rightIncomingBuffer.getReadPointer(0), incomingSize);
-                auto* destData = monoAverageBuffer.getWritePointer(0);
-                juce::FloatVectorOperations::copy(destData, monoBufferL.getReadPointer(0), FFT_SIZE);
-                juce::FloatVectorOperations::add(destData, monoBufferR.getReadPointer(0), FFT_SIZE);
-                juce::FloatVectorOperations::multiply(destData, 0.5f, FFT_SIZE);
-                auto* fftDataWritePointer = fftBuffer.getWritePointer(0);
-                juce::FloatVectorOperations::clear(fftDataWritePointer, FFT_OUT_SIZE);
-                juce::FloatVectorOperations::copy(fftDataWritePointer, monoAverageBuffer.getReadPointer(0), FFT_SIZE);
-                windowing.multiplyWithWindowingTable(fftDataWritePointer, FFT_SIZE);
-                fft.performFrequencyOnlyForwardTransform(fftDataWritePointer);
-                juce::FloatVectorOperations::multiply(fftDataWritePointer, fftDataWritePointer, INVERSE_NUM_BINS, NUM_BINS);
-                generatePath(fftDataWritePointer, static_cast<float>(incomingSize) / sampleRate);
+                const int originalIncomingSize = incomingBufferL.getNumSamples();
+                decibelLCurrent = juce::Decibels::gainToDecibels(incomingBufferL.getMagnitude(0, 0, originalIncomingSize));
+                decibelRCurrent = juce::Decibels::gainToDecibels(incomingBufferR.getMagnitude(0, 0, originalIncomingSize));
+                const int useSize = std::min(originalIncomingSize, FFT_SIZE);
+                const int sourceOffset = originalIncomingSize - useSize;
+
+                const int copySize = FFT_SIZE - useSize;
+
+                if (copySize > 0)
+                {
+                    monoBufferL.copyFrom(0, 0, monoBufferL.getReadPointer(0, useSize), copySize);
+                    monoBufferR.copyFrom(0, 0, monoBufferR.getReadPointer(0, useSize), copySize);
+                }
+
+                monoBufferL.copyFrom(0, copySize, incomingBufferL.getReadPointer(0, sourceOffset), useSize);
+                monoBufferR.copyFrom(0, copySize, incomingBufferR.getReadPointer(0, sourceOffset), useSize);
+
+                auto destSpan = std::span(fftBuffer.getWritePointer(0), static_cast<size_t>(fftBuffer.getNumSamples()));
+                auto s1Span = std::span(monoBufferL.getReadPointer(0), static_cast<size_t>(monoBufferL.getNumSamples()));
+                auto s2Span = std::span(monoBufferR.getReadPointer(0), static_cast<size_t>(monoBufferR.getNumSamples()));
+                zlth::simd::average_two_buffers(destSpan, s1Span, s2Span);
+                zlth::simd::multiply_two_buffers(destSpan, std::span(windowTable));
+                auto fullDestSpan = std::span(fftBuffer.getWritePointer(0), static_cast<size_t>(fftBuffer.getNumSamples()));
+                auto magnitudesSpan = fft.performFFT(fullDestSpan.first<FFT_SIZE>());
+                const float dt = static_cast<float>(originalIncomingSize) / sampleRate;
+                const float peakFall = 15.0f * dt;
+                const float meterFall = 50 * dt;
+                const float releaseSpeedFactor = 1.0f - std::exp(-dt * 50);
+                for (size_t i = 0; i < gainsBuffer.size(); ++i)
+                {
+                    const float target = magnitudesSpan[i];
+                    if (target > gainsBuffer[i])
+                    {
+                        gainsBuffer[i] = target;
+                    }
+                    else
+                    {
+                        gainsBuffer[i] += releaseSpeedFactor * (target - gainsBuffer[i]);
+                    }
+                }
+                zlth::simd::gains_to_decibels(std::span(decibelsCurrent), gainsBuffer, -100.0f);
+                zlth::simd::apply_falloff(std::span(decibelsPeak), std::span(decibelsCurrent), peakFall);
+                decibelLSmoothed = juce::jmax(decibelLCurrent, decibelLSmoothed - meterFall);
+                decibelRSmoothed = juce::jmax(decibelRCurrent, decibelRSmoothed - meterFall);
             }
         }
-        if (aaa)
+        if (auto* renderData = pathFifo.getWriteBuffer())
         {
-            pathFifo.push({currentDecibels, peakHoldDecibels, juce::Decibels::gainToDecibels(smoothedLeftGain), juce::Decibels::gainToDecibels(smoothedRightGain)});
+            std::copy(decibelsCurrent.begin(), decibelsCurrent.end(), renderData->spectrumPath.begin());
+            std::copy(decibelsPeak.begin(), decibelsPeak.end(), renderData->peakHoldPath.begin());
+            renderData->leftDB = decibelLSmoothed;
+            renderData->rightDB = decibelRSmoothed;
+            pathFifo.finishedWrite();
         }
-    };
+    }
     int getNumPathsAvailable() const
     {
         return pathFifo.getNumAvailableForReading();
     }
-    ;
     bool getPath(SpectrumRenderData& path)
     {
-        return pathFifo.pull(path);
-    };
+        if (auto* renderData = pathFifo.getReadBuffer())
+        {
+            path.spectrumPath = renderData->spectrumPath;
+            path.peakHoldPath = renderData->peakHoldPath;
+            path.leftDB = renderData->leftDB;
+            path.rightDB = renderData->rightDB;
+
+            pathFifo.finishedRead();
+            return true;
+        }
+        return false;
+    }
     std::vector<float> makeFreqLUT(const double sampleRate, const float minHz, const float maxHz) const
     {
         std::vector<float> frequencyLUT;
-        frequencyLUT.reserve(RENDER_OUT_SIZE);
+        frequencyLUT.reserve(FFT_SIZE_HALF);
         const float binWidth = static_cast<float>(sampleRate / FFT_SIZE);
-        for (int levelIndex = 0, sourceDataIndex = 0, outputIndex = 0; levelIndex < NUM_SECTIONS; ++levelIndex)
+        for (int i = 0; i < FFT_SIZE_HALF; ++i)
         {
-            const int windowSize = 1 << levelIndex;
-            const int nextOutputStart = outputIndex + (SECTION_SIZE >> levelIndex);
-            for (; outputIndex < nextOutputStart; ++outputIndex)
-            {
-
-                frequencyLUT.push_back(juce::mapFromLog10((binWidth * sourceDataIndex), minHz, maxHz));
-                sourceDataIndex += windowSize;
-            }
+            frequencyLUT.push_back(juce::mapFromLog10((binWidth * i), minHz, maxHz));
         }
         return frequencyLUT;
-    };
+    }
 private:
     static constexpr int FFT_ORDER = 12;
-    static constexpr int NUM_SECTIONS = 1 << 3;
-    static constexpr int SECTION_SIZE = 1 << 8;
-    static constexpr int NUM_BINS = 1 << (FFT_ORDER - 1);
     static constexpr int FFT_SIZE = 1 << FFT_ORDER;
-    static constexpr int FFT_OUT_SIZE = 1 << (FFT_ORDER + 1);
-    static constexpr int RENDER_OUT_SIZE = 510;
-    static constexpr float INVERSE_NUM_BINS = 1.0f / (1 << (FFT_ORDER - 1));
-    static constexpr float SMOOTHING_TIME_CONSTANT = 0.02f;
-    static constexpr float PEAK_DECAY_RATE = 80.0f;
-    static constexpr float LEVEL_METER_SMOOTHING_TIME_CONSTANT = SMOOTHING_TIME_CONSTANT * 5.0f;
-    SingleChannelSampleFifo* leftChannelFifo;
-    SingleChannelSampleFifo* rightChannelFifo;
+    static constexpr int FFT_SIZE_HALF = FFT_SIZE >> 1;
+    SingleChannelSampleFifo* channelFifoL;
+    SingleChannelSampleFifo* channelFifoR;
     juce::AudioBuffer<float> monoBufferL;
     juce::AudioBuffer<float> monoBufferR;
     juce::AudioBuffer<float> fftBuffer;
-    juce::AudioBuffer<float> monoAverageBuffer;
-    juce::dsp::FFT fft {FFT_ORDER};
-    juce::dsp::WindowingFunction<float> windowing {size_t(FFT_SIZE), juce::dsp::WindowingFunction<float>::blackmanHarris, true};
-    std::vector<float> peakFallVelocity;
-    std::vector<float> peakHoldDecibels;
-    std::vector<float> Gains;
-    std::vector<float> SmoothGains;
-    std::vector<float> currentDecibels;
-    float currentLeftGain = 0.0f;
-    float currentRightGain = 0.0f;
-    float smoothedLeftGain = 0.0f;
-    float smoothedRightGain = 0.0f;
+    std::vector<float> decibelsCurrent;
+    std::vector<float> windowTable;
+    zlth::FFT<FFT_ORDER> fft;
+    std::vector<float> decibelsPeak;
+    std::vector<float> gainsBuffer;
+    float decibelLCurrent = 0.0f;
+    float decibelRCurrent = 0.0f;
+    float decibelLSmoothed = 0.0f;
+    float decibelRSmoothed = 0.0f;
     Fifo<SpectrumRenderData> pathFifo;
-    void generatePath(const float* renderData, const float deltaTime)
-    {
-        for (int levelIndex = 0, sourceDataIndex = 0, outputIndex = 0; levelIndex < NUM_SECTIONS; ++levelIndex)
-        {
-            const int windowSize = 1 << levelIndex;
-            const int nextOutputStart = outputIndex + (SECTION_SIZE >> levelIndex);
-            for (; outputIndex < nextOutputStart; ++outputIndex)
-            {
-                Gains[outputIndex] = *std::max_element(renderData + sourceDataIndex, renderData + sourceDataIndex + windowSize);
-                sourceDataIndex += windowSize;
-            }
-        }
-        const float peakFallRate = PEAK_DECAY_RATE * deltaTime;
-        const float alphaSmooth = 1.0f - std::exp(-deltaTime / SMOOTHING_TIME_CONSTANT);
-        const float oneMinusAlpha = 1.0f - alphaSmooth;
-        for (size_t i = 0; i < RENDER_OUT_SIZE; ++i)
-        {
-            if (SmoothGains[i] > Gains[i])
-            {
-                SmoothGains[i] = alphaSmooth * Gains[i] + oneMinusAlpha * SmoothGains[i];
-            }
-            else
-            {
-                SmoothGains[i] = Gains[i];
-            }
-            currentDecibels[i] = juce::Decibels::gainToDecibels(SmoothGains[i]);
-            peakFallVelocity[i] += peakFallRate;
-            peakHoldDecibels[i] -= peakFallVelocity[i] * deltaTime;
-            if (currentDecibels[i] >= peakHoldDecibels[i])
-            {
-                peakFallVelocity[i] = 0.0f;
-                peakHoldDecibels[i] = currentDecibels[i];
-            }
-        }
-        const float levelMeterAlphaSmooth = 1.0f - std::exp(-deltaTime / (LEVEL_METER_SMOOTHING_TIME_CONSTANT));
-        const float levelMeterOneMinusAlpha = 1.0f - levelMeterAlphaSmooth;
-        if (currentLeftGain < smoothedLeftGain)
-        {
-            smoothedLeftGain = levelMeterAlphaSmooth * currentLeftGain + levelMeterOneMinusAlpha * smoothedLeftGain;
-        }
-        else
-        {
-            smoothedLeftGain = currentLeftGain;
-        }
-        if (currentRightGain < smoothedRightGain)
-        {
-            smoothedRightGain = levelMeterAlphaSmooth * currentRightGain + levelMeterOneMinusAlpha * smoothedRightGain;
-        }
-        else
-        {
-            smoothedRightGain = currentRightGain;
-        }
-    };
 };
-namespace quasar
-{
-    namespace colours
-    {
-        const juce::Colour enabled {0xff7391ff};
-        const juce::Colour groove {0xff000000};
-        const juce::Colour disabled {0xff555555};
-        const juce::Colour staticText {0xffd3d3d3};
-        const juce::Colour labelBackground {0xff17171a};
-        const juce::Colour audioSignal {0xff4d76ff};
-    }
-}
 
 class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener
 {
@@ -214,6 +182,32 @@ public:
     void parameterChanged(const juce::String& parameterID, float newValue)
     {
         parametersNeedUpdate = true;
+    };
+    juce::Path createBezierPath(const std::vector<juce::Point<float>>& points)
+    {
+        juce::Path p {};
+        size_t a = points.size();
+
+        static constexpr float BEZIER_SCALE = 1.0f / 6.0f;
+        p.startNewSubPath(points[0]);
+        p.lineTo(points[1]);
+
+        for (size_t i = 1; i < 33; ++i)
+        {
+            const auto& p0 = points[i - 1];
+            const auto& p1 = points[i];
+            const auto& p2 = points[i + 1];
+            const auto& p3 = points[i + 2];
+            const juce::Point<float> cp1 = p1 + (p2 - p0) * BEZIER_SCALE;
+            const juce::Point<float> cp2 = p2 - (p3 - p1) * BEZIER_SCALE;
+            p.cubicTo(cp1, cp2, p2);
+        }
+
+        for (size_t i = 32; i < a; ++i)
+        {
+            p.lineTo(points[i]);
+        }
+        return p;
     };
     void paint(juce::Graphics& g) override
     {
@@ -259,8 +253,8 @@ public:
         g.setFillType(juce::FillType(quasar::colours::audioSignal.withAlpha(0.3f)));
         g.fillPath(responseCurvePath);
         g.restoreState();
-        const float high = 6.0f;
-        const float low = -18.0f;
+        const float high = 12.0f;
+        const float low = -36.0f;
         const float lClamped = juce::jlimit(low, high, localPath.leftDB);
         const float rClamped = juce::jlimit(low, high, localPath.rightDB);
         const int leftY = juce::roundToInt(juce::jmap(lClamped, low, high, getLevelMeterArea().toFloat().getBottom(), getLevelMeterArea().toFloat().getY()));
@@ -495,14 +489,14 @@ private:
     };
     juce::Image gridCache;
     static constexpr int labelBorderSize = 48;
-    static constexpr float METER_MAX = 6.0f;
-    static constexpr float METER_MIN = -18.0f;
+    static constexpr float METER_MAX = 12.0f;
+    static constexpr float METER_MIN = -36.0f;
     static constexpr float MIN_HZ = 20.0f;
     static constexpr float MAX_HZ = 20000.0f;
     static constexpr float EDITOR_MIN_DBFS = -24.0f;
     static constexpr float EDITOR_MAX_DBFS = 24.0f;
     const std::vector<float> editorDBs = {24.0f, 18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f};
-    const std::vector<float> meterDBs = {6.0f, 3.0f, 0.0f, -3.0f, -6.0f, -9.0f, -12.0f, -15.0f, -18.0f};
+    const std::vector<float> meterDBs = {12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f, -30.0f, -36.0f};
     const std::vector<float> frequencies = {20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f};
     void resized() override
     {
@@ -567,55 +561,29 @@ private:
         a.removeFromRight(margin * 6);
         return a;
     }
-    juce::Path createBezierPath(const std::vector<juce::Point<float>>& points)
-    {
-        const size_t numPoints = points.size();
-        const size_t a = 255;
-
-        const size_t b = 0;
-        if ((numPoints < 2))
-        {
-            return juce::Path {};
-        }
-        static constexpr float BEZIER_SCALE = 1.0f / 6.0f;
-        juce::Path p {};
-        p.startNewSubPath(points[b]);
-        p.lineTo(points[b + 1]);
-        for (size_t i = b + 1; i < a - 2; ++i)
-        {
-            const auto& p0 = points[i - 1];
-            const auto& p1 = points[i];
-            const auto& p2 = points[i + 1];
-            const auto& p3 = points[i + 2];
-            const juce::Point<float> cp1 = p1 + (p2 - p0) * BEZIER_SCALE;
-            const juce::Point<float> cp2 = p2 - (p3 - p1) * BEZIER_SCALE;
-            p.cubicTo(cp1, cp2, p2);
-        }
-        p.lineTo(points[a - 1]);
-        for (size_t i = a; i < 509; ++i)
-        {
-            p.lineTo(points[i]);
-        }
-        return p;
-    };
+    
     void calculateResponseCurve()
     {
         const int curveSize = getCurveArea().getWidth();
-        const float minHz = MIN_HZ;
-        const float maxHz = MAX_HZ;
         double sr = audioProcessor.getSampleRate();
-        responseCurveMagnitude.clear();
-        responseCurveMagnitude.resize(curveSize, 0.0f);
-        auto coefsBuffer = audioProcessor.getCurrentCoefficients();
+        responseCurveMagnitude.assign(curveSize, 0.0f);
+
+        auto svfParamsList = audioProcessor.getSvfParams();
+
         for (int i = 0; i < curveSize; ++i)
         {
             float normalizedX = (float)i / (float)(curveSize - 1);
-            float freqHz = juce::mapToLog10(normalizedX, minHz, maxHz);
+            float freqHz = juce::mapToLog10(normalizedX, (float)MIN_HZ, (float)MAX_HZ);
             float totalGainLinear = 1.0f;
-            for (const auto& coefs : coefsBuffer)
+
+            for (const auto& p : svfParamsList)
             {
-                totalGainLinear *= coefs->getMagnitudeForFrequency(freqHz, sr);
+                zlth::dsp::filter::ZdfSvfFilter tempFilter;
+                tempFilter.update_coefficients(p.type, p.freq, p.q, p.gainDb, (float)sr);
+
+                totalGainLinear *= tempFilter.get_magnitude(freqHz, (float)sr);
             }
+
             responseCurveMagnitude[i] = juce::Decibels::gainToDecibels(totalGainLinear);
         }
         auto bounds = getCurveArea().toFloat();
@@ -656,85 +624,6 @@ private:
 };
 
 
-class CustomLNF: public juce::LookAndFeel_V4
-{
-public:
-    CustomLNF()
-    {
-        setColour(juce::Label::textColourId, quasar::colours::staticText);
-        setColour (juce::Label::backgroundWhenEditingColourId, juce::Colours::black);
-    }
-    void drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider) override
-    {
-        auto center = juce::Rectangle<float>(x, y, w, h).getCentre();
-        auto centerX = center.x;
-        auto centerY = center.y;
-        juce::Path backgroundArc;
-        juce::Path valueArc;
-        juce::Path pointer;
-        auto size = juce::jmin(w, h);
-        auto sliderBounds = juce::Rectangle<float>(size, size);
-        sliderBounds.setCentre(center);
-        sliderBounds = sliderBounds.reduced(5.0f);
-        auto radius = sliderBounds.getWidth() / 2.0f;
-        auto lineThickness = 3.5f;
-        auto toAngle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
-        auto centerAngle = rotaryStartAngle + (rotaryEndAngle - rotaryStartAngle) * 0.5f;
-        g.setColour(quasar::colours::labelBackground);
-        auto knobRadius = radius - lineThickness - 2.0f;
-        g.fillEllipse(sliderBounds.reduced(lineThickness + 2.0f));
-        backgroundArc.addCentredArc(centerX, centerY, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
-        g.setColour(quasar::colours::groove.withAlpha(0.3f));
-        g.strokePath(backgroundArc, juce::PathStrokeType(lineThickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        valueArc.addCentredArc(centerX, centerY, radius, radius, 0.0f, centerAngle, toAngle, true);
-        g.setColour(quasar::colours::enabled);
-        g.strokePath(valueArc, juce::PathStrokeType(lineThickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(juce::Colours::white);
-        auto pointerWidth = 2.0f;
-        auto pointerLength = 6.0f;
-        pointer.addRoundedRectangle(-pointerWidth * 0.5f, -knobRadius, pointerWidth, pointerLength, 1.0f);
-        pointer.applyTransform(juce::AffineTransform::rotation(toAngle).translated(centerX, centerY));
-        g.fillPath(pointer);
-    }
-    void drawComboBox(juce::Graphics& g, int w, int h, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, juce::ComboBox& box) override
-    {
-        const auto color = quasar::colours::labelBackground;
-        const auto bounds = juce::Rectangle<int>(0, 0, w, h).toFloat();
-        g.setColour(color);
-        g.fillRect(bounds);
-    }
-    void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override
-    {
-        label.setBounds(1, 1, box.getWidth() - 2, box.getHeight() - 2);
-        label.setFont(getComboBoxFont(box));
-        label.setJustificationType(juce::Justification::centred);
-    }
-    void drawLinearSlider(juce::Graphics& g, int x, int y, int w, int h, float sliderPos,
-        float minSliderPos, float maxSliderPos, const juce::Slider::SliderStyle style, juce::Slider& slider) override
-    {
-        auto bounds = juce::Rectangle<float>(x, y, w, h).reduced(10.0f, 5.0f);
-        float trackWidth = 6.0f;
-        auto track = bounds.withSizeKeepingCentre(trackWidth, bounds.getHeight());
-        g.setColour(juce::Colours::black.withAlpha(0.3f));
-        g.fillRoundedRectangle(track, trackWidth * 0.5f);
-        float zeroPos = (minSliderPos + maxSliderPos) * 0.5f;
-        auto top = juce::jmin(zeroPos, sliderPos);
-        auto bottom = juce::jmax(zeroPos, sliderPos);
-        auto valueRect = track.withTop(top).withBottom(bottom);
-        g.setColour(quasar::colours::enabled);
-        g.fillRoundedRectangle(valueRect, trackWidth * 0.5f);
-        auto thumbHeight = 12.0f;
-        auto thumbWidth = 20.0f;
-        auto thumbRect = juce::Rectangle<float>(thumbWidth, thumbHeight);
-        thumbRect.setCentre(track.getCentreX(), sliderPos);
-        g.setColour(quasar::colours::labelBackground);
-        g.fillRoundedRectangle(thumbRect, 2.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.8f));
-        g.drawRoundedRectangle(thumbRect, 2.0f, 1.0f);
-        g.setColour(juce::Colours::white);
-        g.fillRect(thumbRect.withSizeKeepingCentre(thumbWidth * 0.6f, 1.5f));
-    }
-};
 
 
 class QuasarEQAudioProcessorEditor: public juce::AudioProcessorEditor
@@ -755,10 +644,11 @@ public:
             {BinaryData::hs_svg, BinaryData::hs_svgSize},
             {BinaryData::lp_svg, BinaryData::lp_svgSize},
             {BinaryData::ls_svg, BinaryData::ls_svgSize},
-            {BinaryData::peak_svg, BinaryData::peak_svgSize}
+            {BinaryData::peak_svg, BinaryData::peak_svgSize},
+            {BinaryData::tilt_svg, BinaryData::tilt_svgSize}
         };
 
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             auto btn = std::make_unique<CustomIconButton>(icons[i].data, icons[i].size);
             btn->setRadioGroupId(1001);
@@ -776,7 +666,7 @@ public:
 
         visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
 
-        pluginInfoLabel.setText("Quasar EQ", juce::dontSendNotification);
+        pluginInfoLabel.setText("Quasar EQ 2", juce::dontSendNotification);
         pluginInfoLabel.setJustificationType(juce::Justification::centredLeft);
         pluginInfoLabel.setFont(16.0f);
         gainSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
@@ -787,7 +677,7 @@ public:
         outGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, ID_GAIN, gainSlider);
         setSize(657, windowHeight);
     };
-    QuasarEQAudioProcessorEditor::~QuasarEQAudioProcessorEditor()
+    ~QuasarEQAudioProcessorEditor()
     {
         setLookAndFeel(nullptr);
     }
@@ -812,9 +702,9 @@ public:
         pluginInfoLabel.setBounds(top.reduced(margin));
 
         uop.reduce(margin, margin);
-        uop.removeFromRight(uop.getWidth() / 1.5f);
-        int btnW = uop.getWidth() / 5;
-
+        uop.removeFromRight(uop.getWidth() / 1.75f);
+        const int numButtons = static_cast<int>(paletteButtons.size());
+        int btnW = uop.getWidth() / numButtons;
         for (auto& btn : paletteButtons)
         {
             if (btn)
