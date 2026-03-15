@@ -13,29 +13,22 @@ juce::AudioProcessorEditor* QuasarEQAudioProcessor::createEditor()
 
 juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::createParameterLayout() const
 {
-
     static const juce::String UNIT_HZ {"Hz"};
     static const juce::String UNIT_DB {"dB"};
-
     static constexpr bool BYPASS_DEFAULT = true;
-
     static constexpr int TYPE_DEFAULT = 4;
-
     static constexpr float FREQ_START = 20.0f;
     static constexpr float FREQ_END = 20000.0f;
     static constexpr float FREQ_INTERVAL = 0.1f;
     static const float FREQ_CENTRE = sqrt(FREQ_START * FREQ_END);
-
     static constexpr float GAIN_START = -24.0f;
     static constexpr float GAIN_END = 24.0f;
     static constexpr float GAIN_INTERVAL = 0.01f;
     static constexpr float GAIN_CENTRE = 0.0f;
-
     static constexpr float QUAL_START = 0.05f;
     static constexpr float QUAL_END = 12.0f;
     static constexpr float QUAL_INTERVAL = 0.001f;
     static constexpr float QUAL_CENTRE = 1.0f / juce::MathConstants<float>::sqrt2;
-
     juce::NormalisableRange<float> gainRange {GAIN_START, GAIN_END, GAIN_INTERVAL};
     juce::NormalisableRange<float> freqRange {FREQ_START, FREQ_END, FREQ_INTERVAL};
     juce::NormalisableRange<float> qualRange {QUAL_START, QUAL_END, QUAL_INTERVAL};
@@ -85,7 +78,9 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         buffer.clear(i, 0, buffer.getNumSamples());
     }
     if (auto flags = updateFlags.exchange(0))
+    {
         updateFilters(flags);
+    }
 
     auto* leftChannel = buffer.getWritePointer(0);
     auto* rightChannel = buffer.getWritePointer(1);
@@ -97,7 +92,6 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
             filters[i].process(leftChannel[s], rightChannel[s]);
         }
     }
-
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> context(block);
     outGain.process(context);
@@ -120,7 +114,7 @@ void QuasarEQAudioProcessor::updateFilters(uint32_t flags)
             const auto f = loadBandParam(ID_PREFIX_FREQ);
             const auto q = loadBandParam(ID_PREFIX_QUAL);
             const auto gain = loadBandParam(ID_PREFIX_GAIN);
-            const auto type = static_cast<zlth::dsp::filter::ZdfSvfFilter::Type>((int)loadBandParam(ID_PREFIX_TYPE));
+            const auto type = static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::FilterType>((int)loadBandParam(ID_PREFIX_TYPE));
 
             filters[i].left.update_coefficients(type, f, q, gain, sr);
             filters[i].right.update_coefficients(type, f, q, gain, sr);
@@ -130,7 +124,7 @@ void QuasarEQAudioProcessor::updateFilters(uint32_t flags)
     if (shouldUpdateGlobal(flags))
     {
         const auto g = apvts.getRawParameterValue(ID_GAIN)->load();
-        outGain.get<0>().setGainDecibels(g);
+        outGain.setGainDecibels(g);
     }
 }
 
@@ -203,7 +197,7 @@ std::vector<SvfParams> QuasarEQAudioProcessor::getSvfParams() const
         if (bypass < 0.5f)
         {
             params.push_back({
-                static_cast<zlth::dsp::filter::ZdfSvfFilter::Type>((int)apvts.getRawParameterValue(Params::getID(ID_PREFIX_TYPE, i))->load()),
+                static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::FilterType>((int)apvts.getRawParameterValue(Params::getID(ID_PREFIX_TYPE, i))->load()),
                 apvts.getRawParameterValue(Params::getID(ID_PREFIX_FREQ, i))->load(),
                 apvts.getRawParameterValue(Params::getID(ID_PREFIX_QUAL, i))->load(),
                 apvts.getRawParameterValue(Params::getID(ID_PREFIX_GAIN, i))->load()

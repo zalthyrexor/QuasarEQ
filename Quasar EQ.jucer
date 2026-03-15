@@ -1,21 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="A71OhK" name="Quasar EQ 2" projectType="audioplug" useAppConfig="0"
+<JUCERPROJECT id="A71OhK" name="Quasar EQ 3" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyName="Zalthyrexor"
               pluginVST3Category="EQ" pluginManufacturerCode="Zlth" companyCopyright="Copyright (c) 2026 Zalthyrexor"
-              cppLanguageStandard="20" version="1.1.0" pluginCode="Z7ya" pluginFormats="buildVST3">
-  <MAINGROUP id="HFHuMF" name="Quasar EQ 2">
+              cppLanguageStandard="20" version="1.2.0" pluginCode="G5af" pluginFormats="buildStandalone">
+  <MAINGROUP id="HFHuMF" name="Quasar EQ 3">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
+      <GROUP id="{201A037D-7962-C3BC-25C2-A5136CA7E78B}" name="zlth">
+        <FILE id="R93In1" name="zlth_ui_colors.h" compile="0" resource="0"
+              file="Source/zlth_ui_colors.h"/>
+        <FILE id="RlPMqQ" name="zlth_dsp_filter.h" compile="0" resource="0"
+              file="Source/zlth_dsp_filter.h"/>
+        <FILE id="eP5yng" name="zlth_dsp_window_coefficients.h" compile="0"
+              resource="0" file="Source/zlth_dsp_window_coefficients.h"/>
+        <FILE id="mIpJE1" name="zlth_dsp_window.h" compile="0" resource="0"
+              file="Source/zlth_dsp_window.h"/>
+        <FILE id="o96eJW" name="zlth_dsp_fft.h" compile="0" resource="0" file="Source/zlth_dsp_fft.h"/>
+        <FILE id="KLtBHD" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
+        <FILE id="uKejzG" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
+      </GROUP>
+      <FILE id="s9YH2g" name="Ballistics.h" compile="0" resource="0" file="Source/Ballistics.h"/>
+      <FILE id="hIpOaE" name="PathProducer.h" compile="0" resource="0" file="Source/PathProducer.h"/>
       <FILE id="C5yINs" name="lnf.h" compile="0" resource="0" file="Source/lnf.h"/>
-      <FILE id="RlPMqQ" name="zlth_dsp_filter.h" compile="0" resource="0"
-            file="Source/zlth_dsp_filter.h"/>
-      <FILE id="eP5yng" name="zlth_dsp_window_coefficients.h" compile="0"
-            resource="0" file="Source/zlth_dsp_window_coefficients.h"/>
-      <FILE id="mIpJE1" name="zlth_dsp_window.h" compile="0" resource="0"
-            file="Source/zlth_dsp_window.h"/>
-      <FILE id="o96eJW" name="zlth_dsp_fft.h" compile="0" resource="0" file="Source/zlth_dsp_fft.h"/>
-      <FILE id="KLtBHD" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
-      <FILE id="uKejzG" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
       <FILE id="mGPiuF" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
       <FILE id="dcUU1B" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
@@ -23,6 +29,8 @@
             file="Source/PluginProcessor.h"/>
     </GROUP>
     <GROUP id="{ED093CFC-DB92-2216-7E5B-9D0ED01EEC31}" name="Resources">
+      <FILE id="IRi9NL" name="bp.svg" compile="0" resource="1" file="Resources/bp.svg"/>
+      <FILE id="rm79L3" name="notch.svg" compile="0" resource="1" file="Resources/notch.svg"/>
       <FILE id="T4GVHz" name="hp.svg" compile="0" resource="1" file="Resources/hp.svg"/>
       <FILE id="VUNkZY" name="hs.svg" compile="0" resource="1" file="Resources/hs.svg"/>
       <FILE id="C0dAig" name="lp.svg" compile="0" resource="1" file="Resources/lp.svg"/>
@@ -52,8 +60,8 @@
   <EXPORTFORMATS>
     <VS2022 targetFolder="Builds/VisualStudio2022">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar EQ 2"/>
-        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar EQ 2"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar EQ 3"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar EQ 3"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../juce-8.0.10-windows/JUCE/modules"/>

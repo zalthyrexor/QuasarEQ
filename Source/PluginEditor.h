@@ -1,154 +1,9 @@
 #pragma once
+
 #include <JuceHeader.h>
-#include "PluginProcessor.h"
-#include <vector>
-#include "zlth_fifo.h"
-#include "zlth_dsp_fft.h"
-#include "zlth_dsp_window.h"
-#include "zlth_dsp_window_coefficients.h"
-#include "zlth_simd.h"
 #include "lnf.h"
-
-struct SpectrumRenderData
-{
-    std::vector<float> spectrumPath;
-    std::vector<float> peakHoldPath;
-    float leftDB = -100.0f;
-    float rightDB = -100.0f;
-};
-
-class PathProducer
-{
-public:
-    PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf): channelFifoL(&leftScsf), channelFifoR(&rightScsf)
-    {
-        fftBuffer.setSize(1, FFT_SIZE, false, true, true);
-        monoBufferL.setSize(1, FFT_SIZE, false, true, true);
-        monoBufferR.setSize(1, FFT_SIZE, false, true, true);
-        decibelsPeak.assign(FFT_SIZE_HALF, -100.0f);
-        gainsBuffer.assign(FFT_SIZE_HALF, 0.0f);
-        windowTable.assign(FFT_SIZE, 0.0f);
-        decibelsCurrent.assign(FFT_SIZE_HALF, 0.0f);
-        zlth::dsp::window::fill_window(windowTable, zlth::dsp::window::coefficients::blackman_harris_92);
-        zlth::simd::multiply(windowTable, windowTable.size() / std::accumulate(windowTable.begin(), windowTable.end(), 0.0));
-        for (int i = 0; i < 32; ++i)
-        {
-            auto& data = pathFifo.getBufferAt(i);
-            data.spectrumPath.assign(FFT_SIZE_HALF, -100.0f);
-            data.peakHoldPath.assign(FFT_SIZE_HALF, -100.0f);
-        }
-    }
-    void process(double sampleRate)
-    {
-        juce::AudioBuffer<float> incomingBufferL, incomingBufferR;
-        while (channelFifoL->getNumCompleteBuffersAvailable() > 0 && channelFifoR->getNumCompleteBuffersAvailable() > 0)
-        {
-            if (channelFifoL->getAudioBuffer(incomingBufferL) && channelFifoR->getAudioBuffer(incomingBufferR))
-            {
-                const int originalIncomingSize = incomingBufferL.getNumSamples();
-                decibelLCurrent = juce::Decibels::gainToDecibels(incomingBufferL.getMagnitude(0, 0, originalIncomingSize));
-                decibelRCurrent = juce::Decibels::gainToDecibels(incomingBufferR.getMagnitude(0, 0, originalIncomingSize));
-                const int useSize = std::min(originalIncomingSize, FFT_SIZE);
-                const int sourceOffset = originalIncomingSize - useSize;
-
-                const int copySize = FFT_SIZE - useSize;
-
-                if (copySize > 0)
-                {
-                    monoBufferL.copyFrom(0, 0, monoBufferL.getReadPointer(0, useSize), copySize);
-                    monoBufferR.copyFrom(0, 0, monoBufferR.getReadPointer(0, useSize), copySize);
-                }
-
-                monoBufferL.copyFrom(0, copySize, incomingBufferL.getReadPointer(0, sourceOffset), useSize);
-                monoBufferR.copyFrom(0, copySize, incomingBufferR.getReadPointer(0, sourceOffset), useSize);
-
-                auto destSpan = std::span(fftBuffer.getWritePointer(0), static_cast<size_t>(fftBuffer.getNumSamples()));
-                auto s1Span = std::span(monoBufferL.getReadPointer(0), static_cast<size_t>(monoBufferL.getNumSamples()));
-                auto s2Span = std::span(monoBufferR.getReadPointer(0), static_cast<size_t>(monoBufferR.getNumSamples()));
-                zlth::simd::average_two_buffers(destSpan, s1Span, s2Span);
-                zlth::simd::multiply_two_buffers(destSpan, std::span(windowTable));
-                auto fullDestSpan = std::span(fftBuffer.getWritePointer(0), static_cast<size_t>(fftBuffer.getNumSamples()));
-                auto magnitudesSpan = fft.performFFT(fullDestSpan.first<FFT_SIZE>());
-                const float dt = static_cast<float>(originalIncomingSize) / sampleRate;
-                const float peakFall = 15.0f * dt;
-                const float meterFall = 50 * dt;
-                const float releaseSpeedFactor = 1.0f - std::exp(-dt * 50);
-                for (size_t i = 0; i < gainsBuffer.size(); ++i)
-                {
-                    const float target = magnitudesSpan[i];
-                    if (target > gainsBuffer[i])
-                    {
-                        gainsBuffer[i] = target;
-                    }
-                    else
-                    {
-                        gainsBuffer[i] += releaseSpeedFactor * (target - gainsBuffer[i]);
-                    }
-                }
-                zlth::simd::gains_to_decibels(std::span(decibelsCurrent), gainsBuffer, -100.0f);
-                zlth::simd::apply_falloff(std::span(decibelsPeak), std::span(decibelsCurrent), peakFall);
-                decibelLSmoothed = juce::jmax(decibelLCurrent, decibelLSmoothed - meterFall);
-                decibelRSmoothed = juce::jmax(decibelRCurrent, decibelRSmoothed - meterFall);
-            }
-        }
-        if (auto* renderData = pathFifo.getWriteBuffer())
-        {
-            std::copy(decibelsCurrent.begin(), decibelsCurrent.end(), renderData->spectrumPath.begin());
-            std::copy(decibelsPeak.begin(), decibelsPeak.end(), renderData->peakHoldPath.begin());
-            renderData->leftDB = decibelLSmoothed;
-            renderData->rightDB = decibelRSmoothed;
-            pathFifo.finishedWrite();
-        }
-    }
-    int getNumPathsAvailable() const
-    {
-        return pathFifo.getNumAvailableForReading();
-    }
-    bool getPath(SpectrumRenderData& path)
-    {
-        if (auto* renderData = pathFifo.getReadBuffer())
-        {
-            path.spectrumPath = renderData->spectrumPath;
-            path.peakHoldPath = renderData->peakHoldPath;
-            path.leftDB = renderData->leftDB;
-            path.rightDB = renderData->rightDB;
-
-            pathFifo.finishedRead();
-            return true;
-        }
-        return false;
-    }
-    std::vector<float> makeFreqLUT(const double sampleRate, const float minHz, const float maxHz) const
-    {
-        std::vector<float> frequencyLUT;
-        frequencyLUT.reserve(FFT_SIZE_HALF);
-        const float binWidth = static_cast<float>(sampleRate / FFT_SIZE);
-        for (int i = 0; i < FFT_SIZE_HALF; ++i)
-        {
-            frequencyLUT.push_back(juce::mapFromLog10((binWidth * i), minHz, maxHz));
-        }
-        return frequencyLUT;
-    }
-private:
-    static constexpr int FFT_ORDER = 12;
-    static constexpr int FFT_SIZE = 1 << FFT_ORDER;
-    static constexpr int FFT_SIZE_HALF = FFT_SIZE >> 1;
-    SingleChannelSampleFifo* channelFifoL;
-    SingleChannelSampleFifo* channelFifoR;
-    juce::AudioBuffer<float> monoBufferL;
-    juce::AudioBuffer<float> monoBufferR;
-    juce::AudioBuffer<float> fftBuffer;
-    std::vector<float> decibelsCurrent;
-    std::vector<float> windowTable;
-    zlth::FFT<FFT_ORDER> fft;
-    std::vector<float> decibelsPeak;
-    std::vector<float> gainsBuffer;
-    float decibelLCurrent = 0.0f;
-    float decibelRCurrent = 0.0f;
-    float decibelLSmoothed = 0.0f;
-    float decibelRSmoothed = 0.0f;
-    Fifo<SpectrumRenderData> pathFifo;
-};
+#include "PluginProcessor.h"
+#include "PathProducer.h"
 
 class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener
 {
@@ -238,19 +93,19 @@ public:
             curvePathPeak.lineTo(spectrumPoints.back().x, getCurveArea().toFloat().getBottom());
             curvePathPeak.lineTo(spectrumPoints[0].x, getCurveArea().toFloat().getBottom());
             curvePathPeak.closeSubPath();
-            g.setColour(quasar::colours::audioSignal.withAlpha(0.45f));
+            g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.45f));
             g.fillPath(curvePathPeak);
         }
         if (peakHoldPoints.size() != 0)
         {
             juce::Path curvePathPeak = createBezierPath(peakHoldPoints);
-            g.setColour(quasar::colours::audioSignal);
-            g.strokePath(curvePathPeak, juce::PathStrokeType(1.3f));
+            g.setColour(juce::Colour(zlth::ui::colors::theme));
+            g.strokePath(curvePathPeak, juce::PathStrokeType(1.5f));
         }
         auto& apvts = audioProcessor.apvts;
-        g.setColour(quasar::colours::enabled);
+        g.setColour(juce::Colour(zlth::ui::colors::theme));
         g.strokePath(responseCurvePath, juce::PathStrokeType(2.5f));
-        g.setFillType(juce::FillType(quasar::colours::audioSignal.withAlpha(0.3f)));
+        g.setFillType(juce::FillType(juce::Colour(zlth::ui::colors::theme).withAlpha(0.3f)));
         g.fillPath(responseCurvePath);
         g.restoreState();
         const float high = 12.0f;
@@ -259,7 +114,7 @@ public:
         const float rClamped = juce::jlimit(low, high, localPath.rightDB);
         const int leftY = juce::roundToInt(juce::jmap(lClamped, low, high, getLevelMeterArea().toFloat().getBottom(), getLevelMeterArea().toFloat().getY()));
         const int rightY = juce::roundToInt(juce::jmap(rClamped, low, high, getLevelMeterArea().toFloat().getBottom(), getLevelMeterArea().toFloat().getY()));
-        g.setColour(quasar::colours::audioSignal.withAlpha(0.45f));
+        g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.55f));
         g.fillRect(juce::Rectangle<int>::leftTopRightBottom(getLevelMeterArea().getX(), leftY, getLevelMeterArea().getX() + (getLevelMeterArea().getWidth() >> 1), getLevelMeterArea().getBottom()));
         g.fillRect(juce::Rectangle<int>::leftTopRightBottom(getLevelMeterArea().getX() + (getLevelMeterArea().getWidth() >> 1), rightY, getLevelMeterArea().getRight(), getLevelMeterArea().getBottom()));
         auto bounds = getCurveArea().toFloat();
@@ -275,11 +130,11 @@ public:
                 float gainDb = apvts.getRawParameterValue(ID_PREFIX_GAIN + index)->load();
                 float x = bounds.getX() + bounds.getWidth() * juce::mapFromLog10(freqHz, MIN_HZ, MAX_HZ);
                 float y = juce::jmap(gainDb, minDb, maxDb, bounds.getBottom(), bounds.getY());
-                g.setColour(quasar::colours::labelBackground);
+                g.setColour(juce::Colour(zlth::ui::colors::textBackground));
                 const int pointSize = 14;
                 const int highLightPointSize = pointSize * 2;
                 g.fillEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize);
-                g.setColour(quasar::colours::staticText);
+                g.setColour(juce::Colour(zlth::ui::colors::text));
                 g.drawEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize, 1.5f);
                 juce::String bandNumber = juce::String(i + 1);
                 const int textHeight = 12;
@@ -535,12 +390,14 @@ private:
         g.fillRect(curveArea);
         g.fillRect(meterArea);
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+
+        g.drawRect(meterArea);
+        g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
         g.drawHorizontalLine(dbToY(0.0f, meterArea, METER_MAX, METER_MIN), meterAreaF.getX(), meterAreaF.getRight());
         g.drawVerticalLine(meterAreaF.getCentreX(), meterAreaF.getY(), meterAreaF.getBottom());
         for (const auto& m : xMarkers)g.drawVerticalLine(m.pos, curveAreaF.getY(), curveAreaF.getBottom());
         for (const auto& m : curveYMarkers)g.drawHorizontalLine(m.pos, curveAreaF.getX(), curveAreaF.getRight());
-        g.drawRect(meterArea);
-        g.setColour(quasar::colours::staticText);
+        g.setColour(juce::Colour(zlth::ui::colors::text));
         g.setFont(FONT_HEIGHT);
         for (const auto& m : xMarkers)drawLabelAt(g, m.text, m.pos, curveArea.getBottom() + margin, labelBorderSize);
         for (const auto& m : curveYMarkers)drawLabelAt(g, m.text, curveArea.getX() - margin, m.pos, labelBorderSize);
@@ -578,7 +435,7 @@ private:
 
             for (const auto& p : svfParamsList)
             {
-                zlth::dsp::filter::ZdfSvfFilter tempFilter;
+                zlth::dsp::filter::ZdfSvf2ndOrder tempFilter;
                 tempFilter.update_coefficients(p.type, p.freq, p.q, p.gainDb, (float)sr);
 
                 totalGainLinear *= tempFilter.get_magnitude(freqHz, (float)sr);
@@ -645,10 +502,12 @@ public:
             {BinaryData::lp_svg, BinaryData::lp_svgSize},
             {BinaryData::ls_svg, BinaryData::ls_svgSize},
             {BinaryData::peak_svg, BinaryData::peak_svgSize},
-            {BinaryData::tilt_svg, BinaryData::tilt_svgSize}
+            {BinaryData::tilt_svg, BinaryData::tilt_svgSize},
+            {BinaryData::notch_svg, BinaryData::notch_svgSize},
+            {BinaryData::bp_svg, BinaryData::bp_svgSize}
         };
 
-        for (int i = 0; i < 6; ++i)
+        for (int i = 0; i < icons.size(); ++i)
         {
             auto btn = std::make_unique<CustomIconButton>(icons[i].data, icons[i].size);
             btn->setRadioGroupId(1001);
@@ -666,8 +525,8 @@ public:
 
         visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
 
-        pluginInfoLabel.setText("Quasar EQ 2", juce::dontSendNotification);
-        pluginInfoLabel.setJustificationType(juce::Justification::centredLeft);
+        pluginInfoLabel.setText("Zalthyrexor - Quasar EQ 3", juce::dontSendNotification);
+        pluginInfoLabel.setJustificationType(juce::Justification::horizontallyCentred);
         pluginInfoLabel.setFont(16.0f);
         gainSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
         gainSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 48, 16);
@@ -675,7 +534,7 @@ public:
         addAndMakeVisible(pluginInfoLabel);
         addAndMakeVisible(gainSlider);
         outGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, ID_GAIN, gainSlider);
-        setSize(657, windowHeight);
+        setSize(windowWidth, windowHeight);
     };
     ~QuasarEQAudioProcessorEditor()
     {
@@ -683,48 +542,50 @@ public:
     }
     void paint(juce::Graphics& g) override
     {
-        g.fillAll(BACKGROUND_COLOR);
+        g.fillAll(juce::Colour(zlth::ui::colors::pluginBackground));
     }
     static constexpr int margin = 4;
-    static constexpr int topSectionH = 38;
-    static constexpr int uopSectionH = 42;
-    static constexpr int midSectionH = 300;
-    static constexpr int botSectionH = 300;
-    static constexpr int windowHeight = margin * 2 + topSectionH + uopSectionH + midSectionH + botSectionH;
+    static constexpr int sectionAHeight = 38;
+    static constexpr int sectionBHeight = 42;
+    static constexpr int sectionCHeight = 300;
+    static constexpr int sectionDHeight = 300;
+    static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
+    static constexpr int windowWidth = 657;
     void resized() override
     {
         juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
-        juce::Rectangle<int> top = mainArea.removeFromTop(topSectionH).reduced(margin);
-        juce::Rectangle<int> uop = mainArea.removeFromTop(uopSectionH).reduced(margin);
-        juce::Rectangle<int> mid = mainArea.removeFromTop(midSectionH).reduced(margin);
-        juce::Rectangle<int> bot = mainArea.removeFromTop(botSectionH).reduced(margin);
-        const int sideSize = 55;
-        pluginInfoLabel.setBounds(top.reduced(margin));
-
-        uop.reduce(margin, margin);
-        uop.removeFromRight(uop.getWidth() / 1.75f);
+        juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
+        juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
+        juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight).reduced(margin);
+        juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight).reduced(margin);
+        pluginInfoLabel.setBounds(sectionA.reduced(margin));
+        sectionB.reduce(margin, margin);
+        sectionB.removeFromRight(60);
+        auto amount = sectionB.getWidth() * 0.19;
+        sectionB.removeFromRight(amount);
+        sectionB.removeFromLeft(amount);
         const int numButtons = static_cast<int>(paletteButtons.size());
-        int btnW = uop.getWidth() / numButtons;
+        int btnW = sectionB.getWidth() / numButtons;
         for (auto& btn : paletteButtons)
         {
             if (btn)
-                btn->setBounds(uop.removeFromLeft(btnW).reduced(1));
+            {
+                btn->setBounds(sectionB.removeFromLeft(btnW).reduced(1));
+            }
         }
-
-        visualizerComponent.setBounds(mid);
-        gainSlider.setBounds(bot.removeFromRight(20 * 3).reduced(margin));
-        bot.reduce(margin, margin);
-        const int bandWidth = bot.getWidth() / NUM_BANDS;
+        visualizerComponent.setBounds(sectionC);
+        gainSlider.setBounds(sectionD.removeFromRight(20 * 3).reduced(margin));
+        sectionD.reduce(margin, margin);
+        const int bandWidth = sectionD.getWidth() / NUM_BANDS;
         for (int i = 0; i < NUM_BANDS; ++i)
         {
             if (bandControls[i])
             {
-                bandControls[i]->setBounds(bot.removeFromLeft(bandWidth));
+                bandControls[i]->setBounds(sectionD.removeFromLeft(bandWidth));
             }
         }
     };
 private:
-    const juce::Colour BACKGROUND_COLOR = juce::Colour(juce::uint8(40), juce::uint8(42), juce::uint8(50));
     class CustomSlider: public juce::Slider { public:void mouseDoubleClick (const juce::MouseEvent& event) override {}; };
     class CustomButton: public juce::Button
     {
@@ -733,13 +594,13 @@ private:
         void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override
         {
             const auto isBypass = getToggleState();
-            const auto color = isBypass ? quasar::colours::enabled : quasar::colours::disabled;
+            const auto color = isBypass ? juce::Colour(zlth::ui::colors::theme) : juce::Colour(zlth::ui::colors::buttonDisabled);
             auto bounds = getLocalBounds().toFloat();
             g.setColour(juce::Colours::black);
             g.fillRect(bounds);
             g.setColour(color);
             g.drawRect(bounds, 2.0f);
-            g.setFont(12.0f);
+            g.setFont(13.0f);
             g.drawText("Bypass", getLocalBounds(), juce::Justification::centred);
         }
         void mouseEnter(const juce::MouseEvent& event) override
@@ -820,7 +681,12 @@ private:
             g.fillRect(bounds);
             if (getToggleState())
             {
-                g.setColour(quasar::colours::enabled);
+                g.setColour(juce::Colour(zlth::ui::colors::theme));
+                g.drawRect(bounds, 2.0f);
+            }
+            else {
+
+                g.setColour(juce::Colour(zlth::ui::colors::buttonDisabled));
                 g.drawRect(bounds, 1.0f);
             }
             if (drawable != nullptr)

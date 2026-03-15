@@ -1,11 +1,12 @@
 #pragma once
+
 #include <JuceHeader.h>
 #include "zlth_fifo.h"
 #include "zlth_dsp_filter.h"
 
 struct SvfParams
 {
-    zlth::dsp::filter::ZdfSvfFilter::Type type;
+    zlth::dsp::filter::ZdfSvf2ndOrder::FilterType type;
     float freq, q, gainDb;
 };
 
@@ -17,7 +18,7 @@ static inline const juce::String ID_PREFIX_QUAL {"Q"};
 static inline const juce::String ID_PREFIX_TYPE {"Type"};
 static inline const juce::String ID_PREFIX_BYPASS {"Bypass"};
 
-static inline const juce::StringArray filterTags {"LowCut", "HighShelf", "HighCut", "LowShelf", "Peak", "Tilt"};
+static inline const juce::StringArray filterTags {"LowCut", "HighShelf", "HighCut", "LowShelf", "Peak", "Tilt", "Notch", "BandPass"};
 static inline const juce::StringArray bandParamPrefixes = {ID_PREFIX_FREQ, ID_PREFIX_GAIN, ID_PREFIX_QUAL, ID_PREFIX_TYPE, ID_PREFIX_BYPASS};
 
 static constexpr int NUM_BANDS = 8;
@@ -68,7 +69,7 @@ private:
     static constexpr uint32_t GLOBAL_PARAMS_MASK = (1u << NUM_BANDS);
     static constexpr uint32_t ALL_UPDATE_MASK = ALL_BANDS_MASK | GLOBAL_PARAMS_MASK;
 
-    juce::dsp::ProcessorChain<juce::dsp::Gain<float>> outGain;
+    juce::dsp::Gain<float> outGain;
     std::atomic<uint32_t> updateFlags {ALL_UPDATE_MASK};
 
     void updateFilters(uint32_t flags);
@@ -78,14 +79,14 @@ private:
 
     struct StereoSvf
     {
-        zlth::dsp::filter::ZdfSvfFilter left, right;
+        zlth::dsp::filter::ZdfSvf2ndOrder left, right;
         bool bypassed = false;
 
         void process(float& l, float& r)
         {
             if (bypassed) return;
-            l = left.process_sample(l);
-            r = right.process_sample(r);
+            l = static_cast<float>(left.process_sample(static_cast<double>(l)));
+            r = static_cast<float>(right.process_sample(static_cast<double>(r)));
         }
     };
 
