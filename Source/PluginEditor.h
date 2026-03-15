@@ -58,10 +58,8 @@ public:
                     monoBufferL.copyFrom(0, 0, monoBufferL.getReadPointer(0, useSize), copySize);
                     monoBufferR.copyFrom(0, 0, monoBufferR.getReadPointer(0, useSize), copySize);
                 }
-
                 monoBufferL.copyFrom(0, copySize, incomingBufferL.getReadPointer(0, sourceOffset), useSize);
                 monoBufferR.copyFrom(0, copySize, incomingBufferR.getReadPointer(0, sourceOffset), useSize);
-
                 auto destSpan = std::span(fftBuffer.getWritePointer(0), static_cast<size_t>(fftBuffer.getNumSamples()));
                 auto s1Span = std::span(monoBufferL.getReadPointer(0), static_cast<size_t>(monoBufferL.getNumSamples()));
                 auto s2Span = std::span(monoBufferR.getReadPointer(0), static_cast<size_t>(monoBufferR.getNumSamples()));
@@ -76,14 +74,9 @@ public:
                 for (size_t i = 0; i < gainsBuffer.size(); ++i)
                 {
                     const float target = magnitudesSpan[i];
-                    if (target > gainsBuffer[i])
-                    {
-                        gainsBuffer[i] = target;
-                    }
-                    else
-                    {
-                        gainsBuffer[i] += releaseSpeedFactor * (target - gainsBuffer[i]);
-                    }
+                    const float current = gainsBuffer[i];
+                    const float releaseValue = current + releaseSpeedFactor * (target - current);
+                    gainsBuffer[i] = std::max(target, releaseValue);
                 }
                 zlth::simd::gains_to_decibels(std::span(decibelsCurrent), gainsBuffer, -100.0f);
                 zlth::simd::apply_falloff(std::span(decibelsPeak), std::span(decibelsCurrent), peakFall);
@@ -583,7 +576,6 @@ private:
 
                 totalGainLinear *= tempFilter.get_magnitude(freqHz, (float)sr);
             }
-
             responseCurveMagnitude[i] = juce::Decibels::gainToDecibels(totalGainLinear);
         }
         auto bounds = getCurveArea().toFloat();
@@ -593,7 +585,6 @@ private:
         responseCurvePath.startNewSubPath(getLocalBounds().toFloat().getX(), getLocalBounds().toFloat().getCentreY());
         for (size_t i = 0; i < responseCurveMagnitude.size(); ++i)
         {
-
             float magnitudeDb = responseCurveMagnitude[i];
             float normalizedX = (float)i / (float)(responseCurveMagnitude.size() - 1);
             float x = bounds.getX() + bounds.getWidth() * normalizedX;
@@ -623,9 +614,6 @@ private:
     std::vector<float> responseCurveMagnitude;
 };
 
-
-
-
 class QuasarEQAudioProcessorEditor: public juce::AudioProcessorEditor
 {
 public:
@@ -637,7 +625,6 @@ public:
             bandControls.push_back(std::make_unique<FilterBandControl>(audioProcessor.apvts, i));
             addAndMakeVisible(*bandControls.back());
         }
-
         struct IconData { const char* data; int size; };
         std::vector<IconData> icons = {
             {BinaryData::hp_svg, BinaryData::hp_svgSize},
@@ -647,7 +634,6 @@ public:
             {BinaryData::peak_svg, BinaryData::peak_svgSize},
             {BinaryData::tilt_svg, BinaryData::tilt_svgSize}
         };
-
         for (int i = 0; i < 6; ++i)
         {
             auto btn = std::make_unique<CustomIconButton>(icons[i].data, icons[i].size);
@@ -658,14 +644,11 @@ public:
                     if (paletteButtons[i]->getToggleState())
                         selectedFilterType = i;
                 };
-
             addAndMakeVisible(*btn);
             paletteButtons.push_back(std::move(btn));
         }
         paletteButtons[selectedFilterType]->setToggleState(true, juce::dontSendNotification);
-
         visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
-
         pluginInfoLabel.setText("Quasar EQ 2", juce::dontSendNotification);
         pluginInfoLabel.setJustificationType(juce::Justification::centredLeft);
         pluginInfoLabel.setFont(16.0f);
@@ -700,7 +683,6 @@ public:
         juce::Rectangle<int> bot = mainArea.removeFromTop(botSectionH).reduced(margin);
         const int sideSize = 55;
         pluginInfoLabel.setBounds(top.reduced(margin));
-
         uop.reduce(margin, margin);
         uop.removeFromRight(uop.getWidth() / 1.75f);
         const int numButtons = static_cast<int>(paletteButtons.size());
@@ -708,9 +690,10 @@ public:
         for (auto& btn : paletteButtons)
         {
             if (btn)
+            {
                 btn->setBounds(uop.removeFromLeft(btnW).reduced(1));
+            }
         }
-
         visualizerComponent.setBounds(mid);
         gainSlider.setBounds(bot.removeFromRight(20 * 3).reduced(margin));
         bot.reduce(margin, margin);
@@ -840,7 +823,6 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outGainAttachment;
     std::vector<std::unique_ptr<FilterBandControl>> bandControls;
-
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
     int selectedFilterType = 4;
 };

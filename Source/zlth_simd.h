@@ -5,6 +5,7 @@
 #include <span>
 #include <concepts>
 #include <memory>
+#include <cmath>
 
 namespace zlth::simd
 {
@@ -63,10 +64,11 @@ namespace zlth::simd
     }
     static void gains_to_decibels(std::span<float> dest, std::span<const float> src, float minus_infinity_db = -100.0f)
     {
+		const double threshold = 1e-5;
         const size_t count = std::min(dest.size(), src.size());
         const __m512 v_20 = _mm512_set1_ps(20.0f);
         const __m512 v_min_db = _mm512_set1_ps(minus_infinity_db);
-        const __m512 v_threshold = _mm512_set1_ps(1e-5f);
+        const __m512 v_threshold = _mm512_set1_ps(threshold);
         size_t i = 0;
         for (; i + vSize <= count; i += vSize)
         {
@@ -79,7 +81,8 @@ namespace zlth::simd
         }
         for (; i < count; ++i)
         {
-            dest[i] = juce::Decibels::gainToDecibels(src[i], minus_infinity_db);
+            float s = src[i];
+            dest[i] = (s < threshold) ? minus_infinity_db : (20.0f * std::log10(s));
         }
     }
     static void multiply(std::span<float> data, float factor)
