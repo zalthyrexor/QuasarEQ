@@ -91,14 +91,13 @@ namespace zlth
                 }
             }
             const size_t halfN = N / 2;
-            const __m512 vInvN = _mm512_set1_ps(INVERSE_NUM_BINS);
-            for (size_t i = 0; i < halfN; i += 16)
+            for (size_t i = 0; i < halfN; ++i)
             {
-                __m512 r = _mm512_load_ps(&tempR[i]);
-                __m512 im = _mm512_load_ps(&tempI[i]);
-                __m512 magSq = _mm512_add_ps(_mm512_mul_ps(r, r), _mm512_mul_ps(im, im));
-                __m512 mag = _mm512_sqrt_ps(magSq);
-                _mm512_store_ps(&magnitudes[i], _mm512_mul_ps(mag, vInvN));
+                float r = tempR[i];
+                float im = tempI[i];
+                float magSq = (r * r) + (im * im);
+                float mag = std::sqrt(magSq);
+                magnitudes[i] = mag * INVERSE_NUM_BINS;
             }
             return std::span<const float, N / 2>(magnitudes);
         }

@@ -120,7 +120,7 @@ void QuasarEQAudioProcessor::updateFilters(uint32_t flags)
             const auto f = loadBandParam(ID_PREFIX_FREQ);
             const auto q = loadBandParam(ID_PREFIX_QUAL);
             const auto gain = loadBandParam(ID_PREFIX_GAIN);
-            const auto type = static_cast<zlth::dsp::filter::ZdfSvfFilter::Type>((int)loadBandParam(ID_PREFIX_TYPE));
+            const auto type = static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::Type>((int)loadBandParam(ID_PREFIX_TYPE));
 
             filters[i].left.update_coefficients(type, f, q, gain, sr);
             filters[i].right.update_coefficients(type, f, q, gain, sr);
@@ -203,7 +203,7 @@ std::vector<SvfParams> QuasarEQAudioProcessor::getSvfParams() const
         if (bypass < 0.5f)
         {
             params.push_back({
-                static_cast<zlth::dsp::filter::ZdfSvfFilter::Type>((int)apvts.getRawParameterValue(Params::getID(ID_PREFIX_TYPE, i))->load()),
+                static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::Type>((int)apvts.getRawParameterValue(Params::getID(ID_PREFIX_TYPE, i))->load()),
                 apvts.getRawParameterValue(Params::getID(ID_PREFIX_FREQ, i))->load(),
                 apvts.getRawParameterValue(Params::getID(ID_PREFIX_QUAL, i))->load(),
                 apvts.getRawParameterValue(Params::getID(ID_PREFIX_GAIN, i))->load()

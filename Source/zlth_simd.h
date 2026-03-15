@@ -4,24 +4,21 @@
 #include <algorithm>
 #include <span>
 #include <concepts>
-#include <memory>
+#include <cmath>
 
 namespace zlth::simd
 {
-    template<typename T>
-    concept FloatType = std::same_as<T, float>;
-    static constexpr int vSize = sizeof(__m512) / sizeof(float);
+    static constexpr int vSize = 256 / (sizeof(float) * 8);
     static void average_two_buffers(std::span<float> dest, std::span<const float> src1, std::span<const float> src2)
     {
-        __m512 v_half = _mm512_set1_ps(0.5f);
+        const size_t count = std::min({ dest.size(), src1.size(), src2.size() });
+        const __m256 v_half = _mm256_set1_ps(0.5f);
         size_t i = 0;
-        const size_t size = dest.size();
-        const size_t count = std::min({size, src1.size(), src2.size()});
         for (; i + vSize <= count; i += vSize)
         {
-            __m512 s1 = _mm512_loadu_ps(&src1[i]);
-            __m512 s2 = _mm512_loadu_ps(&src2[i]);
-            _mm512_storeu_ps(&dest[i], _mm512_mul_ps(_mm512_add_ps(s1, s2), v_half));
+            __m256 s1 = _mm256_loadu_ps(&src1[i]);
+            __m256 s2 = _mm256_loadu_ps(&src2[i]);
+            _mm256_storeu_ps(&dest[i], _mm256_mul_ps(_mm256_add_ps(s1, s2), v_half));
         }
         for (; i < count; ++i)
         {
@@ -34,9 +31,9 @@ namespace zlth::simd
         size_t i = 0;
         for (; i + vSize <= count; i += vSize)
         {
-            __m512 d = _mm512_loadu_ps(&dest[i]);
-            __m512 s = _mm512_loadu_ps(&src[i]);
-            _mm512_storeu_ps(&dest[i], _mm512_mul_ps(d, s));
+            __m256 d = _mm256_loadu_ps(&dest[i]);
+            __m256 s = _mm256_loadu_ps(&src[i]);
+            _mm256_storeu_ps(&dest[i], _mm256_mul_ps(d, s));
         }
         for (; i < count; ++i)
         {
@@ -46,15 +43,15 @@ namespace zlth::simd
     static void apply_falloff(std::span<float> dest, std::span<const float> src, float fallAmount)
     {
         const size_t count = std::min(dest.size(), src.size());
-        const __m512 v_fall = _mm512_set1_ps(fallAmount);
+        const __m256 v_fall = _mm256_set1_ps(fallAmount);
         size_t i = 0;
         for (; i + vSize <= count; i += vSize)
         {
-            __m512 d = _mm512_loadu_ps(&dest[i]);
-            __m512 s = _mm512_loadu_ps(&src[i]);
-            d = _mm512_sub_ps(d, v_fall);
-            d = _mm512_max_ps(s, d);
-            _mm512_storeu_ps(&dest[i], d);
+            __m256 d = _mm256_loadu_ps(&dest[i]);
+            __m256 s = _mm256_loadu_ps(&src[i]);
+            d = _mm256_sub_ps(d, v_fall);
+            d = _mm256_max_ps(s, d);
+            _mm256_storeu_ps(&dest[i], d);
         }
         for (; i < count; ++i)
         {
@@ -64,20 +61,7 @@ namespace zlth::simd
     static void gains_to_decibels(std::span<float> dest, std::span<const float> src, float minus_infinity_db = -100.0f)
     {
         const size_t count = std::min(dest.size(), src.size());
-        const __m512 v_20 = _mm512_set1_ps(20.0f);
-        const __m512 v_min_db = _mm512_set1_ps(minus_infinity_db);
-        const __m512 v_threshold = _mm512_set1_ps(1e-5f);
-        size_t i = 0;
-        for (; i + vSize <= count; i += vSize)
-        {
-            __m512 s = _mm512_loadu_ps(&src[i]);
-            s = _mm512_max_ps(s, v_threshold);
-            __m512 log_s = _mm512_log10_ps(s);
-            __m512 db = _mm512_mul_ps(v_20, log_s);
-            db = _mm512_max_ps(db, v_min_db);
-            _mm512_storeu_ps(&dest[i], db);
-        }
-        for (; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             dest[i] = juce::Decibels::gainToDecibels(src[i], minus_infinity_db);
         }
@@ -86,18 +70,16 @@ namespace zlth::simd
     {
         const size_t size = data.size();
         if (factor == 1.0f) return;
-        if (factor == 0.0f)
-        {
+        if (factor == 0.0f) {
             std::fill(data.begin(), data.end(), 0.0f);
             return;
         }
         size_t i = 0;
-        __m512 v_factor = _mm512_set1_ps(factor);
-        for (; i <= size - vSize; i += vSize)
+        __m256 v_factor = _mm256_set1_ps(factor);
+        for (; i + vSize <= size; i += vSize)
         {
-            __m512 v_data = _mm512_loadu_ps(&data[i]);
-            v_data = _mm512_mul_ps(v_data, v_factor);
-            _mm512_storeu_ps(&data[i], v_data);
+            __m256 v_data = _mm256_loadu_ps(&data[i]);
+            _mm256_storeu_ps(&data[i], _mm256_mul_ps(v_data, v_factor));
         }
         for (; i < size; ++i)
         {

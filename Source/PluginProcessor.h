@@ -5,7 +5,7 @@
 
 struct SvfParams
 {
-    zlth::dsp::filter::ZdfSvfFilter::Type type;
+    zlth::dsp::filter::ZdfSvf2ndOrder::Type type;
     float freq, q, gainDb;
 };
 
@@ -78,7 +78,7 @@ private:
 
     struct StereoSvf
     {
-        zlth::dsp::filter::ZdfSvfFilter left, right;
+        zlth::dsp::filter::ZdfSvf2ndOrder left, right;
         bool bypassed = false;
 
         void process(float& l, float& r)

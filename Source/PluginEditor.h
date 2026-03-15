@@ -578,7 +578,7 @@ private:
 
             for (const auto& p : svfParamsList)
             {
-                zlth::dsp::filter::ZdfSvfFilter tempFilter;
+                zlth::dsp::filter::ZdfSvf2ndOrder tempFilter;
                 tempFilter.update_coefficients(p.type, p.freq, p.q, p.gainDb, (float)sr);
 
                 totalGainLinear *= tempFilter.get_magnitude(freqHz, (float)sr);
