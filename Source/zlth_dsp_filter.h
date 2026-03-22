@@ -112,4 +112,70 @@ namespace zlth::dsp::filter
         double currentG {0.0};
         double currentK {1.0};
     };
+    class ZdfSvf1stOrder
+    {
+    public:
+        ZdfSvf1stOrder() = default;
+        ~ZdfSvf1stOrder() = default;
+        enum class Type
+        {
+            LowPass = 0,
+            HighPass,
+            LowShelf,
+            HighShelf
+        };
+        void reset() noexcept
+        {
+            s1 = 0.0;
+        }
+        void update_coefficients(Type type, double freqHz, double dbGain, double sampleRate)
+        {
+            double freqSafe = std::min(freqHz, sampleRate * 0.49);
+            double g = std::tan(std::numbers::pi_v<double> *freqSafe / sampleRate);
+            double A = std::pow(10.0, dbGain / 20.0);
+            G = g / (1.0 + g);
+            switch (type)
+            {
+            case Type::LowPass:
+                m0 = 0.0;
+                m1 = 1.0;
+                break;
+            case Type::HighPass:
+                m0 = 1.0;
+                m1 = -1.0;
+                break;
+            case Type::LowShelf:
+                m0 = 1.0;
+                m1 = A - 1.0;
+                break;
+            case Type::HighShelf:
+                m0 = A;
+                m1 = 1.0 - A;
+                break;
+            }
+            currentG = g;
+            currentA = A;
+        }
+        double get_magnitude(const double freqHz, const double sampleRate) const
+        {
+            double w = std::tan(std::numbers::pi_v<double> *freqHz / sampleRate) / currentG;
+            double den = std::sqrt(1.0 + w * w);
+            double real = (m0 + m1);
+            double imag = m0 * w;
+            return std::sqrt(real * real + imag * imag) / den;
+        }
+        double process_sample(const double v0) noexcept
+        {
+            double v1 = (v0 - s1) * G + s1;
+            double y = m0 * v0 + m1 * v1;
+            s1 = 2.0 * v1 - s1;
+            return y;
+        }
+    private:
+        double G {0.0};
+        double m0 {0.0}, m1 {0.0};
+        double s1 {0.0};
+        double currentG {0.0};
+        double currentA {1.0};
+    };
 }
