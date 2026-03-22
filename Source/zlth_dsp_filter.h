@@ -49,13 +49,13 @@ namespace zlth::dsp::filter
             case Type::Peak:
                 k /= sqrtA;
                 m0 = 1.0;
-                m1 = k * (A - 1.0);
+                m1 = -k * (1.0 - A);
                 m2 = 0.0;
                 break;
             case Type::LowShelf:
                 g /= std::sqrt(sqrtA);
                 m0 = 1.0;
-                m1 = k * (sqrtA - 1.0);
+                m1 = -k * (1.0 - sqrtA);
                 m2 = A - 1.0;
                 break;
             case Type::HighShelf:
