@@ -178,9 +178,8 @@ namespace zlth::dsp::filter
         double process_sample(const double v0) noexcept
         {
             double v1 = (v0 - s1) * G + s1;
-            double y = m0 * v0 + m1 * v1;
             s1 = 2.0 * v1 - s1;
-            return y;
+            return m0 * v0 + m1 * v1;
         }
     private:
         double G {0.0};
