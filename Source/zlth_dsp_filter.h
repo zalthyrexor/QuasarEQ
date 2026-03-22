@@ -122,7 +122,8 @@ namespace zlth::dsp::filter
             LowPass = 0,
             HighPass,
             LowShelf,
-            HighShelf
+            HighShelf,
+            Tilt
         };
         void reset() noexcept
         {
@@ -132,8 +133,8 @@ namespace zlth::dsp::filter
         {
             double freqSafe = std::min(freqHz, sampleRate * 0.49);
             double g = std::tan(std::numbers::pi_v<double> *freqSafe / sampleRate);
-            double A = std::pow(10.0, dbGain / 20.0);
-            G = g / (1.0 + g);
+            double sqrtA = std::pow(10.0, dbGain / 40.0);
+            double A = sqrtA * sqrtA;
             switch (type)
             {
             case Type::LowPass:
@@ -145,14 +146,22 @@ namespace zlth::dsp::filter
                 m1 = -1.0;
                 break;
             case Type::LowShelf:
+                g /= sqrtA;
                 m0 = 1.0;
                 m1 = A - 1.0;
                 break;
             case Type::HighShelf:
+                g *= sqrtA;
                 m0 = A;
                 m1 = 1.0 - A;
                 break;
+            case Type::Tilt:
+                g *= A;
+                m0 = A;
+                m1 = 1.0 / A - A;
+                break;
             }
+            G = g / (1.0 + g);
             currentG = g;
             currentA = A;
         }
