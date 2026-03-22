@@ -28,11 +28,12 @@ namespace zlth::dsp::filter
         }
         void update_coefficients(Type type, double freqHz, double Q, double dbGain, double sampleRate)
         {
-            double freqSafe = std::min(freqHz, sampleRate * 0.49);
+            double safeFreq = std::min(freqHz, sampleRate * 0.49);
+            double safeQ = std::max(Q, 0.01);
             double sqrtA = std::pow(10.0, dbGain / 40.0);
             double A = sqrtA * sqrtA;
-            double g = std::tan(std::numbers::pi_v<double> *freqSafe / sampleRate);
-            double k = 1.0 / std::max(Q, 0.01);
+            double g = std::tan(std::numbers::pi_v<double> *safeFreq / sampleRate);
+            double k = 1.0 / safeQ;
             switch (type)
             {
             case Type::LowPass:
