@@ -112,6 +112,7 @@ namespace zlth::dsp::filter
         double currentG {0.0};
         double currentK {1.0};
     };
+
     class ZdfSvf1stOrder
     {
     public:
