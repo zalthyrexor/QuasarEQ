@@ -104,6 +104,12 @@ namespace zlth::dsp::filter
                 m2 = 1.0 / A - A;
                 break;
             }
+            default:
+            {
+                m0 = 1.0;
+                m1 = 0.0;
+                m2 = 0.0;
+            }
             }
             a1 = 1.0 / (1.0 + g * (g + k));
             a2 = g * a1;
@@ -138,3 +144,9 @@ namespace zlth::dsp::filter
         double currentK {1.0};
     };
 }
+
+// In this implementation, square root of linear amplitude represents 10^(dB/40).
+// m0, m1, m2: mixing coefficients for input, band-pass, and low-pass components.
+// Reference:
+// https://gist.github.com/hollance/2891d89c57adc71d9560bcf0e1e55c4b
+// http://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf
