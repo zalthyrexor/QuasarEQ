@@ -18,7 +18,7 @@ static inline const juce::String ID_PREFIX_QUAL {"Q"};
 static inline const juce::String ID_PREFIX_TYPE {"Type"};
 static inline const juce::String ID_PREFIX_BYPASS {"Bypass"};
 
-static inline const juce::StringArray filterTags {"LowCut", "HighShelf", "HighCut", "LowShelf", "Peak", "Tilt", "Notch", "BandPass"};
+static inline const juce::StringArray filterTags {"LowCut", "HighCut", "HighShelf", "LowShelf", "Peak", "Tilt", "Notch", "BandPass"};
 static inline const juce::StringArray bandParamPrefixes = {ID_PREFIX_FREQ, ID_PREFIX_GAIN, ID_PREFIX_QUAL, ID_PREFIX_TYPE, ID_PREFIX_BYPASS};
 
 static constexpr int NUM_BANDS = 8;

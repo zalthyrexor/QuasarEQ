@@ -14,8 +14,8 @@ public:
 private:
     std::vector<IconData> icons {
     {BinaryData::hp_svg, BinaryData::hp_svgSize},
-    {BinaryData::hs_svg, BinaryData::hs_svgSize},
     {BinaryData::lp_svg, BinaryData::lp_svgSize},
+    {BinaryData::hs_svg, BinaryData::hs_svgSize},
     {BinaryData::ls_svg, BinaryData::ls_svgSize},
     {BinaryData::peak_svg, BinaryData::peak_svgSize},
     {BinaryData::tilt_svg, BinaryData::tilt_svgSize},
