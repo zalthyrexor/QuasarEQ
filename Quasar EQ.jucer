@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="A71OhK" name="Quasar EQ 3" projectType="audioplug" useAppConfig="0"
+<JUCERPROJECT id="A71OhK" name="Quasar EQ 4" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyName="Zalthyrexor"
               pluginVST3Category="EQ" pluginManufacturerCode="Zlth" companyCopyright="Copyright (c) 2026 Zalthyrexor"
-              cppLanguageStandard="20" version="1.2.0" pluginCode="G5af" pluginFormats="buildVST3">
-  <MAINGROUP id="HFHuMF" name="Quasar EQ 3">
+              cppLanguageStandard="20" pluginCode="Zx4z" pluginFormats="buildStandalone"
+              version="4.0.0">
+  <MAINGROUP id="HFHuMF" name="Quasar EQ 4">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
       <GROUP id="{201A037D-7962-C3BC-25C2-A5136CA7E78B}" name="zlth">
         <FILE id="R93In1" name="zlth_ui_colors.h" compile="0" resource="0"
@@ -19,9 +20,15 @@
         <FILE id="KLtBHD" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
         <FILE id="uKejzG" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
       </GROUP>
+      <FILE id="Fwkmwv" name="custom_components.h" compile="0" resource="0"
+            file="Source/custom_components.h"/>
+      <FILE id="YMBk0U" name="VisualizerComponent.h" compile="0" resource="0"
+            file="Source/VisualizerComponent.h"/>
       <FILE id="s9YH2g" name="Ballistics.h" compile="0" resource="0" file="Source/Ballistics.h"/>
       <FILE id="hIpOaE" name="PathProducer.h" compile="0" resource="0" file="Source/PathProducer.h"/>
       <FILE id="C5yINs" name="lnf.h" compile="0" resource="0" file="Source/lnf.h"/>
+      <FILE id="RatDeP" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
       <FILE id="mGPiuF" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
       <FILE id="dcUU1B" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
@@ -60,8 +67,8 @@
   <EXPORTFORMATS>
     <VS2022 targetFolder="Builds/VisualStudio2022">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar EQ 3"/>
-        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar EQ 3"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar EQ 4"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar EQ 4"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../juce-8.0.10-windows/JUCE/modules"/>
