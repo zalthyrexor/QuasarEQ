@@ -23,7 +23,6 @@ public:
     {
         fftBuffer.setSize(1, FFT_SIZE, false, true, true);
         monoBufferL.setSize(1, FFT_SIZE, false, true, true);
-        monoBufferR.setSize(1, FFT_SIZE, false, true, true);
         decibelsPeak.assign(FFT_SIZE_HALF, -100.0f);
         windowTable.assign(FFT_SIZE, 0.0f);
         decibelsCurrent.assign(FFT_SIZE_HALF, 0.0f);
@@ -57,16 +56,14 @@ public:
                 if (copySize > 0)
                 {
                     monoBufferL.copyFrom(0, 0, monoBufferL.getReadPointer(0, useSize), copySize);
-                    monoBufferR.copyFrom(0, 0, monoBufferR.getReadPointer(0, useSize), copySize);
                 }
 
                 monoBufferL.copyFrom(0, copySize, incomingBufferL.getReadPointer(0, sourceOffset), useSize);
-                monoBufferR.copyFrom(0, copySize, incomingBufferR.getReadPointer(0, sourceOffset), useSize);
 
                 auto destSpan = std::span(fftBuffer.getWritePointer(0), static_cast<size_t>(fftBuffer.getNumSamples()));
-                auto s1Span = std::span(monoBufferL.getReadPointer(0), static_cast<size_t>(monoBufferL.getNumSamples()));
-                auto s2Span = std::span(monoBufferR.getReadPointer(0), static_cast<size_t>(monoBufferR.getNumSamples()));
-                zlth::simd::average_two_buffers(destSpan, s1Span, s2Span);
+                auto midSpan = std::span(monoBufferL.getReadPointer(0), static_cast<size_t>(monoBufferL.getNumSamples()));
+                std::copy(midSpan.begin(), midSpan.end(), destSpan.begin());
+
                 const float dt = static_cast<float>(originalIncomingSize) / sampleRate;
                 zlth::simd::multiply_two_buffers(destSpan, std::span(windowTable));
                 auto magnitudesSpan = std::span(magnitudesBuffer);
@@ -125,7 +122,6 @@ private:
     SingleChannelSampleFifo* channelFifoL;
     SingleChannelSampleFifo* channelFifoR;
     juce::AudioBuffer<float> monoBufferL;
-    juce::AudioBuffer<float> monoBufferR;
     juce::AudioBuffer<float> fftBuffer;
     std::vector<float> decibelsCurrent;
     std::vector<float> windowTable;

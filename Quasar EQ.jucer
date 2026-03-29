@@ -3,8 +3,7 @@
 <JUCERPROJECT id="A71OhK" name="Quasar EQ 4" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyName="Zalthyrexor"
               pluginVST3Category="EQ" pluginManufacturerCode="Zlth" companyCopyright="Copyright (c) 2026 Zalthyrexor"
-              cppLanguageStandard="20" pluginCode="Zx4z" pluginFormats="buildStandalone"
-              version="4.0.0">
+              cppLanguageStandard="20" pluginCode="Zx4z" version="4.0.0" pluginFormats="buildVST3">
   <MAINGROUP id="HFHuMF" name="Quasar EQ 4">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
       <GROUP id="{201A037D-7962-C3BC-25C2-A5136CA7E78B}" name="zlth">
@@ -22,6 +21,7 @@
       </GROUP>
       <FILE id="Fwkmwv" name="custom_components.h" compile="0" resource="0"
             file="Source/custom_components.h"/>
+      <FILE id="BykYah" name="config.h" compile="0" resource="0" file="Source/config.h"/>
       <FILE id="YMBk0U" name="VisualizerComponent.h" compile="0" resource="0"
             file="Source/VisualizerComponent.h"/>
       <FILE id="s9YH2g" name="Ballistics.h" compile="0" resource="0" file="Source/Ballistics.h"/>

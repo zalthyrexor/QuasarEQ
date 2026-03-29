@@ -23,19 +23,32 @@ private:
     {BinaryData::bp_svg, BinaryData::bp_svgSize}
     };
     static constexpr int margin = 4;
-    static constexpr int sectionAHeight = 38;
+    static constexpr int sectionAHeight = 30;
     static constexpr int sectionBHeight = 42;
     static constexpr int sectionCHeight = 300;
-    static constexpr int sectionDHeight = 300;
+    static constexpr int sectionDHeight = 300+30;
     static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
     static constexpr int windowWidth = 657;
     CustomLNF customLNF;
-    CustomSlider gainSlider;
     QuasarEQAudioProcessor& audioProcessor;
     VisualizerComponent visualizerComponent;
     juce::Label pluginInfoLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outGainAttachment;
+
+    static auto getMasterGainIDs() -> const std::array<juce::String, 2>&
+    {
+        static const std::array<juce::String, 2> ids {
+            ID_GAIN_MID, ID_GAIN_SIDE
+        };
+        return ids;
+    }
+    static inline const std::array<juce::String, 2> masterGainLabels {
+        "M", "S"
+    };
+    std::array<juce::Slider, 2> masterGainSliders;
+    std::array<std::unique_ptr<juce::Label>, 2> masterGainLabelsComponents;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
+
     std::vector<std::unique_ptr<FilterBandControl>> bandControls;
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
     int selectedFilterType = 4;

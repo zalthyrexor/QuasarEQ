@@ -5,7 +5,7 @@
 QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcessor& p) : AudioProcessorEditor(&p), audioProcessor(p), visualizerComponent(p)
 {
     setLookAndFeel(&customLNF);
-    for (int i = 0; i < NUM_BANDS; ++i)
+    for (int i = 0; i < config::BAND_COUNT; ++i)
     {
         bandControls.push_back(std::make_unique<FilterBandControl>(audioProcessor.apvts, i));
         addAndMakeVisible(*bandControls.back());
@@ -27,15 +27,28 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
 
     visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
 
-    pluginInfoLabel.setText("Zalthyrexor - Quasar EQ 4", juce::dontSendNotification);
+    pluginInfoLabel.setText(juce::String("Zalthyrexor - " + juce::String(JucePlugin_Name)).toUpperCase(), juce::dontSendNotification);
     pluginInfoLabel.setJustificationType(juce::Justification::horizontallyCentred);
     pluginInfoLabel.setFont(16.0f);
-    gainSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    gainSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 48, 16);
     addAndMakeVisible(visualizerComponent);
     addAndMakeVisible(pluginInfoLabel);
-    addAndMakeVisible(gainSlider);
-    outGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, ID_GAIN, gainSlider);
+
+    for (int i = 0; i < masterGainSliders.size(); ++i)
+    {
+        auto& slider = masterGainSliders[i];
+        slider.setSliderStyle(juce::Slider::LinearVertical);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 15);
+        addAndMakeVisible(slider);
+
+        auto label = std::make_unique<juce::Label>("", masterGainLabels[i]);
+        label->setJustificationType(juce::Justification::horizontallyCentred);
+        label->setFont(12.0f);
+        addAndMakeVisible(*label);
+        masterGainLabelsComponents[i] = std::move(label);
+
+        masterGainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, getMasterGainIDs()[i], slider));
+    }
+
     setSize(windowWidth, windowHeight);
 }
 QuasarEQAudioProcessorEditor::~QuasarEQAudioProcessorEditor()
@@ -69,10 +82,20 @@ void QuasarEQAudioProcessorEditor::resized()
         }
     }
     visualizerComponent.setBounds(sectionC);
-    gainSlider.setBounds(sectionD.removeFromRight(20 * 3).reduced(margin));
+
+    auto masterSectionArea = sectionD.removeFromRight(60).reduced(margin);
+    int knowbWidth = masterSectionArea.getWidth() / masterGainSliders.size();
+    for (int i = 0; i < masterGainSliders.size(); ++i)
+    {
+        auto area = masterSectionArea.removeFromLeft(knowbWidth);
+        if (masterGainLabelsComponents[i])
+            masterGainLabelsComponents[i]->setBounds(area.removeFromTop(12));
+        masterGainSliders[i].setBounds(area);
+    }
+
     sectionD.reduce(margin, margin);
-    const int bandWidth = sectionD.getWidth() / NUM_BANDS;
-    for (int i = 0; i < NUM_BANDS; ++i)
+    const int bandWidth = sectionD.getWidth() / config::BAND_COUNT;
+    for (int i = 0; i < config::BAND_COUNT; ++i)
     {
         if (bandControls[i])
         {

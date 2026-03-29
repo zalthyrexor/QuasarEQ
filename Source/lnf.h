@@ -58,6 +58,10 @@ public:
         g.setColour(juce::Colours::white.withAlpha(0.3f));
         g.drawRect(bounds);
     }
+    juce::Font getComboBoxFont(juce::ComboBox& box) override
+    {
+        return {13.0f};
+    }
     void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override
     {
         label.setBounds(1, 1, box.getWidth() - 2, box.getHeight() - 2);

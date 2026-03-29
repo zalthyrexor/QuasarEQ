@@ -16,7 +16,7 @@ public:
         g.setColour(color);
         g.drawRect(bounds, 2.0f);
         g.setFont(13.0f);
-        g.drawText("Bypass", getLocalBounds(), juce::Justification::centred);
+        g.drawText(ID_PREFIX_BYPASS, getLocalBounds(), juce::Justification::centred);
     }
     void mouseEnter(const juce::MouseEvent& event) override
     {
@@ -35,11 +35,13 @@ public:
     {
         typeComboBox.setJustificationType(juce::Justification::centred);
         typeComboBox.addItemList(filterTags, 1);
+        modeComboBox.setJustificationType(juce::Justification::centred);
+        modeComboBox.addItemList(channelModes, 1);
         bypassButton.setClickingTogglesState(true);
         for (auto* s : {&freqSlider, &gainSlider, &qSlider})
         {
             s->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-            s->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 48, 16);
+            s->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 54, 16);
         }
         for (auto* c : allComponents)
         {
@@ -51,13 +53,30 @@ public:
         qAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ID_PREFIX_QUAL + index, qSlider);
         typeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ID_PREFIX_TYPE + index, typeComboBox);
         bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ID_PREFIX_BYPASS + index, bypassButton);
+        modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ID_PREFIX_MODE + index, modeComboBox);
     };
     ~FilterBandControl() override {};
+    void paintOverChildren(juce::Graphics& g) override
+    {
+        g.setColour(juce::Colours::white);
+        g.setFont(10.0f);
+        auto drawUnit = [&](juce::Slider& s, const char* unit) {
+            auto b = s.getBounds().toFloat();
+            auto knobArea = b.withTrimmedBottom((float)s.getTextBoxHeight());
+            g.drawText(unit, knobArea.reduced(-2.0f, 4.0f), juce::Justification::bottomRight);
+        };
+
+        drawUnit(freqSlider, "Hz");
+        drawUnit(gainSlider, "dB");
+        drawUnit(qSlider, "Q");
+    }
     void resized() override
     {
         auto bounds = getLocalBounds();
         auto topHeader = bounds.removeFromTop(30);
         bypassButton.setBounds(topHeader.reduced(margin));
+        auto third = bounds.removeFromTop(30);
+        modeComboBox.setBounds(third.reduced(margin));
         auto secHeader = bounds.removeFromTop(30);
         typeComboBox.setBounds(secHeader.reduced(margin));
         bounds.reduce(margin, margin);
@@ -68,12 +87,14 @@ public:
     };
 private:
     static constexpr int margin = 4;
-    std::vector<juce::Component*> allComponents {&typeComboBox, &bypassButton, &freqSlider, &gainSlider, &qSlider};
+    std::vector<juce::Component*> allComponents {&typeComboBox,&modeComboBox, &bypassButton, &freqSlider, &gainSlider, &qSlider};
     CustomButton bypassButton;
     juce::Slider freqSlider;
     juce::Slider gainSlider;
     juce::Slider qSlider;
     juce::ComboBox typeComboBox;
+    juce::ComboBox modeComboBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> freqAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
