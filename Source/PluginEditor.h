@@ -23,10 +23,10 @@ private:
     {BinaryData::bp_svg, BinaryData::bp_svgSize}
     };
     static constexpr int margin = 4;
-    static constexpr int sectionAHeight = 38;
+    static constexpr int sectionAHeight = 30;
     static constexpr int sectionBHeight = 42;
     static constexpr int sectionCHeight = 300;
-    static constexpr int sectionDHeight = 300;
+    static constexpr int sectionDHeight = 300+30;
     static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
     static constexpr int windowWidth = 657;
     CustomLNF customLNF;

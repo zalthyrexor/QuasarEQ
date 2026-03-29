@@ -103,10 +103,18 @@ public:
             g.strokePath(curvePathPeak, juce::PathStrokeType(1.5f));
         }
         auto& apvts = audioProcessor.apvts;
+
+        g.setColour(juce::Colour(zlth::ui::colors::side));
+        g.strokePath(responseCurvePathSide, juce::PathStrokeType(2.0f));
+        //g.setFillType(juce::FillType(juce::Colour(zlth::ui::colors::theme).withAlpha(0.25f)));
+        //g.fillPath(responseCurvePathSide);
+
         g.setColour(juce::Colour(zlth::ui::colors::theme));
-        g.strokePath(responseCurvePath, juce::PathStrokeType(2.5f));
-        g.setFillType(juce::FillType(juce::Colour(zlth::ui::colors::theme).withAlpha(0.3f)));
-        g.fillPath(responseCurvePath);
+        g.strokePath(responseCurvePathMid, juce::PathStrokeType(2.0f));
+        //g.setFillType(juce::FillType(juce::Colour(zlth::ui::colors::theme).withAlpha(0.25f)));
+        //g.fillPath(responseCurvePathMid);
+
+
         g.restoreState();
         const float high = 12.0f;
         const float low = -36.0f;
@@ -115,8 +123,21 @@ public:
         const int leftY = juce::roundToInt(juce::jmap(lClamped, low, high, getLevelMeterArea().toFloat().getBottom(), getLevelMeterArea().toFloat().getY()));
         const int rightY = juce::roundToInt(juce::jmap(rClamped, low, high, getLevelMeterArea().toFloat().getBottom(), getLevelMeterArea().toFloat().getY()));
         g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.55f));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(getLevelMeterArea().getX(), leftY, getLevelMeterArea().getX() + (getLevelMeterArea().getWidth() >> 1), getLevelMeterArea().getBottom()));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(getLevelMeterArea().getX() + (getLevelMeterArea().getWidth() >> 1), rightY, getLevelMeterArea().getRight(), getLevelMeterArea().getBottom()));
+        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(
+            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.25,
+            leftY,
+            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.75,
+            getLevelMeterArea().getBottom()));
+        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(
+            getLevelMeterArea().getX(),
+            rightY,
+            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.25,
+            getLevelMeterArea().getBottom()));
+        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(
+            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.75,
+            rightY,
+            getLevelMeterArea().getX() + getLevelMeterArea().getWidth(),
+            getLevelMeterArea().getBottom()));
         auto bounds = getCurveArea().toFloat();
         const float minDb = -24.0f;
         const float maxDb = 24.0f;
@@ -179,6 +200,8 @@ public:
                         gParam->setValueNotifyingHost(apvts.getParameterRange(ID_PREFIX_GAIN + index).convertTo0to1(gainDb));
                     if (auto* qParam = apvts.getParameter(ID_PREFIX_QUAL + index))
                         qParam->setValueNotifyingHost(qParam->getDefaultValue());
+                    if (auto* cParam = apvts.getParameter(ID_PREFIX_MODE + index))
+                        cParam->setValueNotifyingHost(cParam->getDefaultValue());
                     if (auto* tParam = apvts.getParameter(ID_PREFIX_TYPE + index))
                     {
                         float normalizedValue = 0.0f;
@@ -391,10 +414,14 @@ private:
         g.fillRect(meterArea);
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
 
-        g.drawRect(meterArea);
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
         g.drawHorizontalLine(dbToY(0.0f, meterArea, METER_MAX, METER_MIN), meterAreaF.getX(), meterAreaF.getRight());
-        g.drawVerticalLine(meterAreaF.getCentreX(), meterAreaF.getY(), meterAreaF.getBottom());
+        g.drawHorizontalLine(meterAreaF.getBottom(), meterAreaF.getX(), meterAreaF.getRight());
+        g.drawHorizontalLine(meterAreaF.getY(), meterAreaF.getX(), meterAreaF.getRight());
+        g.drawVerticalLine(meterAreaF.getX(), meterAreaF.getY(), meterAreaF.getBottom());
+        g.drawVerticalLine(meterAreaF.getX() + meterAreaF.getWidth() * 0.25, meterAreaF.getY(), meterAreaF.getBottom());
+        g.drawVerticalLine(meterAreaF.getX() + meterAreaF.getWidth() * 0.75, meterAreaF.getY(), meterAreaF.getBottom());
+        g.drawVerticalLine(meterAreaF.getX() + meterAreaF.getWidth(), meterAreaF.getY(), meterAreaF.getBottom());
         for (const auto& m : xMarkers)g.drawVerticalLine(m.pos, curveAreaF.getY(), curveAreaF.getBottom());
         for (const auto& m : curveYMarkers)g.drawHorizontalLine(m.pos, curveAreaF.getX(), curveAreaF.getRight());
         g.setColour(juce::Colour(zlth::ui::colors::text));
@@ -421,45 +448,40 @@ private:
 
     void calculateResponseCurve()
     {
-        const int curveSize = getCurveArea().getWidth();
-        double sr = audioProcessor.getSampleRate();
-        responseCurveMagnitude.assign(curveSize, 0.0f);
-
-        auto svfParamsList = audioProcessor.getSvfParams();
-
+        int curveSize = getCurveArea().getWidth();
+        double sampleRate = audioProcessor.getSampleRate();
+        auto bounds = getCurveArea().toFloat();
+        auto snapshots = audioProcessor.getFilterSnapshots();
+        responseCurvePathMid.clear();
+        responseCurvePathSide.clear();
         for (int i = 0; i < curveSize; ++i)
         {
             float normalizedX = (float)i / (float)(curveSize - 1);
             float freqHz = juce::mapToLog10(normalizedX, (float)MIN_HZ, (float)MAX_HZ);
-            float totalGainLinear = 1.0f;
+            float magMid = 1.0f;
+            float magSide = 1.0f;
 
-            for (const auto& p : svfParamsList)
+            for (const auto& s : snapshots)
             {
-                zlth::dsp::filter::ZdfSvf2ndOrder tempFilter;
-                tempFilter.update_coefficients(p.type, p.freq, p.q, p.gainDb, (float)sr);
-
-                totalGainLinear *= tempFilter.get_magnitude(freqHz, (float)sr);
+                float m = s.filter.get_magnitude(freqHz, (float)sampleRate);
+                if (s.channelMode == 0 || s.channelMode == 1) magMid *= m;
+                if (s.channelMode == 0 || s.channelMode == 2) magSide *= m;
             }
-
-            responseCurveMagnitude[i] = juce::Decibels::gainToDecibels(totalGainLinear);
-        }
-        auto bounds = getCurveArea().toFloat();
-        const float minDb = EDITOR_MIN_DBFS;
-        const float maxDb = EDITOR_MAX_DBFS;
-        responseCurvePath.clear();
-        responseCurvePath.startNewSubPath(getLocalBounds().toFloat().getX(), getLocalBounds().toFloat().getCentreY());
-        for (size_t i = 0; i < responseCurveMagnitude.size(); ++i)
-        {
-
-            float magnitudeDb = responseCurveMagnitude[i];
-            float normalizedX = (float)i / (float)(responseCurveMagnitude.size() - 1);
+            auto getPointY = [&](float gain) {
+                float db = juce::Decibels::gainToDecibels(gain);
+                return juce::jmap(db, (float)EDITOR_MIN_DBFS, (float)EDITOR_MAX_DBFS, bounds.getBottom(), bounds.getY());
+            };
             float x = bounds.getX() + bounds.getWidth() * normalizedX;
-            float y = juce::jmap(magnitudeDb, minDb, maxDb, bounds.getBottom(), bounds.getY());
-
-            responseCurvePath.lineTo(x, y);
+            if (i == 0) {
+                responseCurvePathMid.startNewSubPath(x, getPointY(magMid));
+                responseCurvePathSide.startNewSubPath(x, getPointY(magSide));
+            }
+            else {
+                responseCurvePathMid.lineTo(x, getPointY(magMid));
+                responseCurvePathSide.lineTo(x, getPointY(magSide));
+            }
         }
-        responseCurvePath.lineTo(getLocalBounds().toFloat().getRight(), getLocalBounds().toFloat().getCentreY());
-    };
+    }
     int draggingBand = -1;
     bool parametersNeedUpdate = true;
     static constexpr float MIN_DBFS = -90.0f;
@@ -475,7 +497,8 @@ private:
     std::vector<juce::Point<float>> peakHoldPoints;
     std::vector<float> freqLUT;
     juce::CriticalSection pathLock;
-    juce::Path responseCurvePath;
+    juce::Path responseCurvePathMid;
+    juce::Path responseCurvePathSide;
     AnalyzerThread analyzerThread;
     std::vector<float> responseCurveMagnitude;
 };

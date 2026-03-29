@@ -27,7 +27,7 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
 
     visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
 
-    pluginInfoLabel.setText("Zalthyrexor - Quasar EQ 4", juce::dontSendNotification);
+    pluginInfoLabel.setText(juce::String("Zalthyrexor - " + juce::String(JucePlugin_Name)).toUpperCase(), juce::dontSendNotification);
     pluginInfoLabel.setJustificationType(juce::Justification::horizontallyCentred);
     pluginInfoLabel.setFont(16.0f);
     gainSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);

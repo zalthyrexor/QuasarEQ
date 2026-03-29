@@ -1,3 +1,3 @@
-![Screenshot](./screenshots/quasar_eq_3.png)
+![Screenshot](./screenshots/screenshot20260330092923.png)
 
-Built with C++20 and JUCE v8.0.10.
+Built with C++20, JUCE 8, and Visual Studio 2022.
