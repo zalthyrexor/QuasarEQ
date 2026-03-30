@@ -144,11 +144,11 @@ public:
         for (int i = 0; i < config::BAND_COUNT; ++i)
         {
             juce::String index = juce::String(i + 1);
-            const auto bypass = apvts.getRawParameterValue(ID_PREFIX_BYPASS + index)->load();
+            const auto bypass = apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load();
             if (bypass < 0.5f)
             {
-                float freqHz = apvts.getRawParameterValue(ID_PREFIX_FREQ + index)->load();
-                float gainDb = apvts.getRawParameterValue(ID_PREFIX_GAIN + index)->load();
+                float freqHz = apvts.getRawParameterValue(ID_BAND_FREQ + index)->load();
+                float gainDb = apvts.getRawParameterValue(ID_BAND_GAIN + index)->load();
                 float x = bounds.getX() + bounds.getWidth() * juce::mapFromLog10(freqHz, MIN_HZ, MAX_HZ);
                 float y = juce::jmap(gainDb, minDb, maxDb, bounds.getBottom(), bounds.getY());
                 g.setColour(juce::Colour(zlth::ui::colors::textBackground));
@@ -181,7 +181,7 @@ public:
             for (int i = 0; i < config::BAND_COUNT; ++i)
             {
                 juce::String index = juce::String(i + 1);
-                bool isBypassed = apvts.getRawParameterValue(ID_PREFIX_BYPASS + index)->load() > 0.5f;
+                bool isBypassed = apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f;
                 if (isBypassed)
                 {
                     draggingBand = i;
@@ -192,22 +192,22 @@ public:
                     float freqHz = juce::mapToLog10(juce::jlimit(0.0f, 1.0f, normalizedX), MIN_HZ, MAX_HZ);
                     float gainDb = juce::jmap(e.position.getY(), bounds.getBottom(), bounds.getY(), minDb, maxDb);
                     gainDb = juce::jlimit(minDb, maxDb, gainDb);
-                    if (auto* bpParam = apvts.getParameter(ID_PREFIX_BYPASS + index))
+                    if (auto* bpParam = apvts.getParameter(ID_BAND_BYPASS + index))
                         bpParam->setValueNotifyingHost(0.0f);
-                    if (auto* fParam = apvts.getParameter(ID_PREFIX_FREQ + index))
-                        fParam->setValueNotifyingHost(apvts.getParameterRange(ID_PREFIX_FREQ + index).convertTo0to1(freqHz));
-                    if (auto* gParam = apvts.getParameter(ID_PREFIX_GAIN + index))
-                        gParam->setValueNotifyingHost(apvts.getParameterRange(ID_PREFIX_GAIN + index).convertTo0to1(gainDb));
-                    if (auto* qParam = apvts.getParameter(ID_PREFIX_QUAL + index))
+                    if (auto* fParam = apvts.getParameter(ID_BAND_FREQ + index))
+                        fParam->setValueNotifyingHost(apvts.getParameterRange(ID_BAND_FREQ + index).convertTo0to1(freqHz));
+                    if (auto* gParam = apvts.getParameter(ID_BAND_GAIN + index))
+                        gParam->setValueNotifyingHost(apvts.getParameterRange(ID_BAND_GAIN + index).convertTo0to1(gainDb));
+                    if (auto* qParam = apvts.getParameter(ID_BAND_QUAL + index))
                         qParam->setValueNotifyingHost(qParam->getDefaultValue());
-                    if (auto* cParam = apvts.getParameter(ID_PREFIX_MODE + index))
+                    if (auto* cParam = apvts.getParameter(ID_BAND_CHANNEL + index))
                         cParam->setValueNotifyingHost(cParam->getDefaultValue());
-                    if (auto* tParam = apvts.getParameter(ID_PREFIX_TYPE + index))
+                    if (auto* tParam = apvts.getParameter(ID_BAND_FILTER + index))
                     {
                         float normalizedValue = 0.0f;
                         if (getSelectedTypeCallback)
                         {
-                            normalizedValue = apvts.getParameterRange(ID_PREFIX_TYPE + index).convertTo0to1((float)getSelectedTypeCallback());
+                            normalizedValue = apvts.getParameterRange(ID_BAND_FILTER + index).convertTo0to1((float)getSelectedTypeCallback());
                         }
                         else
                         {
@@ -223,8 +223,8 @@ public:
         {
             juce::String index = juce::String(draggingBand + 1);
             DBG("--- GESTURE START ---");
-            if (auto* p1 = audioProcessor.apvts.getParameter(ID_PREFIX_FREQ + index)) p1->beginChangeGesture();
-            if (auto* p2 = audioProcessor.apvts.getParameter(ID_PREFIX_GAIN + index)) p2->beginChangeGesture();
+            if (auto* p1 = audioProcessor.apvts.getParameter(ID_BAND_FREQ + index)) p1->beginChangeGesture();
+            if (auto* p2 = audioProcessor.apvts.getParameter(ID_BAND_GAIN + index)) p2->beginChangeGesture();
         }
     }
     void mouseDrag(const juce::MouseEvent& e) override
@@ -240,8 +240,8 @@ public:
         {
             juce::String index = juce::String(draggingBand + 1);
             DBG("--- GESTURE END ---");
-            if (auto* p1 = audioProcessor.apvts.getParameter(ID_PREFIX_FREQ + index)) p1->endChangeGesture();
-            if (auto* p2 = audioProcessor.apvts.getParameter(ID_PREFIX_GAIN + index)) p2->endChangeGesture();
+            if (auto* p1 = audioProcessor.apvts.getParameter(ID_BAND_FREQ + index)) p1->endChangeGesture();
+            if (auto* p2 = audioProcessor.apvts.getParameter(ID_BAND_GAIN + index)) p2->endChangeGesture();
             draggingBand = -1;
         }
     }
@@ -249,7 +249,7 @@ public:
     {
         const int bandIdx = getClosestBand(e.position);
         if (bandIdx == -1) return;
-        const juce::String paramID = ID_PREFIX_QUAL + juce::String(bandIdx + 1);
+        const juce::String paramID = ID_BAND_QUAL + juce::String(bandIdx + 1);
         if (auto* qParam = audioProcessor.apvts.getParameter(paramID))
         {
             float currentRealValue = audioProcessor.apvts.getRawParameterValue(paramID)->load();
@@ -308,10 +308,10 @@ private:
         for (int i = 0; i < config::BAND_COUNT; ++i)
         {
             juce::String index = juce::String(i + 1);
-            if (apvts.getRawParameterValue(ID_PREFIX_BYPASS + index)->load() > 0.5f)
+            if (apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f)
                 continue;
-            float freqHz = apvts.getRawParameterValue(ID_PREFIX_FREQ + index)->load();
-            float gainDb = apvts.getRawParameterValue(ID_PREFIX_GAIN + index)->load();
+            float freqHz = apvts.getRawParameterValue(ID_BAND_FREQ + index)->load();
+            float gainDb = apvts.getRawParameterValue(ID_BAND_GAIN + index)->load();
             float x = xBase + width * juce::mapFromLog10(freqHz, MIN_HZ, MAX_HZ);
             float y = juce::jmap(gainDb, minDb, maxDb, yBottom, yTop);
             if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq)
@@ -331,13 +331,13 @@ private:
         gainDb = juce::jlimit(minDb, maxDb, gainDb);
         freqHz = juce::jlimit(MIN_HZ, MAX_HZ, freqHz);
         juce::String index = juce::String(draggingBand + 1);
-        if (auto* freqParam = audioProcessor.apvts.getParameter(ID_PREFIX_FREQ + index))
+        if (auto* freqParam = audioProcessor.apvts.getParameter(ID_BAND_FREQ + index))
         {
-            freqParam->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(ID_PREFIX_FREQ + index).convertTo0to1(freqHz));
+            freqParam->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(ID_BAND_FREQ + index).convertTo0to1(freqHz));
         }
-        if (auto* gainParam = audioProcessor.apvts.getParameter(ID_PREFIX_GAIN + index))
+        if (auto* gainParam = audioProcessor.apvts.getParameter(ID_BAND_GAIN + index))
         {
-            gainParam->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(ID_PREFIX_GAIN + index).convertTo0to1(gainDb));
+            gainParam->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(ID_BAND_GAIN + index).convertTo0to1(gainDb));
         }
     }
     void handleAsyncUpdate() override

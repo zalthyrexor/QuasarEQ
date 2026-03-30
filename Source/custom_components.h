@@ -16,7 +16,7 @@ public:
         g.setColour(color);
         g.drawRect(bounds, 2.0f);
         g.setFont(13.0f);
-        g.drawText(ID_PREFIX_BYPASS, getLocalBounds(), juce::Justification::centred);
+        g.drawText(ID_BAND_BYPASS, getLocalBounds(), juce::Justification::centred);
     }
     void mouseEnter(const juce::MouseEvent& event) override
     {
@@ -34,7 +34,7 @@ public:
     FilterBandControl(juce::AudioProcessorValueTreeState& apvts, int bandIndex)
     {
         typeComboBox.setJustificationType(juce::Justification::centred);
-        typeComboBox.addItemList(filterTags, 1);
+        typeComboBox.addItemList(filterModes, 1);
         modeComboBox.setJustificationType(juce::Justification::centred);
         modeComboBox.addItemList(channelModes, 1);
         bypassButton.setClickingTogglesState(true);
@@ -48,12 +48,12 @@ public:
             addAndMakeVisible(c);
         }
         const juce::String index = juce::String(bandIndex + 1);
-        freqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ID_PREFIX_FREQ + index, freqSlider);
-        gainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ID_PREFIX_GAIN + index, gainSlider);
-        qAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ID_PREFIX_QUAL + index, qSlider);
-        typeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ID_PREFIX_TYPE + index, typeComboBox);
-        bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ID_PREFIX_BYPASS + index, bypassButton);
-        modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ID_PREFIX_MODE + index, modeComboBox);
+        freqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ID_BAND_FREQ + index, freqSlider);
+        gainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ID_BAND_GAIN + index, gainSlider);
+        qAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, ID_BAND_QUAL + index, qSlider);
+        typeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ID_BAND_FILTER + index, typeComboBox);
+        bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, ID_BAND_BYPASS + index, bypassButton);
+        modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ID_BAND_CHANNEL + index, modeComboBox);
     };
     ~FilterBandControl() override {};
     void paintOverChildren(juce::Graphics& g) override
