@@ -105,14 +105,12 @@ public:
         auto& apvts = audioProcessor.apvts;
 
         g.setColour(juce::Colour(zlth::ui::colors::side));
-        g.strokePath(responseCurvePathSide, juce::PathStrokeType(2.0f));
-        //g.setFillType(juce::FillType(juce::Colour(zlth::ui::colors::theme).withAlpha(0.25f)));
-        //g.fillPath(responseCurvePathSide);
+        g.strokePath(responseCurvePathSide, juce::PathStrokeType(2.5f));
+        g.strokePath(phaseCurvePathSide, juce::PathStrokeType(0.5f));
 
         g.setColour(juce::Colour(zlth::ui::colors::theme));
-        g.strokePath(responseCurvePathMid, juce::PathStrokeType(2.0f));
-        //g.setFillType(juce::FillType(juce::Colour(zlth::ui::colors::theme).withAlpha(0.25f)));
-        //g.fillPath(responseCurvePathMid);
+        g.strokePath(responseCurvePathMid, juce::PathStrokeType(2.5f));
+        g.strokePath(phaseCurvePathMid, juce::PathStrokeType(0.5f));
 
 
         g.restoreState();
@@ -454,31 +452,51 @@ private:
         auto snapshots = audioProcessor.getFilterSnapshots();
         responseCurvePathMid.clear();
         responseCurvePathSide.clear();
+        phaseCurvePathMid.clear();
+        phaseCurvePathSide.clear();
         for (int i = 0; i < curveSize; ++i)
         {
             float normalizedX = (float)i / (float)(curveSize - 1);
             float freqHz = juce::mapToLog10(normalizedX, (float)MIN_HZ, (float)MAX_HZ);
-            float magMid = 1.0f;
-            float magSide = 1.0f;
-
+            float magSqMid = 1.0f;
+            float magSqSide = 1.0f;
+            float phaseTotalMid = 0.0f;
+            float phaseTotalSide = 0.0f;
             for (const auto& s : snapshots)
             {
-                float m = s.filter.get_magnitude(freqHz, (float)sampleRate);
-                if (s.channelMode == 0 || s.channelMode == 1) magMid *= m;
-                if (s.channelMode == 0 || s.channelMode == 2) magSide *= m;
+                auto res = s.filter.get_response(freqHz, (float)sampleRate);
+                float m = std::norm(res);
+                float p = std::arg(res);
+                if (s.channelMode == 0 || s.channelMode == 1) {
+                    magSqMid *= m;
+                    phaseTotalMid += p;
+                }
+                if (s.channelMode == 0 || s.channelMode == 2) {
+                    magSqSide *= m;
+                    phaseTotalSide += p;
+                }
             }
-            auto getPointY = [&](float gain) {
-                float db = juce::Decibels::gainToDecibels(gain);
+            auto getMagY = [&](float magSq)
+            {
+                float db = 10.0f * std::log10(std::max(magSq, 1e-10f));
                 return juce::jmap(db, (float)EDITOR_MIN_DBFS, (float)EDITOR_MAX_DBFS, bounds.getBottom(), bounds.getY());
+            };
+            auto getPhaseY = [&](float phaseRad)
+            {
+                return juce::jmap(phaseRad, -juce::MathConstants<float>::pi, juce::MathConstants<float>::pi, bounds.getBottom(), bounds.getY());
             };
             float x = bounds.getX() + bounds.getWidth() * normalizedX;
             if (i == 0) {
-                responseCurvePathMid.startNewSubPath(x, getPointY(magMid));
-                responseCurvePathSide.startNewSubPath(x, getPointY(magSide));
+                responseCurvePathMid.startNewSubPath(x, getMagY(magSqMid));
+                responseCurvePathSide.startNewSubPath(x, getMagY(magSqSide));
+                phaseCurvePathMid.startNewSubPath(x, getPhaseY(phaseTotalMid));
+                phaseCurvePathSide.startNewSubPath(x, getPhaseY(phaseTotalSide));
             }
             else {
-                responseCurvePathMid.lineTo(x, getPointY(magMid));
-                responseCurvePathSide.lineTo(x, getPointY(magSide));
+                responseCurvePathMid.lineTo(x, getMagY(magSqMid));
+                responseCurvePathSide.lineTo(x, getMagY(magSqSide));
+                phaseCurvePathMid.lineTo(x, getPhaseY(phaseTotalMid));
+                phaseCurvePathSide.lineTo(x, getPhaseY(phaseTotalSide));
             }
         }
     }
@@ -499,6 +517,8 @@ private:
     juce::CriticalSection pathLock;
     juce::Path responseCurvePathMid;
     juce::Path responseCurvePathSide;
+    juce::Path phaseCurvePathMid;
+    juce::Path phaseCurvePathSide;
     AnalyzerThread analyzerThread;
     std::vector<float> responseCurveMagnitude;
 };

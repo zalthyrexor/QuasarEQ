@@ -2,32 +2,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <numbers>
 
 namespace zlth::dsp::filter
 {
-    static constexpr double pi = std::numbers::pi_v<double>;
-    static constexpr double ln10_div_40 = std::numbers::ln10_v<double> / 40.0;
-
+    using FloatType = float;
+    static constexpr FloatType pi = std::numbers::pi_v<FloatType>;
+    static constexpr FloatType ln10_div_40 = std::numbers::ln10_v<FloatType> / 40.0;
     class ZdfSvf2ndOrder
     {
     public:
         ZdfSvf2ndOrder() = default;
         ~ZdfSvf2ndOrder() = default;
-        void reset() noexcept
-        {
-            ic1eq = 0.0;
-            ic2eq = 0.0;
-        }
-        double process_sample(const double v0) noexcept
-        {
-            double v3 = v0 - ic2eq;
-            double v1 = a1 * ic1eq + a2 * v3;
-            double v2 = ic2eq + a2 * ic1eq + a3 * v3;
-            ic1eq = 2.0 * v1 - ic1eq;
-            ic2eq = 2.0 * v2 - ic2eq;
-            return m0 * v0 + m1 * v1 + m2 * v2;
-        }
         enum class FilterType
         {
             HighPass,
@@ -39,12 +26,12 @@ namespace zlth::dsp::filter
             Notch,
             BandPass
         };
-        void update_coefficients(FilterType filterType, double freqHz, double q, double dbGain, double sampleRate)
+        void set_coefficients(FilterType filterType, FloatType freqHz, FloatType q, FloatType dbGain, FloatType sampleRate)
         {
-            double safeFreq = std::clamp(freqHz, sampleRate * 0.0001, sampleRate * 0.49);
-            double safeQ = std::max(q, 0.01);
-            double g = std::tan(pi * safeFreq / sampleRate);
-            double k = 1.0 / safeQ;
+            FloatType safeFreq = std::clamp(freqHz, sampleRate * static_cast<FloatType>(0.0001), sampleRate * static_cast<FloatType>(0.49));
+            FloatType safeQ = std::max(q, static_cast<FloatType>(0.01));
+            FloatType g = std::tan(pi * safeFreq / sampleRate);
+            FloatType k = 1.0 / safeQ;
             switch (filterType)
             {
             case FilterType::LowPass:
@@ -77,8 +64,8 @@ namespace zlth::dsp::filter
             }
             case FilterType::Bell:
             {
-                double sqrtA = std::exp(ln10_div_40 * dbGain);
-                double A = sqrtA * sqrtA;
+                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
+                FloatType A = sqrtA * sqrtA;
                 k /= sqrtA;
                 m0 = 1.0;
                 m1 = k * (A - 1.0);
@@ -87,8 +74,8 @@ namespace zlth::dsp::filter
             }
             case FilterType::LowShelf:
             {
-                double sqrtA = std::exp(ln10_div_40 * dbGain);
-                double A = sqrtA * sqrtA;
+                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
+                FloatType A = sqrtA * sqrtA;
                 g /= std::sqrt(sqrtA);
                 m0 = 1.0;
                 m1 = k * (sqrtA - 1.0);
@@ -97,8 +84,8 @@ namespace zlth::dsp::filter
             }
             case FilterType::HighShelf:
             {
-                double sqrtA = std::exp(ln10_div_40 * dbGain);
-                double A = sqrtA * sqrtA;
+                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
+                FloatType A = sqrtA * sqrtA;
                 g *= std::sqrt(sqrtA);
                 m0 = A;
                 m1 = k * (sqrtA - A);
@@ -107,8 +94,8 @@ namespace zlth::dsp::filter
             }
             case FilterType::Tilt:
             {
-                double sqrtA = std::exp(ln10_div_40 * dbGain);
-                double A = sqrtA * sqrtA;
+                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
+                FloatType A = sqrtA * sqrtA;
                 g *= sqrtA;
                 m0 = A;
                 m1 = k * (1.0 - A);
@@ -123,54 +110,59 @@ namespace zlth::dsp::filter
             }
             }
             a1 = 1.0 / (1.0 + g * (g + k));
-            a2 = g * a1;
-            a3 = g * a2;
             currentG = g;
             currentK = k;
         }
-        double get_magnitude(const double freqHz, const double sampleRate) const
+        void reset() noexcept
         {
-            double safeFreq = std::clamp(freqHz, sampleRate * 0.0001, sampleRate * 0.49);
-            double w = std::tan(pi * safeFreq / sampleRate) / currentG;
-            double kw = currentK * w;
-            double t = 1.0 - w * w;
-            double real = m0 * t + m2;
-            double imag = (m0 * currentK + m1) * w;
-            return std::sqrt((real * real + imag * imag) / (t * t + kw * kw));
+            ic1eq = 0.0;
+            ic2eq = 0.0;
+        }
+        FloatType process_sample(const FloatType v0) noexcept
+        {
+            FloatType v1 = a1 * (ic1eq + currentG * (v0 - ic2eq));
+            FloatType v2 = ic2eq + currentG * v1;
+            ic1eq = static_cast<FloatType>(2.0) * v1 - ic1eq;
+            ic2eq = static_cast<FloatType>(2.0) * v2 - ic2eq;
+            return m0 * v0 + m1 * v1 + m2 * v2;
+        }
+        std::complex<FloatType> get_response(const FloatType freqHz, const FloatType sampleRate) const
+        {
+            FloatType safeFreq = std::clamp(freqHz, sampleRate * static_cast<FloatType>(0.0001), sampleRate * static_cast<FloatType>(0.49));
+            FloatType omega = std::tan(pi * safeFreq / sampleRate) / currentG;
+            FloatType denReal = static_cast<FloatType>(1.0) - omega * omega;
+            FloatType denImag = currentK * omega;
+            FloatType numReal = m0 * denReal + m2;
+            FloatType numImag = m0 * denImag + m1 * omega;
+            FloatType denNormSq = denReal * denReal + denImag * denImag;
+            FloatType resReal = (numReal * denReal + numImag * denImag) / denNormSq;
+            FloatType resImag = (numImag * denReal - numReal * denImag) / denNormSq;
+            return {resReal, resImag};
         }
     private:
-        double a1 {0.0}, a2 {0.0}, a3 {0.0};
-        double m0 {1.0}, m1 {0.0}, m2 {0.0};
-        double ic1eq {0.0};
-        double ic2eq {0.0};
-        double currentG {1.0};
-        double currentK {1.0};
-    };
-
-    class ZdfSvf1stOrder
-    {
-    public:
-        ZdfSvf1stOrder() = default;
-        ~ZdfSvf1stOrder() = default;
-        enum class FilterType
-        {
-            HighPass,
-            LowPass,
-            HighShelf,
-            LowShelf,
-            Tilt
-        };
+        FloatType m0 {1.0}, m1 {0.0}, m2 {0.0};
+        FloatType a1 {0.0};
+        FloatType ic1eq {0.0};
+        FloatType ic2eq {0.0};
+        FloatType currentG {1.0};
+        FloatType currentK {1.0};
     };
 }
 
-// A     = 10^(dB/20) = exp(ln(10)/20 * dB)
-// sqrtA = 10^(dB/40) = exp(ln(10)/40 * dB)
-// v0 Input
-// v1 1st integrator output (Band-Pass behavior)
-// v2 2nd integrator output (Low-Pass behavior)
-// m0, m1, m2: Mixing weights for v0, v1, v2
+// Special thanks to Andrew Simper for the ZDF SVF algorithm.
+
+// Filter coefficients [m0, m1, m2] act as mixing weights for the basis signals:
+// [input (v0), band-pass (v1), low-pass (v2)].
+// Due to the linearity of the SVF, summing the coefficients of different filter 
+// types yields the combined response (e.g., Notch [1, -k, 0] = HP [1, -k, -1] + LP [0, 0, 1]).
+
 // Overwrite g and/or k in-place to ensure symmetrical boost/cut.
 // Response warping near Nyquist is expected behavior.
+// Implementation is kept in the header to facilitate compiler inlining
 
 // https://gist.github.com/hollance/2891d89c57adc71d9560bcf0e1e55c4b
 // http://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf
+
+// =========================================================================================================
+// DISCLAIMER: THIS CODE IS PROVIDED 'AS IS', WITHOUT ANY EXPRESS OR IMPLIED WARRANTY. USE AT YOUR OWN RISK.
+// =========================================================================================================

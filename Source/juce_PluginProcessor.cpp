@@ -85,7 +85,7 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     {
         for (int s = 0; s < numSamples; ++s)
         {
-            data[s] = static_cast<float>(filter.process_sample(static_cast<double>(data[s])));
+            data[s] = filter.process_sample(data[s]);
         }
     };
     for (int i = 0; i < config::BAND_COUNT; ++i)
@@ -121,8 +121,8 @@ void QuasarEQAudioProcessor::updateFilters(uint32_t flags)
         const auto type = static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::FilterType>((int)loadBandParam(ID_BAND_FILTER));
         const auto mode = (int)loadBandParam(ID_BAND_CHANNEL);
         const bool bypassed = loadBandParam(ID_BAND_BYPASS) > 0.5f;
-        bandsM[i].update_coefficients(type, freq, qual, gain, sampleRate);
-        bandsS[i].update_coefficients(type, freq, qual, gain, sampleRate);
+        bandsM[i].set_coefficients(type, freq, qual, gain, sampleRate);
+        bandsS[i].set_coefficients(type, freq, qual, gain, sampleRate);
         isBandMActive[i] = !bypassed && (mode == 0 || mode == 1);
         isBandSActive[i] = !bypassed && (mode == 0 || mode == 2);
     }
@@ -169,7 +169,7 @@ std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() const
         auto qual = load(ID_BAND_QUAL);
         auto gain = load(ID_BAND_GAIN);
         FilterSnapshot snapshot;
-        snapshot.filter.update_coefficients(type, freq, qual, gain, sampleRate);
+        snapshot.filter.set_coefficients(type, freq, qual, gain, sampleRate);
         snapshot.channelMode = (int)load(ID_BAND_CHANNEL);
         snapshots.push_back(snapshot);
     }
