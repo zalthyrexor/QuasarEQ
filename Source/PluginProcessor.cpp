@@ -107,26 +107,24 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 void QuasarEQAudioProcessor::updateFilters(uint32_t flags)
 {
     if (flags == 0) return;
-    const auto sr = getSampleRate();
+    const auto sampleRate = getSampleRate();
     for (int i = 0; i < config::BAND_COUNT; ++i)
     {
-        if (shouldUpdateBand(flags, i))
+        if (!shouldUpdateBand(flags, i)) continue;
+        auto loadBandParam = [this, i](const juce::String& prefix)
         {
-            auto loadBandParam = [this, i](const juce::String& prefix)
-            {
-                return apvts.getRawParameterValue(Params::getID(prefix, i))->load();
-            };
-            const auto f = loadBandParam(ID_BAND_FREQ);
-            const auto q = loadBandParam(ID_BAND_QUAL);
-            const auto gain = loadBandParam(ID_BAND_GAIN);
-            const auto type = static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::FilterType>((int)loadBandParam(ID_BAND_FILTER));
-            const auto mode = (int)loadBandParam(ID_BAND_CHANNEL);
-            const bool bypassed = loadBandParam(ID_BAND_BYPASS) > 0.5f;
-            bandsM[i].update_coefficients(type, f, q, gain, sr);
-            bandsS[i].update_coefficients(type, f, q, gain, sr);
-            isBandMActive[i] = !bypassed && (mode == 0 || mode == 1);
-            isBandSActive[i] = !bypassed && (mode == 0 || mode == 2);
-        }
+            return apvts.getRawParameterValue(Params::getID(prefix, i))->load();
+        };
+        const auto freq = loadBandParam(ID_BAND_FREQ);
+        const auto qual = loadBandParam(ID_BAND_QUAL);
+        const auto gain = loadBandParam(ID_BAND_GAIN);
+        const auto type = static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::FilterType>((int)loadBandParam(ID_BAND_FILTER));
+        const auto mode = (int)loadBandParam(ID_BAND_CHANNEL);
+        const bool bypassed = loadBandParam(ID_BAND_BYPASS) > 0.5f;
+        bandsM[i].update_coefficients(type, freq, qual, gain, sampleRate);
+        bandsS[i].update_coefficients(type, freq, qual, gain, sampleRate);
+        isBandMActive[i] = !bypassed && (mode == 0 || mode == 1);
+        isBandSActive[i] = !bypassed && (mode == 0 || mode == 2);
     }
     if (shouldUpdateGlobal(flags))
     {
@@ -157,24 +155,23 @@ void QuasarEQAudioProcessor::parameterChanged(const juce::String& parameterID, f
 std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() const
 {
     std::vector<FilterSnapshot> snapshots;
-    double sr = getSampleRate();
-
+    snapshots.reserve(config::BAND_COUNT);
+    float sampleRate = static_cast<float>(getSampleRate());
     for (int i = 0; i < config::BAND_COUNT; ++i)
     {
-        auto bypass = apvts.getRawParameterValue(Params::getID(ID_BAND_BYPASS, i))->load();
-        if (bypass < 0.5f)
+        auto load = [this, i](const juce::String& prefix) 
         {
-            FilterSnapshot s;
-            s.filter.update_coefficients(
-                static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::FilterType>((int)apvts.getRawParameterValue(Params::getID(ID_BAND_FILTER, i))->load()),
-                apvts.getRawParameterValue(Params::getID(ID_BAND_FREQ, i))->load(),
-                apvts.getRawParameterValue(Params::getID(ID_BAND_QUAL, i))->load(),
-                apvts.getRawParameterValue(Params::getID(ID_BAND_GAIN, i))->load(),
-                (float)sr);
-            s.channelMode = (int)apvts.getRawParameterValue(Params::getID(ID_BAND_CHANNEL, i))->load();
-
-            snapshots.push_back(s);
-        }
+            return apvts.getRawParameterValue(Params::getID(prefix, i))->load();
+        };
+        if (load(ID_BAND_BYPASS) > 0.5f) continue;
+        auto type = static_cast<zlth::dsp::filter::ZdfSvf2ndOrder::FilterType>((int)load(ID_BAND_FILTER));
+        auto freq = load(ID_BAND_FREQ);
+        auto qual = load(ID_BAND_QUAL);
+        auto gain = load(ID_BAND_GAIN);
+        FilterSnapshot snapshot;
+        snapshot.filter.update_coefficients(type, freq, qual, gain, sampleRate);
+        snapshot.channelMode = (int)load(ID_BAND_CHANNEL);
+        snapshots.push_back(snapshot);
     }
     return snapshots;
 }
