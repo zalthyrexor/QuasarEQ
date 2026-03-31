@@ -1,5 +1,5 @@
-#include "PluginProcessor.h"
-#include "PluginEditor.h"
+#include "juce_PluginProcessor.h"
+#include "juce_PluginEditor.h"
 
 QuasarEQAudioProcessor::QuasarEQAudioProcessor():
     AudioProcessor(

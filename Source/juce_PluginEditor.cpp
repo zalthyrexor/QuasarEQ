@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PluginEditor.h"
+#include "juce_PluginEditor.h"
 
 QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcessor& p) : AudioProcessorEditor(&p), audioProcessor(p), visualizerComponent(p)
 {

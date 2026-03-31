@@ -1,8 +1,8 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "lnf.h"
-#include "PluginProcessor.h"
+#include "juce_LookAndFeel.h"
+#include "juce_PluginProcessor.h"
 #include "PathProducer.h"
 
 class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener

@@ -26,14 +26,16 @@
             file="Source/VisualizerComponent.h"/>
       <FILE id="s9YH2g" name="Ballistics.h" compile="0" resource="0" file="Source/Ballistics.h"/>
       <FILE id="hIpOaE" name="PathProducer.h" compile="0" resource="0" file="Source/PathProducer.h"/>
-      <FILE id="C5yINs" name="lnf.h" compile="0" resource="0" file="Source/lnf.h"/>
-      <FILE id="RatDeP" name="PluginEditor.cpp" compile="1" resource="0"
-            file="Source/PluginEditor.cpp"/>
-      <FILE id="mGPiuF" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
-      <FILE id="dcUU1B" name="PluginProcessor.cpp" compile="1" resource="0"
-            file="Source/PluginProcessor.cpp"/>
-      <FILE id="UdfQnT" name="PluginProcessor.h" compile="0" resource="0"
-            file="Source/PluginProcessor.h"/>
+      <FILE id="C5yINs" name="juce_LookAndFeel.h" compile="0" resource="0"
+            file="Source/juce_LookAndFeel.h"/>
+      <FILE id="RatDeP" name="juce_PluginEditor.cpp" compile="1" resource="0"
+            file="Source/juce_PluginEditor.cpp"/>
+      <FILE id="mGPiuF" name="juce_PluginEditor.h" compile="0" resource="0"
+            file="Source/juce_PluginEditor.h"/>
+      <FILE id="dcUU1B" name="juce_PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/juce_PluginProcessor.cpp"/>
+      <FILE id="UdfQnT" name="juce_PluginProcessor.h" compile="0" resource="0"
+            file="Source/juce_PluginProcessor.h"/>
     </GROUP>
     <GROUP id="{ED093CFC-DB92-2216-7E5B-9D0ED01EEC31}" name="Resources">
       <FILE id="IRi9NL" name="bp.svg" compile="0" resource="1" file="Resources/bp.svg"/>
