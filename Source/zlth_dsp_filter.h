@@ -7,9 +7,8 @@
 
 namespace zlth::dsp::filter
 {
-    using FloatType = float;
-    static constexpr FloatType pi = std::numbers::pi_v<FloatType>;
-    static constexpr FloatType ln10_div_40 = std::numbers::ln10_v<FloatType> / 40.0;
+    static constexpr float pi = std::numbers::pi_v<float>;
+    static constexpr float ln10_div_40 = std::numbers::ln10_v<float> / 40.0f;
     class ZdfSvf2ndOrder
     {
     public:
@@ -26,126 +25,93 @@ namespace zlth::dsp::filter
             Notch,
             BandPass
         };
-        void set_coefficients(FilterType filterType, FloatType freqHz, FloatType q, FloatType dbGain, FloatType sampleRate)
+        void set_coefficients(FilterType filterType, float cutoffFreqHz, float q, float gainDb, float sampleRate)
         {
-            FloatType safeFreq = std::clamp(freqHz, sampleRate * static_cast<FloatType>(0.0001), sampleRate * static_cast<FloatType>(0.49));
-            FloatType safeQ = std::max(q, static_cast<FloatType>(0.01));
-            FloatType g = std::tan(pi * safeFreq / sampleRate);
-            FloatType k = 1.0 / safeQ;
+            float g = std::tan(pi * std::clamp(cutoffFreqHz, sampleRate * 0.0001f, sampleRate * 0.49f) / sampleRate);
+            float k = 1.0f / std::max(q, 0.01f);
+            float sqrtA = std::exp(ln10_div_40 * gainDb);
+            float A = sqrtA * sqrtA;
             switch (filterType)
             {
             case FilterType::LowPass:
-            {
-                m0 = 0.0;
-                m1 = 0.0;
-                m2 = 1.0;
+                m0 = 0.0f;
+                m1 = 0.0f;
+                m2 = 1.0f;
                 break;
-            }
             case FilterType::HighPass:
-            {
-                m0 = 1.0;
+                m0 = 1.0f;
                 m1 = -k;
-                m2 = -1.0;
+                m2 = -1.0f;
                 break;
-            }
             case FilterType::Notch:
-            {
-                m0 = 1.0;
+                m0 = 1.0f;
                 m1 = -k;
-                m2 = 0.0;
+                m2 = 0.0f;
                 break;
-            }
             case FilterType::BandPass:
-            {
-                m0 = 0.0;
+                m0 = 0.0f;
                 m1 = k;
-                m2 = 0.0;
+                m2 = 0.0f;
                 break;
-            }
             case FilterType::Bell:
-            {
-                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
-                FloatType A = sqrtA * sqrtA;
                 k /= sqrtA;
-                m0 = 1.0;
-                m1 = k * (A - 1.0);
-                m2 = 0.0;
+                m0 = 1.0f;
+                m1 = k * (A - 1.0f);
+                m2 = 0.0f;
                 break;
-            }
             case FilterType::LowShelf:
-            {
-                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
-                FloatType A = sqrtA * sqrtA;
                 g /= std::sqrt(sqrtA);
-                m0 = 1.0;
-                m1 = k * (sqrtA - 1.0);
-                m2 = A - 1.0;
+                m0 = 1.0f;
+                m1 = k * (sqrtA - 1.0f);
+                m2 = A - 1.0f;
                 break;
-            }
             case FilterType::HighShelf:
-            {
-                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
-                FloatType A = sqrtA * sqrtA;
                 g *= std::sqrt(sqrtA);
                 m0 = A;
                 m1 = k * (sqrtA - A);
-                m2 = 1.0 - A;
+                m2 = 1.0f - A;
                 break;
-            }
             case FilterType::Tilt:
-            {
-                FloatType sqrtA = std::exp(ln10_div_40 * dbGain);
-                FloatType A = sqrtA * sqrtA;
                 g *= sqrtA;
                 m0 = A;
-                m1 = k * (1.0 - A);
-                m2 = 1.0 / A - A;
+                m1 = k * (1.0f - A);
+                m2 = 1.0f / A - A;
+                break;
+            default:
+                m0 = 1.0f;
+                m1 = 0.0f;
+                m2 = 0.0f;
                 break;
             }
-            default:
-            {
-                m0 = 1.0;
-                m1 = 0.0;
-                m2 = 0.0;
-            }
-            }
-            a1 = 1.0 / (1.0 + g * (g + k));
+            a1 = 1.0f / (1.0f + g * (g + k));
             currentG = g;
             currentK = k;
         }
         void reset() noexcept
         {
-            ic1eq = 0.0;
-            ic2eq = 0.0;
+            ic1eq = 0.0f;
+            ic2eq = 0.0f;
         }
-        FloatType process_sample(const FloatType v0) noexcept
+        float process_sample(const float v0) noexcept
         {
-            FloatType v1 = a1 * (ic1eq + currentG * (v0 - ic2eq));
-            FloatType v2 = ic2eq + currentG * v1;
-            ic1eq = static_cast<FloatType>(2.0) * v1 - ic1eq;
-            ic2eq = static_cast<FloatType>(2.0) * v2 - ic2eq;
+            float v1 = a1 * (ic1eq + currentG * (v0 - ic2eq));
+            float v2 = ic2eq + currentG * v1;
+            ic1eq = 2.0f * v1 - ic1eq;
+            ic2eq = 2.0f * v2 - ic2eq;
             return m0 * v0 + m1 * v1 + m2 * v2;
         }
-        std::complex<FloatType> get_response(const FloatType freqHz, const FloatType sampleRate) const
+        std::complex<float> get_response(const float freqHz, const float sampleRate) const
         {
-            FloatType safeFreq = std::clamp(freqHz, sampleRate * static_cast<FloatType>(0.0001), sampleRate * static_cast<FloatType>(0.49));
-            FloatType omega = std::tan(pi * safeFreq / sampleRate) / currentG;
-            FloatType denReal = static_cast<FloatType>(1.0) - omega * omega;
-            FloatType denImag = currentK * omega;
-            FloatType numReal = m0 * denReal + m2;
-            FloatType numImag = m0 * denImag + m1 * omega;
-            FloatType denNormSq = denReal * denReal + denImag * denImag;
-            FloatType resReal = (numReal * denReal + numImag * denImag) / denNormSq;
-            FloatType resImag = (numImag * denReal - numReal * denImag) / denNormSq;
-            return {resReal, resImag};
+            std::complex<float> s {0.0f, std::tan(pi * std::clamp(freqHz, sampleRate * 0.0001f, sampleRate * 0.49f) / sampleRate) / currentG};
+            return m0 + (m1 * s + m2) / (s * s + currentK * s + 1.0f);
         }
     private:
-        FloatType m0 {1.0}, m1 {0.0}, m2 {0.0};
-        FloatType a1 {0.0};
-        FloatType ic1eq {0.0};
-        FloatType ic2eq {0.0};
-        FloatType currentG {1.0};
-        FloatType currentK {1.0};
+        float m0 {1.0f}, m1 {0.0f}, m2 {0.0f};
+        float a1 {0.0f};
+        float ic1eq {0.0f};
+        float ic2eq {0.0f};
+        float currentG {1.0f};
+        float currentK {1.0f};
     };
 }
 

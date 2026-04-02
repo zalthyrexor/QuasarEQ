@@ -9,7 +9,7 @@
 
 namespace zlth::simd
 {
-    static constexpr int vSize = 256 / (sizeof(float) * 8);
+    static constexpr int vSize = sizeof(__m256) / sizeof(float);
     static void average_two_buffers(std::span<float> dest, std::span<const float> src1, std::span<const float> src2)
     {
         const size_t count = std::min({ dest.size(), src1.size(), src2.size() });
