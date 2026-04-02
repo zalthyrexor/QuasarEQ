@@ -14,7 +14,6 @@ public:
         pathProducer(audioProcessor.leftChannelFifo, audioProcessor.rightChannelFifo),
         analyzerThread(pathProducer, *this)
     {
-        freqLUT = pathProducer.makeFreqLUT(audioProcessor.getSampleRate(), MIN_HZ, MAX_HZ);
         for (int i = 0; i < config::BAND_COUNT; ++i)
         {
             const juce::String index = juce::String(i + 1);
@@ -79,7 +78,6 @@ public:
         peakHoldPoints.clear();
         spectrumPoints.reserve(localPath.spectrumPath.size());
         peakHoldPoints.reserve(localPath.spectrumPath.size());
-        zlth::dsp::fft::Resampler510 resampler;
         if (localPath.spectrumPath.size() == 2048)
         {
             float sampleRate = audioProcessor.getSampleRate();
@@ -88,9 +86,9 @@ public:
             auto bounds = getCurveArea().toFloat();
             for (int i = 1; i < spec.size(); ++i)
             {
-                float x = juce::mapFromLog10(peak[i].first, MIN_HZ, MAX_HZ) * bounds.getWidth() + bounds.getX();
-                float py = juce::jmap(peak[i].second, MIN_DBFS, MAX_DBFS, bounds.getBottom(), bounds.getY());
-                float sy = juce::jmap(spec[i].second, MIN_DBFS, MAX_DBFS, bounds.getBottom(), bounds.getY());
+                float x = juce::mapFromLog10(peak[i].first, EDITOR_MIN_HZ, EDITOR_MAX_HZ) * bounds.getWidth() + bounds.getX();
+                float py = juce::jmap(peak[i].second, FFT_MIN_DB, FFT_MAX_DB, bounds.getBottom(), bounds.getY());
+                float sy = juce::jmap(spec[i].second, FFT_MIN_DB, FFT_MAX_DB, bounds.getBottom(), bounds.getY());
                 peakHoldPoints.emplace_back(x, py);
                 spectrumPoints.emplace_back(x, sy);
             }
@@ -114,15 +112,8 @@ public:
 
         g.setColour(juce::Colour(zlth::ui::colors::side));
         g.strokePath(responseCurvePathSide, juce::PathStrokeType(2.5f));
-        if (!phaseCurvePathSide.isEmpty()) {
-            g.strokePath(phaseCurvePathSide, juce::PathStrokeType(0.5f));
-        }
-
         g.setColour(juce::Colour(zlth::ui::colors::theme));
         g.strokePath(responseCurvePathMid, juce::PathStrokeType(2.5f));
-        if (!phaseCurvePathMid.isEmpty()) {
-            g.strokePath(phaseCurvePathMid, juce::PathStrokeType(0.5f));
-        }
 
 
         g.restoreState();
@@ -159,7 +150,7 @@ public:
             {
                 float freqHz = apvts.getRawParameterValue(ID_BAND_FREQ + index)->load();
                 float gainDb = apvts.getRawParameterValue(ID_BAND_GAIN + index)->load();
-                float x = bounds.getX() + bounds.getWidth() * juce::mapFromLog10(freqHz, MIN_HZ, MAX_HZ);
+                float x = bounds.getX() + bounds.getWidth() * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
                 float y = juce::jmap(gainDb, minDb, maxDb, bounds.getBottom(), bounds.getY());
                 g.setColour(juce::Colour(zlth::ui::colors::textBackground));
                 const int pointSize = 14;
@@ -175,85 +166,79 @@ public:
                 g.drawText(bandNumber, textBounds, juce::Justification::centred, false);
             }
         }
-    };
+    }
+    int findNextAvailableBand() const
+    {
+        for (int i = 0; i < config::BAND_COUNT; ++i)
+        {
+            juce::String index = juce::String(i + 1);
+            if (audioProcessor.apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f)
+                return i;
+        }
+        return -1;
+    }
     void mouseDown(const juce::MouseEvent& e) override
     {
-        auto bounds = getCurveArea();
-        if (!bounds.contains(e.getPosition()))
+        if (!getCurveArea().contains(e.getPosition()))
         {
             draggingBand = -1;
             return;
         }
         draggingBand = getClosestBand(e.position);
-        if (draggingBand == -1)
+        if (draggingBand != -1) return;
+        int availableIdx = findNextAvailableBand();
+        if (availableIdx == -1) return;
+
+        juce::String index = juce::String(availableIdx + 1);
+        draggingBand = availableIdx;
+        auto& apvts = audioProcessor.apvts;
+        auto setParam = [&](const juce::String& paramID, float value)
         {
-            auto& apvts = audioProcessor.apvts;
-            for (int i = 0; i < config::BAND_COUNT; ++i)
+            if (auto* p = apvts.getParameter(paramID + index))
             {
-                juce::String index = juce::String(i + 1);
-                bool isBypassed = apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f;
-                if (isBypassed)
-                {
-                    draggingBand = i;
-                    auto bounds = getCurveArea().toFloat();
-                    const float minDb = -24.0f;
-                    const float maxDb = 24.0f;
-                    float normalizedX = (e.position.getX() - bounds.getX()) / bounds.getWidth();
-                    float freqHz = juce::mapToLog10(juce::jlimit(0.0f, 1.0f, normalizedX), MIN_HZ, MAX_HZ);
-                    float gainDb = juce::jmap(e.position.getY(), bounds.getBottom(), bounds.getY(), minDb, maxDb);
-                    gainDb = juce::jlimit(minDb, maxDb, gainDb);
-                    if (auto* bpParam = apvts.getParameter(ID_BAND_BYPASS + index))
-                        bpParam->setValueNotifyingHost(0.0f);
-                    if (auto* fParam = apvts.getParameter(ID_BAND_FREQ + index))
-                        fParam->setValueNotifyingHost(apvts.getParameterRange(ID_BAND_FREQ + index).convertTo0to1(freqHz));
-                    if (auto* gParam = apvts.getParameter(ID_BAND_GAIN + index))
-                        gParam->setValueNotifyingHost(apvts.getParameterRange(ID_BAND_GAIN + index).convertTo0to1(gainDb));
-                    if (auto* qParam = apvts.getParameter(ID_BAND_QUAL + index))
-                        qParam->setValueNotifyingHost(qParam->getDefaultValue());
-                    if (auto* cParam = apvts.getParameter(ID_BAND_CHANNEL + index))
-                        cParam->setValueNotifyingHost(cParam->getDefaultValue());
-                    if (auto* tParam = apvts.getParameter(ID_BAND_FILTER + index))
-                    {
-                        float normalizedValue = 0.0f;
-                        if (getSelectedTypeCallback)
-                        {
-                            normalizedValue = apvts.getParameterRange(ID_BAND_FILTER + index).convertTo0to1((float)getSelectedTypeCallback());
-                        }
-                        else
-                        {
-                            normalizedValue = tParam->getDefaultValue();
-                        }
-                        tParam->setValueNotifyingHost(normalizedValue);
-                    }
-                    break;
-                }
+                p->setValueNotifyingHost(value);
             }
-        }
-        if (draggingBand != -1)
-        {
-            juce::String index = juce::String(draggingBand + 1);
-            DBG("--- GESTURE START ---");
-            if (auto* p1 = audioProcessor.apvts.getParameter(ID_BAND_FREQ + index)) p1->beginChangeGesture();
-            if (auto* p2 = audioProcessor.apvts.getParameter(ID_BAND_GAIN + index)) p2->beginChangeGesture();
-        }
+        };
+        auto bounds = getCurveArea().toFloat();
+        const float minDb = -24.0f;
+        const float maxDb = 24.0f;
+        float freqHz = juce::mapToLog10(juce::jlimit(0.0f, 1.0f, (e.position.getX() - bounds.getX()) / bounds.getWidth()), EDITOR_MIN_HZ, EDITOR_MAX_HZ);
+        float gainDb = juce::jlimit(minDb, maxDb, juce::jmap(e.position.getY(), bounds.getBottom(), bounds.getY(), minDb, maxDb));
+        float normalizedValue = getSelectedTypeCallback ?
+            apvts.getParameterRange(ID_BAND_FILTER + index).convertTo0to1((float)getSelectedTypeCallback()) :
+            apvts.getParameter(ID_BAND_FILTER + index)->getDefaultValue();
+
+        setParam(ID_BAND_BYPASS, 0.0f);
+        setParam(ID_BAND_FREQ, apvts.getParameterRange(ID_BAND_FREQ + index).convertTo0to1(freqHz));
+        setParam(ID_BAND_GAIN, apvts.getParameterRange(ID_BAND_GAIN + index).convertTo0to1(gainDb));
+        setParam(ID_BAND_QUAL, apvts.getParameter(ID_BAND_QUAL + index)->getDefaultValue());
+        setParam(ID_BAND_CHANNEL, apvts.getParameter(ID_BAND_CHANNEL + index)->getDefaultValue());
+        setParam(ID_BAND_FILTER, normalizedValue);
     }
     void mouseDrag(const juce::MouseEvent& e) override
     {
-        if (draggingBand != -1)
-        {
-            updateParamsFromMouse(e.position);
-        }
+        if (draggingBand == -1) return;
+		auto mousePos = e.position;
+        auto bounds = getCurveArea().toFloat();
+        const float MIN_DB = EDITOR_MIN_DB;
+        const float MAX_DB = EDITOR_MAX_DB;
+        const float MIN_HZ = EDITOR_MIN_HZ;
+        const float MAX_HZ = EDITOR_MAX_HZ;
+        float freqHz = juce::jlimit(MIN_HZ, MAX_HZ, juce::mapToLog10(juce::jlimit(0.0f, 1.0f, (mousePos.getX() - bounds.getX()) / bounds.getWidth()), MIN_HZ, MAX_HZ));
+        float gainDb = juce::jlimit(MIN_DB, MAX_DB, juce::jmap(mousePos.getY(), bounds.getBottom(), bounds.getY(), MIN_DB, MAX_DB));
+        auto setParam = [&](const juce::String& paramID, float plainValue) {
+            juce::String index = juce::String(draggingBand + 1);
+            if (auto* p = audioProcessor.apvts.getParameter(paramID + index))
+            {
+                p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(paramID + index).convertTo0to1(plainValue));
+            }
+        };
+        setParam(ID_BAND_FREQ, freqHz);
+        setParam(ID_BAND_GAIN, gainDb);
     }
     void mouseUp(const juce::MouseEvent& e) override
     {
-        if (draggingBand != -1)
-        {
-            juce::String index = juce::String(draggingBand + 1);
-            DBG("--- GESTURE END ---");
-            if (auto* p1 = audioProcessor.apvts.getParameter(ID_BAND_FREQ + index)) p1->endChangeGesture();
-            if (auto* p2 = audioProcessor.apvts.getParameter(ID_BAND_GAIN + index)) p2->endChangeGesture();
-            draggingBand = -1;
-        }
+        draggingBand = -1;
     }
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override
     {
@@ -310,8 +295,8 @@ private:
         const float width = bounds.getWidth();
         const float yBottom = bounds.getBottom();
         const float yTop = bounds.getY();
-        const float minDb = EDITOR_MIN_DBFS;
-        const float maxDb = EDITOR_MAX_DBFS;
+        const float minDb = EDITOR_MIN_DB;
+        const float maxDb = EDITOR_MAX_DB;
         const float toleranceRadius = 12.0f;
         const float thresholdSq = toleranceRadius * toleranceRadius;
         auto& apvts = audioProcessor.apvts;
@@ -322,33 +307,12 @@ private:
                 continue;
             float freqHz = apvts.getRawParameterValue(ID_BAND_FREQ + index)->load();
             float gainDb = apvts.getRawParameterValue(ID_BAND_GAIN + index)->load();
-            float x = xBase + width * juce::mapFromLog10(freqHz, MIN_HZ, MAX_HZ);
+            float x = xBase + width * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
             float y = juce::jmap(gainDb, minDb, maxDb, yBottom, yTop);
             if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq)
                 return i;
         }
         return -1;
-    }
-    void updateParamsFromMouse(juce::Point<float> mousePos)
-    {
-        if (draggingBand == -1) return;
-        auto bounds = getCurveArea().toFloat();
-        const float minDb = EDITOR_MIN_DBFS;
-        const float maxDb = EDITOR_MAX_DBFS;
-        float normalizedX = (mousePos.getX() - bounds.getX()) / bounds.getWidth();
-        float freqHz = juce::mapToLog10(juce::jlimit(0.0f, 1.0f, normalizedX), MIN_HZ, MAX_HZ);
-        float gainDb = juce::jmap(mousePos.getY(), bounds.getBottom(), bounds.getY(), minDb, maxDb);
-        gainDb = juce::jlimit(minDb, maxDb, gainDb);
-        freqHz = juce::jlimit(MIN_HZ, MAX_HZ, freqHz);
-        juce::String index = juce::String(draggingBand + 1);
-        if (auto* freqParam = audioProcessor.apvts.getParameter(ID_BAND_FREQ + index))
-        {
-            freqParam->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(ID_BAND_FREQ + index).convertTo0to1(freqHz));
-        }
-        if (auto* gainParam = audioProcessor.apvts.getParameter(ID_BAND_GAIN + index))
-        {
-            gainParam->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(ID_BAND_GAIN + index).convertTo0to1(gainDb));
-        }
     }
     void handleAsyncUpdate() override
     {
@@ -375,17 +339,6 @@ private:
             repaint();
         }
     };
-    juce::Image gridCache;
-    static constexpr int labelBorderSize = 48;
-    static constexpr float METER_MAX = 12.0f;
-    static constexpr float METER_MIN = -36.0f;
-    static constexpr float MIN_HZ = 20.0f;
-    static constexpr float MAX_HZ = 20000.0f;
-    static constexpr float EDITOR_MIN_DBFS = -24.0f;
-    static constexpr float EDITOR_MAX_DBFS = 24.0f;
-    const std::vector<float> editorDBs = {24.0f, 18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f};
-    const std::vector<float> meterDBs = {12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f, -30.0f, -36.0f};
-    const std::vector<float> frequencies = {20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f};
     void resized() override
     {
         struct Marker { juce::String text; int pos; };
@@ -413,9 +366,9 @@ private:
         xMarkers.reserve(frequencies.size());
         std::transform(frequencies.begin(), frequencies.end(), std::back_inserter(xMarkers), [&](float f)
             {
-                return Marker {formatFreqText(f), (int)curveArea.getRelativePoint(juce::mapFromLog10(f, MIN_HZ, MAX_HZ), 0.0f).x};
+                return Marker {formatFreqText(f), (int)curveArea.getRelativePoint(juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ), 0.0f).x};
             });
-        auto curveYMarkers = createYMarkers(editorDBs, curveArea, EDITOR_MAX_DBFS, EDITOR_MIN_DBFS);
+        auto curveYMarkers = createYMarkers(editorDBs, curveArea, EDITOR_MAX_DB, EDITOR_MIN_DB);
         auto meterYMarkers = createYMarkers(meterDBs, meterArea, METER_MAX, METER_MIN);
         gridCache = juce::Image(juce::Image::ARGB, getWidth(), getHeight(), true);
         juce::Graphics g(gridCache);
@@ -455,7 +408,6 @@ private:
         a.removeFromRight(margin * 6);
         return a;
     }
-
     void calculateResponseCurve()
     {
         int curveSize = getCurveArea().getWidth();
@@ -464,73 +416,71 @@ private:
         auto snapshots = audioProcessor.getFilterSnapshots();
         responseCurvePathMid.clear();
         responseCurvePathSide.clear();
-        phaseCurvePathMid.clear();
-        phaseCurvePathSide.clear();
         for (int i = 0; i < curveSize; ++i)
         {
             float normalizedX = (float)i / (float)(curveSize - 1);
-            float freqHz = juce::mapToLog10(normalizedX, (float)MIN_HZ, (float)MAX_HZ);
+            float freqHz = juce::mapToLog10(normalizedX, (float)EDITOR_MIN_HZ, (float)EDITOR_MAX_HZ);
             float magSqMid = 1.0f;
             float magSqSide = 1.0f;
-            float phaseTotalMid = 0.0f;
-            float phaseTotalSide = 0.0f;
             for (const auto& s : snapshots)
             {
                 auto res = s.filter.get_response(freqHz, (float)sampleRate);
                 float m = std::norm(res);
-                float p = std::arg(res);
                 if (s.channelMode == 0 || s.channelMode == 1) {
                     magSqMid *= m;
-                    phaseTotalMid += p;
                 }
                 if (s.channelMode == 0 || s.channelMode == 2) {
                     magSqSide *= m;
-                    phaseTotalSide += p;
                 }
             }
             auto getMagY = [&](float magSq)
             {
                 float db = 10.0f * std::log10(std::max(magSq, 1e-10f));
-                return juce::jmap(db, (float)EDITOR_MIN_DBFS, (float)EDITOR_MAX_DBFS, bounds.getBottom(), bounds.getY());
-            };
-            auto getPhaseY = [&](float phaseRad)
-            {
-                return juce::jmap(phaseRad, -juce::MathConstants<float>::pi, juce::MathConstants<float>::pi, bounds.getBottom(), bounds.getY());
+                return juce::jmap(db, (float)EDITOR_MIN_DB, (float)EDITOR_MAX_DB, bounds.getBottom(), bounds.getY());
             };
             float x = bounds.getX() + bounds.getWidth() * normalizedX;
             if (i == 0) {
                 responseCurvePathMid.startNewSubPath(x, getMagY(magSqMid));
                 responseCurvePathSide.startNewSubPath(x, getMagY(magSqSide));
-                //phaseCurvePathMid.startNewSubPath(x, getPhaseY(phaseTotalMid));
-                //phaseCurvePathSide.startNewSubPath(x, getPhaseY(phaseTotalSide));
             }
             else {
                 responseCurvePathMid.lineTo(x, getMagY(magSqMid));
                 responseCurvePathSide.lineTo(x, getMagY(magSqSide));
-                //phaseCurvePathMid.lineTo(x, getPhaseY(phaseTotalMid));
-                //phaseCurvePathSide.lineTo(x, getPhaseY(phaseTotalSide));
             }
         }
     }
-    int draggingBand = -1;
-    bool parametersNeedUpdate = true;
-    static constexpr float MIN_DBFS = -90.0f;
-    static constexpr float MAX_DBFS = 30.0f;
+
     static constexpr int HALF_FONT_HEIGHT = 5;
     static constexpr int FONT_HEIGHT = HALF_FONT_HEIGHT * 2;
     static constexpr int margin = 10;
     static constexpr int THREAD_SLEEP_TIME = 20;
+    static constexpr int labelBorderSize = 48;
+
+    static constexpr float METER_MAX = 12.0f;
+    static constexpr float METER_MIN = -36.0f;
+    static constexpr float FFT_MIN_DB = -90.0f;
+    static constexpr float FFT_MAX_DB = 30.0f;
+    static constexpr float EDITOR_MIN_HZ = 20.0f;
+    static constexpr float EDITOR_MAX_HZ = 20000.0f;
+    static constexpr float EDITOR_MIN_DB = -24.0f;
+    static constexpr float EDITOR_MAX_DB = 24.0f;
+
+    int draggingBand = -1;
+    bool parametersNeedUpdate = true;
+
+    const std::vector<float> editorDBs = {24.0f, 18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f};
+    const std::vector<float> meterDBs = {12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f, -30.0f, -36.0f};
+    const std::vector<float> frequencies = {20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f};
+
     QuasarEQAudioProcessor& audioProcessor;
     PathProducer pathProducer;
     SpectrumRenderData channelPathToDraw;
+    AnalyzerThread analyzerThread;
+    juce::Image gridCache;
     std::vector<juce::Point<float>> spectrumPoints;
     std::vector<juce::Point<float>> peakHoldPoints;
-    std::vector<float> freqLUT;
     juce::CriticalSection pathLock;
     juce::Path responseCurvePathMid;
     juce::Path responseCurvePathSide;
-    juce::Path phaseCurvePathMid;
-    juce::Path phaseCurvePathSide;
-    AnalyzerThread analyzerThread;
-    std::vector<float> responseCurveMagnitude;
+    zlth::dsp::fft::Resampler510 resampler;
 };
