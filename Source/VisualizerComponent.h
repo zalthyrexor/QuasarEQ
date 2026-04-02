@@ -4,6 +4,7 @@
 #include "juce_LookAndFeel.h"
 #include "juce_PluginProcessor.h"
 #include "PathProducer.h"
+#include "zlth_dsp_fft_resampler510.h"
 
 class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener
 {
@@ -47,7 +48,7 @@ public:
         p.startNewSubPath(points[0]);
         p.lineTo(points[1]);
 
-        for (size_t i = 1; i < 33; ++i)
+        for (size_t i = 1; i < 254; ++i)
         {
             const auto& p0 = points[i - 1];
             const auto& p1 = points[i];
@@ -58,7 +59,7 @@ public:
             p.cubicTo(cp1, cp2, p2);
         }
 
-        for (size_t i = 32; i < a; ++i)
+        for (size_t i = 255; i < a; ++i)
         {
             p.lineTo(points[i]);
         }
@@ -78,13 +79,20 @@ public:
         peakHoldPoints.clear();
         spectrumPoints.reserve(localPath.spectrumPath.size());
         peakHoldPoints.reserve(localPath.spectrumPath.size());
-        if (localPath.spectrumPath.size() != 0)
+        zlth::dsp::fft::Resampler510 resampler;
+        if (localPath.spectrumPath.size() == 2048)
         {
-            for (size_t i = 1; i < localPath.spectrumPath.size(); ++i)
+            float sampleRate = audioProcessor.getSampleRate();
+            auto peak = resampler.resample(localPath.peakHoldPath.data(), sampleRate);
+            auto spec = resampler.resample(localPath.spectrumPath.data(), sampleRate);
+            auto bounds = getCurveArea().toFloat();
+            for (int i = 1; i < spec.size(); ++i)
             {
-                const float freq = freqLUT[i] * getCurveArea().getWidth() + getCurveArea().getX();
-                spectrumPoints.emplace_back(freq, juce::jmap(localPath.spectrumPath[i], MIN_DBFS, MAX_DBFS, getCurveArea().toFloat().getBottom(), getCurveArea().toFloat().getY()));
-                peakHoldPoints.emplace_back(freq, juce::jmap(localPath.peakHoldPath[i], MIN_DBFS, MAX_DBFS, getCurveArea().toFloat().getBottom(), getCurveArea().toFloat().getY()));
+                float x = juce::mapFromLog10(peak[i].first, MIN_HZ, MAX_HZ) * bounds.getWidth() + bounds.getX();
+                float py = juce::jmap(peak[i].second, MIN_DBFS, MAX_DBFS, bounds.getBottom(), bounds.getY());
+                float sy = juce::jmap(spec[i].second, MIN_DBFS, MAX_DBFS, bounds.getBottom(), bounds.getY());
+                peakHoldPoints.emplace_back(x, py);
+                spectrumPoints.emplace_back(x, sy);
             }
         }
         if (spectrumPoints.size() != 0)
@@ -106,11 +114,15 @@ public:
 
         g.setColour(juce::Colour(zlth::ui::colors::side));
         g.strokePath(responseCurvePathSide, juce::PathStrokeType(2.5f));
-        g.strokePath(phaseCurvePathSide, juce::PathStrokeType(0.5f));
+        if (!phaseCurvePathSide.isEmpty()) {
+            g.strokePath(phaseCurvePathSide, juce::PathStrokeType(0.5f));
+        }
 
         g.setColour(juce::Colour(zlth::ui::colors::theme));
         g.strokePath(responseCurvePathMid, juce::PathStrokeType(2.5f));
-        g.strokePath(phaseCurvePathMid, juce::PathStrokeType(0.5f));
+        if (!phaseCurvePathMid.isEmpty()) {
+            g.strokePath(phaseCurvePathMid, juce::PathStrokeType(0.5f));
+        }
 
 
         g.restoreState();
@@ -489,14 +501,14 @@ private:
             if (i == 0) {
                 responseCurvePathMid.startNewSubPath(x, getMagY(magSqMid));
                 responseCurvePathSide.startNewSubPath(x, getMagY(magSqSide));
-                phaseCurvePathMid.startNewSubPath(x, getPhaseY(phaseTotalMid));
-                phaseCurvePathSide.startNewSubPath(x, getPhaseY(phaseTotalSide));
+                //phaseCurvePathMid.startNewSubPath(x, getPhaseY(phaseTotalMid));
+                //phaseCurvePathSide.startNewSubPath(x, getPhaseY(phaseTotalSide));
             }
             else {
                 responseCurvePathMid.lineTo(x, getMagY(magSqMid));
                 responseCurvePathSide.lineTo(x, getMagY(magSqSide));
-                phaseCurvePathMid.lineTo(x, getPhaseY(phaseTotalMid));
-                phaseCurvePathSide.lineTo(x, getPhaseY(phaseTotalSide));
+                //phaseCurvePathMid.lineTo(x, getPhaseY(phaseTotalMid));
+                //phaseCurvePathSide.lineTo(x, getPhaseY(phaseTotalSide));
             }
         }
     }
@@ -507,7 +519,7 @@ private:
     static constexpr int HALF_FONT_HEIGHT = 5;
     static constexpr int FONT_HEIGHT = HALF_FONT_HEIGHT * 2;
     static constexpr int margin = 10;
-    static constexpr int THREAD_SLEEP_TIME = 25;
+    static constexpr int THREAD_SLEEP_TIME = 20;
     QuasarEQAudioProcessor& audioProcessor;
     PathProducer pathProducer;
     SpectrumRenderData channelPathToDraw;
