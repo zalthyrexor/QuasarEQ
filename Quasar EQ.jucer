@@ -3,7 +3,7 @@
 <JUCERPROJECT id="A71OhK" name="Quasar EQ 4" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyName="Zalthyrexor"
               pluginVST3Category="EQ" pluginManufacturerCode="Zlth" companyCopyright="Copyright (c) 2026 Zalthyrexor"
-              cppLanguageStandard="20" pluginCode="Zx4z" version="4.0.0" pluginFormats="buildStandalone">
+              cppLanguageStandard="20" pluginCode="Zx4z" version="4.0.0" pluginFormats="buildVST3">
   <MAINGROUP id="HFHuMF" name="Quasar EQ 4">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
       <GROUP id="{201A037D-7962-C3BC-25C2-A5136CA7E78B}" name="zlth">
@@ -57,6 +57,8 @@
     <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
             useGlobalPath="1"/>
     <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
     <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -71,8 +73,8 @@
   <EXPORTFORMATS>
     <VS2022 targetFolder="Builds/VisualStudio2022">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar EQ 4"/>
-        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar EQ 4"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar EQ 4" useRuntimeLibDLL="0"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar EQ 4" useRuntimeLibDLL="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../juce-8.0.10-windows/JUCE/modules"/>
@@ -89,6 +91,7 @@
         <MODULEPATH id="juce_gui_basics" path="../juce-8.0.10-windows/JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../juce-8.0.10-windows/JUCE/modules"/>
         <MODULEPATH id="juce_opengl" path="../juce-8.0.10-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../juce-8.0.12-windows/JUCE/modules"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>
