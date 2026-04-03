@@ -14,17 +14,7 @@ namespace zlth::dsp::filter
     public:
         ZdfSvf2ndOrder() = default;
         ~ZdfSvf2ndOrder() = default;
-        enum class FilterType
-        {
-            HighPass,
-            LowPass,
-            HighShelf,
-            LowShelf,
-            Bell,
-            Tilt,
-            Notch,
-            BandPass
-        };
+        enum class FilterType { HighPass, LowPass, HighShelf, LowShelf, Bell, Tilt, Notch, BandPass };
         void set_coefficients(FilterType filterType, float cutoffFreqHz, float q, float gainDb, float sampleRate)
         {
             float g = std::tan(pi * std::clamp(cutoffFreqHz, sampleRate * 0.0001f, sampleRate * 0.49f) / sampleRate);
