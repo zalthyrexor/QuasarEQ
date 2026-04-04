@@ -22,7 +22,7 @@ public:
                 audioProcessor.apvts.addParameterListener(prefix + index, this);
             }
         }
-    };
+    }
     ~VisualizerComponent()
     {
         for (int i = 0; i < config::BAND_COUNT; ++i)
@@ -33,147 +33,128 @@ public:
                 audioProcessor.apvts.removeParameterListener(prefix + index, this);
             }
         }
-    };
+    }
     void parameterChanged(const juce::String& parameterID, float newValue)
     {
         parametersNeedUpdate = true;
-    };
-    juce::Path createBezierPath(const std::vector<juce::Point<float>>& points)
-    {
-        juce::Path p {};
-        size_t a = points.size();
+    }
 
-        static constexpr float BEZIER_SCALE = 1.0f / 6.0f;
-        p.startNewSubPath(points[0]);
-        p.lineTo(points[1]);
-
-        for (size_t i = 1; i < 254; ++i)
-        {
-            const auto& p0 = points[i - 1];
-            const auto& p1 = points[i];
-            const auto& p2 = points[i + 1];
-            const auto& p3 = points[i + 2];
-            const juce::Point<float> cp1 = p1 + (p2 - p0) * BEZIER_SCALE;
-            const juce::Point<float> cp2 = p2 - (p3 - p1) * BEZIER_SCALE;
-            p.cubicTo(cp1, cp2, p2);
-        }
-
-        for (size_t i = 255; i < a; ++i)
-        {
-            p.lineTo(points[i]);
-        }
-        return p;
-    };
     void paint(juce::Graphics& g) override
     {
         g.drawImageAt(gridCache, 0, 0);
+
         SpectrumRenderData localPath;
         {
             juce::ScopedLock lock(pathLock);
             localPath = channelPathToDraw;
         }
+
+        auto meterArea = getLevelMeterArea();
+        auto meterAreaX = meterArea.getX();
+        auto meterAreaY = meterArea.getY();
+        auto meterAreaW = meterArea.getWidth();
+        auto meterAreaB = meterArea.getBottom();
+        const auto meterMax = config::METER_MAX;
+        const auto meterMin = config::METER_MIN;
+        const int meterHeightM = juce::jmap(juce::jlimit(meterMin, meterMax, localPath.dbM), meterMin, meterMax, (float)meterAreaB, (float)meterAreaY);
+        const int meterHeightS = juce::jmap(juce::jlimit(meterMin, meterMax, localPath.dbS), meterMin, meterMax, (float)meterAreaB, (float)meterAreaY);
+        g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.55f));
+        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(meterAreaX + meterAreaW * 0.25, meterHeightM, meterAreaX + meterAreaW * 0.75, meterAreaB));
+        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(meterAreaX, meterHeightS, meterAreaX + meterAreaW * 0.25, meterAreaB));
+        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(meterAreaX + meterAreaW * 0.75, meterHeightS, meterAreaX + meterAreaW, meterAreaB));
+
+        auto spectrumArea = getCurveArea().toFloat();
+        auto spectrumAreaX = spectrumArea.getX();
+        auto spectrumAreaY = spectrumArea.getY();
+        auto spectrumAreaW = spectrumArea.getWidth();
+        auto spectrumAreaB = spectrumArea.getBottom();
+
         g.saveState();
         g.reduceClipRegion(getCurveArea());
-        spectrumPoints.clear();
-        peakHoldPoints.clear();
-        spectrumPoints.reserve(localPath.spectrumPath.size());
-        peakHoldPoints.reserve(localPath.spectrumPath.size());
-        if (localPath.spectrumPath.size() == 2048)
+        auto fftMinDB = config::FFT_MIN_DB;
+        auto fftMaxDB = config::FFT_MAX_DB;
+        auto updatePath = [&](const auto& sourcePath, std::vector<juce::Point<float>>& targetPoints, juce::Path& targetPath, bool shouldClosePath)
         {
-            float sampleRate = audioProcessor.getSampleRate();
-            auto peak = resampler.resample(localPath.peakHoldPath.data(), sampleRate);
-            auto spec = resampler.resample(localPath.spectrumPath.data(), sampleRate);
-            auto bounds = getCurveArea().toFloat();
-            for (int i = 1; i < spec.size(); ++i)
+            targetPoints.clear();
+            targetPath.clear();
+            if (sourcePath.size() != 2048) return;
+            targetPoints.reserve(sourcePath.size());
+            auto resampled = resampler.resample(sourcePath.data(), audioProcessor.getSampleRate());
+            for (int i = 1; i < resampled.size(); ++i)
             {
-                float x = juce::mapFromLog10(peak[i].first, EDITOR_MIN_HZ, EDITOR_MAX_HZ) * bounds.getWidth() + bounds.getX();
-                float py = juce::jmap(peak[i].second, FFT_MIN_DB, FFT_MAX_DB, bounds.getBottom(), bounds.getY());
-                float sy = juce::jmap(spec[i].second, FFT_MIN_DB, FFT_MAX_DB, bounds.getBottom(), bounds.getY());
-                peakHoldPoints.emplace_back(x, py);
-                spectrumPoints.emplace_back(x, sy);
+                float x = juce::mapFromLog10(resampled[i].first, EDITOR_MIN_HZ, EDITOR_MAX_HZ) * spectrumAreaW + spectrumAreaX;
+                float y = juce::jmap(resampled[i].second, fftMinDB, fftMaxDB, spectrumAreaB, spectrumAreaY);
+                targetPoints.emplace_back(x, y);
             }
-        }
-        if (spectrumPoints.size() != 0)
-        {
-            juce::Path curvePathPeak = createBezierPath(spectrumPoints);
-            curvePathPeak.lineTo(spectrumPoints.back().x, getCurveArea().toFloat().getBottom());
-            curvePathPeak.lineTo(spectrumPoints[0].x, getCurveArea().toFloat().getBottom());
-            curvePathPeak.closeSubPath();
-            g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.45f));
-            g.fillPath(curvePathPeak);
-        }
-        if (peakHoldPoints.size() != 0)
-        {
-            juce::Path curvePathPeak = createBezierPath(peakHoldPoints);
-            g.setColour(juce::Colour(zlth::ui::colors::theme));
-            g.strokePath(curvePathPeak, juce::PathStrokeType(1.5f));
-        }
-        auto& apvts = audioProcessor.apvts;
-
+            targetPath.startNewSubPath(targetPoints[0]);
+            targetPath.lineTo(targetPoints[1]);
+            static constexpr float BEZIER_SCALE = 1.0f / 6.0f;
+            for (size_t i = 1; i < 254; ++i)
+            {
+                const auto& p0 = targetPoints[i - 1];
+                const auto& p1 = targetPoints[i];
+                const auto& p2 = targetPoints[i + 1];
+                const auto& p3 = targetPoints[i + 2];
+                const juce::Point<float> cp1 = p1 + (p2 - p0) * BEZIER_SCALE;
+                const juce::Point<float> cp2 = p2 - (p3 - p1) * BEZIER_SCALE;
+                targetPath.cubicTo(cp1, cp2, p2);
+            }
+            for (size_t i = 255; i < targetPoints.size(); ++i)
+            {
+                targetPath.lineTo(targetPoints[i]);
+            }
+            if (!shouldClosePath) return;
+            targetPath.lineTo(targetPoints.back().x, spectrumAreaB);
+            targetPath.lineTo(targetPoints.front().x, spectrumAreaB);
+            targetPath.closeSubPath();
+        };
+        updatePath(localPath.spectrumPath, spectrumPoints, spectrumPath, true);
+        updatePath(localPath.peakHoldPath, peakHoldPoints, peakHoldPath, false);
+        g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.45f));
+        g.fillPath(spectrumPath);
+        g.setColour(juce::Colour(zlth::ui::colors::theme));
+        g.strokePath(peakHoldPath, juce::PathStrokeType(1.5f));
         g.setColour(juce::Colour(zlth::ui::colors::side));
         g.strokePath(responseCurvePathSide, juce::PathStrokeType(2.5f));
         g.setColour(juce::Colour(zlth::ui::colors::theme));
         g.strokePath(responseCurvePathMid, juce::PathStrokeType(2.5f));
-
-
         g.restoreState();
-        const float high = 12.0f;
-        const float low = -36.0f;
-        const float lClamped = juce::jlimit(low, high, localPath.leftDB);
-        const float rClamped = juce::jlimit(low, high, localPath.rightDB);
-        const int leftY = juce::roundToInt(juce::jmap(lClamped, low, high, getLevelMeterArea().toFloat().getBottom(), getLevelMeterArea().toFloat().getY()));
-        const int rightY = juce::roundToInt(juce::jmap(rClamped, low, high, getLevelMeterArea().toFloat().getBottom(), getLevelMeterArea().toFloat().getY()));
-        g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.55f));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(
-            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.25,
-            leftY,
-            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.75,
-            getLevelMeterArea().getBottom()));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(
-            getLevelMeterArea().getX(),
-            rightY,
-            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.25,
-            getLevelMeterArea().getBottom()));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(
-            getLevelMeterArea().getX() + getLevelMeterArea().getWidth() * 0.75,
-            rightY,
-            getLevelMeterArea().getX() + getLevelMeterArea().getWidth(),
-            getLevelMeterArea().getBottom()));
-        auto bounds = getCurveArea().toFloat();
-        const float minDb = -24.0f;
-        const float maxDb = 24.0f;
-        for (int i = 0; i < config::BAND_COUNT; ++i)
+
+        auto& apvts = audioProcessor.apvts;
+        const float minDb = config::PARAM_BAND_GAIN_MIN;
+        const float maxDb = config::PARAM_BAND_GAIN_MAX;
+        const float bandCount = config::BAND_COUNT;
+        for (int i = 0; i < bandCount; ++i)
         {
             juce::String index = juce::String(i + 1);
-            const auto bypass = apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load();
-            if (bypass < 0.5f)
+            auto getParam = [&](const juce::String& prefix)
             {
-                float freqHz = apvts.getRawParameterValue(ID_BAND_FREQ + index)->load();
-                float gainDb = apvts.getRawParameterValue(ID_BAND_GAIN + index)->load();
-                float x = bounds.getX() + bounds.getWidth() * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
-                float y = juce::jmap(gainDb, minDb, maxDb, bounds.getBottom(), bounds.getY());
-                g.setColour(juce::Colour(zlth::ui::colors::textBackground));
-                const int pointSize = 14;
-                const int highLightPointSize = pointSize * 2;
-                g.fillEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize);
-                g.setColour(juce::Colour(zlth::ui::colors::text));
-                g.drawEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize, 1.5f);
-                juce::String bandNumber = juce::String(i + 1);
-                const int textHeight = 12;
-                g.setFont(textHeight);
-                const int textWidth = g.getCurrentFont().getStringWidth(bandNumber);
-                juce::Rectangle<int> textBounds(juce::roundToInt(x - textWidth * 0.5f), y - 6, textWidth, textHeight);
-                g.drawText(bandNumber, textBounds, juce::Justification::centred, false);
-            }
+                return apvts.getRawParameterValue(prefix + index)->load();
+            };
+            if (getParam(ID_BAND_BYPASS) > 0.5f) continue;
+            float freqHz = getParam(ID_BAND_FREQ);
+            float gainDb = getParam(ID_BAND_GAIN);
+            float x = spectrumAreaX + spectrumAreaW * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
+            float y = juce::jmap(gainDb, minDb, maxDb, spectrumAreaB, spectrumAreaY);
+            const int pointSize = 14;
+            g.setColour(juce::Colour(zlth::ui::colors::textBackground));
+            g.fillEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize);
+            g.setColour(juce::Colour(zlth::ui::colors::text));
+            g.drawEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize, 1.5f);
+            const int textHeight = 12;
+            g.setFont(textHeight);
+            const int textWidth = g.getCurrentFont().getStringWidth(index);
+            juce::Rectangle<int> textBounds(juce::roundToInt(x - textWidth * 0.5f), y - 6, textWidth, textHeight);
+            g.drawText(index, textBounds, juce::Justification::centred, false);
         }
     }
+
     int findNextAvailableBand() const
     {
         for (int i = 0; i < config::BAND_COUNT; ++i)
         {
             juce::String index = juce::String(i + 1);
-            if (audioProcessor.apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f)
-                return i;
+            if (audioProcessor.apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f) return i;
         }
         return -1;
     }
@@ -226,7 +207,8 @@ public:
         const float MAX_HZ = EDITOR_MAX_HZ;
         float freqHz = juce::jlimit(MIN_HZ, MAX_HZ, juce::mapToLog10(juce::jlimit(0.0f, 1.0f, (mousePos.getX() - bounds.getX()) / bounds.getWidth()), MIN_HZ, MAX_HZ));
         float gainDb = juce::jlimit(MIN_DB, MAX_DB, juce::jmap(mousePos.getY(), bounds.getBottom(), bounds.getY(), MIN_DB, MAX_DB));
-        auto setParam = [&](const juce::String& paramID, float plainValue) {
+        auto setParam = [&](const juce::String& paramID, float plainValue) 
+        {
             juce::String index = juce::String(draggingBand + 1);
             if (auto* p = audioProcessor.apvts.getParameter(paramID + index))
             {
@@ -288,32 +270,36 @@ private:
         PathProducer& producer;
         VisualizerComponent& responseCurveComponent;
     };
+
     int getClosestBand(juce::Point<float> mousePos)
     {
-        auto bounds = getCurveArea().toFloat();
-        const float xBase = bounds.getX();
-        const float width = bounds.getWidth();
-        const float yBottom = bounds.getBottom();
-        const float yTop = bounds.getY();
-        const float minDb = EDITOR_MIN_DB;
-        const float maxDb = EDITOR_MAX_DB;
+        auto area = getCurveArea().toFloat();
+        const float areaX = area.getX();
+        const float areaY = area.getY();
+        const float areaW = area.getWidth();
+        const float areaB = area.getBottom();
+        const float minDb = config::PARAM_BAND_GAIN_MIN;
+        const float maxDb = config::PARAM_BAND_GAIN_MAX;
         const float toleranceRadius = 12.0f;
         const float thresholdSq = toleranceRadius * toleranceRadius;
         auto& apvts = audioProcessor.apvts;
         for (int i = 0; i < config::BAND_COUNT; ++i)
         {
             juce::String index = juce::String(i + 1);
-            if (apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f)
-                continue;
-            float freqHz = apvts.getRawParameterValue(ID_BAND_FREQ + index)->load();
-            float gainDb = apvts.getRawParameterValue(ID_BAND_GAIN + index)->load();
-            float x = xBase + width * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
-            float y = juce::jmap(gainDb, minDb, maxDb, yBottom, yTop);
-            if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq)
-                return i;
+            auto getParam = [&](const juce::String& prefix)
+            {
+                return apvts.getRawParameterValue(prefix + index)->load();
+            };
+            if (getParam(ID_BAND_BYPASS) > 0.5f) continue;
+            float freqHz = getParam(ID_BAND_FREQ);
+            float gainDb = getParam(ID_BAND_GAIN);
+            float x = areaX + areaW * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
+            float y = juce::jmap(gainDb, minDb, maxDb, areaB, areaY);
+            if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq) return i;
         }
         return -1;
     }
+
     void handleAsyncUpdate() override
     {
         SpectrumRenderData path;
@@ -338,53 +324,60 @@ private:
             }
             repaint();
         }
-    };
+    }
+
     void resized() override
     {
         struct Marker { juce::String text; int pos; };
         const auto curveArea = getCurveArea();
-        const auto meterArea = getLevelMeterArea();
         const auto curveAreaF = curveArea.toFloat();
-        const auto meterAreaF = meterArea.toFloat();
+        const auto meterArea = getLevelMeterArea();
         auto formatFreqText = [](float f) { return (f < 1000.0f) ? juce::String(static_cast<int>(f)) : juce::String(static_cast<int>(f / 1000.0f)) + "k"; };
         auto formatDbText = [](float db) { return (db > 0 ? "+" : "") + juce::String(static_cast<int> (db)); };
         auto dbToY = [&](float db, const juce::Rectangle<int>& area, float maxDb, float minDb)
-            {
-                return (int)area.getRelativePoint(0.0f, juce::jmap(db, maxDb, minDb, 0.0f, 1.0f)).y;
-            };
+        {
+            return (int)area.getRelativePoint(0.0f, juce::jmap(db, maxDb, minDb, 0.0f, 1.0f)).y;
+        };
         auto createYMarkers = [&](const std::vector<float>& dbs, const juce::Rectangle<int>& area, float maxDb, float minDb)
+        {
+            std::vector<Marker> markers;
+            markers.reserve(dbs.size());
+            std::transform(dbs.begin(), dbs.end(), std::back_inserter(markers), [&](float db)
             {
-                std::vector<Marker> markers;
-                markers.reserve(dbs.size());
-                std::transform(dbs.begin(), dbs.end(), std::back_inserter(markers), [&](float db)
-                    {
-                        return Marker {formatDbText(db), dbToY(db, area, maxDb, minDb)};
-                    });
-                return markers;
-            };
+                return Marker {formatDbText(db), dbToY(db, area, maxDb, minDb)};
+            });
+            return markers;
+        };
         std::vector<Marker> xMarkers;
         xMarkers.reserve(frequencies.size());
         std::transform(frequencies.begin(), frequencies.end(), std::back_inserter(xMarkers), [&](float f)
-            {
-                return Marker {formatFreqText(f), (int)curveArea.getRelativePoint(juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ), 0.0f).x};
-            });
+        {
+            return Marker {formatFreqText(f), (int)curveArea.getRelativePoint(juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ), 0.0f).x};
+        });
         auto curveYMarkers = createYMarkers(editorDBs, curveArea, EDITOR_MAX_DB, EDITOR_MIN_DB);
-        auto meterYMarkers = createYMarkers(meterDBs, meterArea, METER_MAX, METER_MIN);
+        auto meterYMarkers = createYMarkers(meterDBs, meterArea, config::METER_MAX, config::METER_MIN);
         gridCache = juce::Image(juce::Image::ARGB, getWidth(), getHeight(), true);
         juce::Graphics g(gridCache);
         g.setColour(juce::Colours::black);
         g.fillRect(curveArea);
         g.fillRect(meterArea);
-        g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
 
+        const auto meterZeroDecibelY = dbToY(0.0f, meterArea, config::METER_MAX, config::METER_MIN);
+        const auto meterAreaFloat = meterArea.toFloat();
+        const auto meterAreaX = meterAreaFloat.getX();
+        const auto meterAreaY = meterAreaFloat.getY();
+        const auto meterAreaW = meterAreaFloat.getWidth();
+        const auto meterAreaB = meterAreaFloat.getBottom();
+        const auto meterAreaR = meterAreaFloat.getRight();
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
-        g.drawHorizontalLine(dbToY(0.0f, meterArea, METER_MAX, METER_MIN), meterAreaF.getX(), meterAreaF.getRight());
-        g.drawHorizontalLine(meterAreaF.getBottom(), meterAreaF.getX(), meterAreaF.getRight());
-        g.drawHorizontalLine(meterAreaF.getY(), meterAreaF.getX(), meterAreaF.getRight());
-        g.drawVerticalLine(meterAreaF.getX(), meterAreaF.getY(), meterAreaF.getBottom());
-        g.drawVerticalLine(meterAreaF.getX() + meterAreaF.getWidth() * 0.25, meterAreaF.getY(), meterAreaF.getBottom());
-        g.drawVerticalLine(meterAreaF.getX() + meterAreaF.getWidth() * 0.75, meterAreaF.getY(), meterAreaF.getBottom());
-        g.drawVerticalLine(meterAreaF.getX() + meterAreaF.getWidth(), meterAreaF.getY(), meterAreaF.getBottom());
+        g.drawHorizontalLine(meterZeroDecibelY, meterAreaX, meterAreaR);
+        g.drawHorizontalLine(meterAreaB, meterAreaX, meterAreaR);
+        g.drawHorizontalLine(meterAreaY, meterAreaX, meterAreaR);
+        g.drawVerticalLine(meterAreaX, meterAreaY, meterAreaB);
+        g.drawVerticalLine(meterAreaX + meterAreaW * 0.25, meterAreaY, meterAreaB);
+        g.drawVerticalLine(meterAreaX + meterAreaW * 0.75, meterAreaY, meterAreaB);
+        g.drawVerticalLine(meterAreaX + meterAreaW, meterAreaY, meterAreaB);
+
         for (const auto& m : xMarkers)g.drawVerticalLine(m.pos, curveAreaF.getY(), curveAreaF.getBottom());
         for (const auto& m : curveYMarkers)g.drawHorizontalLine(m.pos, curveAreaF.getX(), curveAreaF.getRight());
         g.setColour(juce::Colour(zlth::ui::colors::text));
@@ -408,6 +401,7 @@ private:
         a.removeFromRight(margin * 6);
         return a;
     }
+
     void calculateResponseCurve()
     {
         int curveSize = getCurveArea().getWidth();
@@ -456,12 +450,10 @@ private:
     static constexpr int THREAD_SLEEP_TIME = 20;
     static constexpr int labelBorderSize = 48;
 
-    static constexpr float METER_MAX = 12.0f;
-    static constexpr float METER_MIN = -36.0f;
-    static constexpr float FFT_MIN_DB = -90.0f;
-    static constexpr float FFT_MAX_DB = 30.0f;
+
     static constexpr float EDITOR_MIN_HZ = 20.0f;
     static constexpr float EDITOR_MAX_HZ = 20000.0f;
+
     static constexpr float EDITOR_MIN_DB = -24.0f;
     static constexpr float EDITOR_MAX_DB = 24.0f;
 
@@ -477,8 +469,13 @@ private:
     SpectrumRenderData channelPathToDraw;
     AnalyzerThread analyzerThread;
     juce::Image gridCache;
+
     std::vector<juce::Point<float>> spectrumPoints;
     std::vector<juce::Point<float>> peakHoldPoints;
+
+    juce::Path spectrumPath;
+    juce::Path peakHoldPath;
+
     juce::CriticalSection pathLock;
     juce::Path responseCurvePathMid;
     juce::Path responseCurvePathSide;

@@ -12,8 +12,8 @@ struct SpectrumRenderData
 {
     std::vector<float> spectrumPath;
     std::vector<float> peakHoldPath;
-    float leftDB = -100.0f;
-    float rightDB = -100.0f;
+    float dbM = -100.0f;
+    float dbS = -100.0f;
 };
 
 class PathProducer
@@ -81,8 +81,8 @@ public:
         {
             std::copy(decibelsCurrent.begin(), decibelsCurrent.end(), renderData->spectrumPath.begin());
             std::copy(decibelsPeak.begin(), decibelsPeak.end(), renderData->peakHoldPath.begin());
-            renderData->leftDB = decibelLSmoothed;
-            renderData->rightDB = decibelRSmoothed;
+            renderData->dbM = decibelLSmoothed;
+            renderData->dbS = decibelRSmoothed;
             pathFifo.finishedWrite();
         }
     }
@@ -96,8 +96,8 @@ public:
         {
             path.spectrumPath = renderData->spectrumPath;
             path.peakHoldPath = renderData->peakHoldPath;
-            path.leftDB = renderData->leftDB;
-            path.rightDB = renderData->rightDB;
+            path.dbM = renderData->dbM;
+            path.dbS = renderData->dbS;
 
             pathFifo.finishedRead();
             return true;
