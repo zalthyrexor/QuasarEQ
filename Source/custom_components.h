@@ -2,30 +2,33 @@
 
 #include "VisualizerComponent.h"
 
-class CustomButton: public juce::Button
+class CustomButton : public juce::Button
 {
 public:
-    CustomButton() : juce::Button("PowerButton") {}
-    void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override
-    {
-        const auto isBypass = getToggleState();
-        const auto color = isBypass ? juce::Colour(zlth::ui::colors::theme) : juce::Colour(zlth::ui::colors::buttonDisabled);
-        auto bounds = getLocalBounds().toFloat();
-        g.setColour(juce::Colours::black);
-        g.fillRect(bounds);
-        g.setColour(color);
-        g.drawRect(bounds, 2.0f);
-        g.setFont(13.0f);
-        g.drawText(ID_BAND_BYPASS, getLocalBounds(), juce::Justification::centred);
-    }
-    void mouseEnter(const juce::MouseEvent& event) override
+    CustomButton(const juce::String& buttonText) : juce::Button(buttonText), displayText(buttonText)
     {
         setMouseCursor(juce::MouseCursor::PointingHandCursor);
     }
-    void mouseExit(const juce::MouseEvent& event) override
+    void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override
     {
-        setMouseCursor(juce::MouseCursor::NormalCursor);
+        auto bounds = getLocalBounds().toFloat();
+        g.setColour(juce::Colours::black);
+        g.fillRect(bounds);
+        if (getToggleState())
+        {
+            g.setColour(juce::Colour(zlth::ui::colors::theme));
+            g.drawRect(bounds, 2.0f);
+        }
+        else
+        {
+            g.setColour(juce::Colour(zlth::ui::colors::buttonDisabled));
+            g.drawRect(bounds, 1.0f);
+        }
+        g.setFont(13.0f);
+        g.drawText(displayText, getLocalBounds(), juce::Justification::centred);
     }
+private:
+    juce::String displayText;
 };
 
 class CustomIconButton : public juce::Button
@@ -124,7 +127,7 @@ public:
 private:
     static constexpr int margin = 4;
     std::vector<juce::Component*> allComponents {&typeComboBox,&modeComboBox, &bypassButton, &freqSlider, &gainSlider, &qSlider};
-    CustomButton bypassButton;
+    CustomButton bypassButton {ID_BAND_BYPASS};
     juce::Slider freqSlider;
     juce::Slider gainSlider;
     juce::Slider qSlider;

@@ -194,11 +194,17 @@ public:
             apvts.getParameterRange(ID_BAND_FILTER + index).convertTo0to1((float)getSelectedTypeCallback()) :
             apvts.getParameter(ID_BAND_FILTER + index)->getDefaultValue();
 
+        float aaa = getMSTypeCallback ?
+            apvts.getParameterRange(ID_BAND_CHANNEL + index).convertTo0to1((float)getMSTypeCallback()) :
+            apvts.getParameter(ID_BAND_CHANNEL + index)->getDefaultValue();
+
         setParam(ID_BAND_BYPASS, 0.0f);
         setParam(ID_BAND_FREQ, apvts.getParameterRange(ID_BAND_FREQ + index).convertTo0to1(freqHz));
         setParam(ID_BAND_GAIN, apvts.getParameterRange(ID_BAND_GAIN + index).convertTo0to1(gainDb));
         setParam(ID_BAND_QUAL, apvts.getParameter(ID_BAND_QUAL + index)->getDefaultValue());
-        setParam(ID_BAND_CHANNEL, apvts.getParameter(ID_BAND_CHANNEL + index)->getDefaultValue());
+
+        setParam(ID_BAND_CHANNEL, aaa);
+
         setParam(ID_BAND_FILTER, normalizedValue);
     }
 
@@ -248,6 +254,7 @@ public:
         }
     }
     std::function<int()> getSelectedTypeCallback;
+    std::function<int()> getMSTypeCallback;
 private:
     class AnalyzerThread: public juce::Thread
     {
@@ -386,9 +393,12 @@ private:
 
         for (const auto& m : xMarkers)g.drawVerticalLine(m.pos, curveAreaF.getY(), curveAreaF.getBottom());
         for (const auto& m : curveYMarkers)g.drawHorizontalLine(m.pos, curveAreaF.getX(), curveAreaF.getRight());
+        g.drawHorizontalLine (curveAreaF.getY(), curveAreaF.getX(), curveAreaF.getRight());
+        g.drawHorizontalLine(curveAreaF.getBottom(), curveAreaF.getX(), curveAreaF.getRight());
         g.setColour(juce::Colour(zlth::ui::colors::text));
         g.setFont(FONT_HEIGHT);
         for (const auto& m : xMarkers)drawLabelAt(g, m.text, m.pos, curveArea.getBottom() + margin, labelBorderSize);
+        for (const auto& m : xMarkers)drawLabelAt(g, m.text, m.pos, curveArea.getY() - margin, labelBorderSize);
         for (const auto& m : curveYMarkers)drawLabelAt(g, m.text, curveArea.getX() - margin, m.pos, labelBorderSize);
         for (const auto& m : meterYMarkers)drawLabelAt(g, m.text, meterArea.getX() - margin, m.pos, labelBorderSize);
     }
@@ -466,7 +476,7 @@ private:
     int draggingBand = -1;
     bool parametersNeedUpdate = true;
 
-    const std::vector<float> editorDBs = {24.0f, 18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f};
+    const std::vector<float> editorDBs = { 18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f};
     const std::vector<float> meterDBs = {12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f, -30.0f, -36.0f};
     const std::vector<float> frequencies = {20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f};
 

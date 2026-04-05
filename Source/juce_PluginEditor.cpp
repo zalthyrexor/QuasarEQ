@@ -16,16 +16,37 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
         btn->setRadioGroupId(1001);
         btn->setClickingTogglesState(true);
         btn->onClick = [this, i]
+        {
+            if (paletteButtons[i]->getToggleState())
             {
-                if (paletteButtons[i]->getToggleState())
-                    selectedFilterType = i;
-            };
+                selectedFilterType = i;
+            }
+        };
         addAndMakeVisible(*btn);
         paletteButtons.push_back(std::move(btn));
     }
     paletteButtons[selectedFilterType]->setToggleState(true, juce::dontSendNotification);
 
+    for (int i = 0; i < modeNames.size(); ++i)
+    {
+        auto btn = std::make_unique<CustomButton>(modeNames[i]);
+        btn->setRadioGroupId(1002);
+        btn->setClickingTogglesState(true);
+
+        btn->onClick = [this, i]
+        {
+            if (modeButtons[i]->getToggleState())
+            {
+                selectedMode = i;
+            }
+        };
+        addAndMakeVisible(*btn);
+        modeButtons.push_back(std::move(btn));
+    }
+    modeButtons[selectedMode]->setToggleState(true, juce::dontSendNotification);
+
     visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
+    visualizerComponent.getMSTypeCallback = [this] { return selectedMode; };
 
     pluginInfoLabel.setText(juce::String("Zalthyrexor - " + juce::String(JucePlugin_Name)).toUpperCase(), juce::dontSendNotification);
     pluginInfoLabel.setJustificationType(juce::Justification::horizontallyCentred);
@@ -62,25 +83,31 @@ void QuasarEQAudioProcessorEditor::paint(juce::Graphics& g)
 void QuasarEQAudioProcessorEditor::resized()
 {
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
-    juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
     juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
     juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight).reduced(margin);
     juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight).reduced(margin);
-    pluginInfoLabel.setBounds(sectionA.reduced(margin));
+
     sectionB.reduce(margin, margin);
     sectionB.removeFromRight(60);
-    auto amount = sectionB.getWidth() * 0.19;
-    sectionB.removeFromRight(amount);
-    sectionB.removeFromLeft(amount);
-    const int numButtons = static_cast<int>(paletteButtons.size());
-    int btnW = sectionB.getWidth() / numButtons;
+    sectionB.removeFromLeft(14 + 20);
+    sectionB.removeFromRight(14 + 20);
+
+    int btnW = 44;
+
     for (auto& btn : paletteButtons)
     {
+        if (btn) btn->setBounds(sectionB.removeFromLeft(btnW).reduced(1));
+    }
+
+    for (auto it = modeButtons.rbegin(); it != modeButtons.rend(); ++it)
+    {
+        auto& btn = *it;
         if (btn)
         {
-            btn->setBounds(sectionB.removeFromLeft(btnW).reduced(1));
+            btn->setBounds(sectionB.removeFromRight(btnW).reduced(1));
         }
     }
+
     visualizerComponent.setBounds(sectionC);
 
     auto masterSectionArea = sectionD.removeFromRight(60).reduced(margin);
@@ -93,7 +120,6 @@ void QuasarEQAudioProcessorEditor::resized()
         masterGainSliders[i].setBounds(area);
     }
 
-    sectionD.reduce(margin, margin);
     const int bandWidth = sectionD.getWidth() / config::BAND_COUNT;
     for (int i = 0; i < config::BAND_COUNT; ++i)
     {
