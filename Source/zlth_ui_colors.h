@@ -13,6 +13,5 @@ namespace zlth::ui::colors
     constexpr uint32_t slider {0xff181818};
     constexpr uint32_t sliderRim {0xff505050};
     constexpr uint32_t sliderPointer {0xffffffff};
-
     constexpr uint32_t side {0xffff3d67};
 }

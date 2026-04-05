@@ -12,15 +12,16 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 private:
-    std::vector<IconData> icons {
-    {BinaryData::hp_svg, BinaryData::hp_svgSize},
-    {BinaryData::lp_svg, BinaryData::lp_svgSize},
-    {BinaryData::hs_svg, BinaryData::hs_svgSize},
-    {BinaryData::ls_svg, BinaryData::ls_svgSize},
-    {BinaryData::tilt_svg, BinaryData::tilt_svgSize},
-    {BinaryData::peak_svg, BinaryData::peak_svgSize},
-    {BinaryData::notch_svg, BinaryData::notch_svgSize},
-    {BinaryData::bp_svg, BinaryData::bp_svgSize}
+    std::vector<IconData> icons 
+    {
+        {BinaryData::hp_svg, BinaryData::hp_svgSize},
+        {BinaryData::lp_svg, BinaryData::lp_svgSize},
+        {BinaryData::hs_svg, BinaryData::hs_svgSize},
+        {BinaryData::ls_svg, BinaryData::ls_svgSize},
+        {BinaryData::tilt_svg, BinaryData::tilt_svgSize},
+        {BinaryData::peak_svg, BinaryData::peak_svgSize},
+        {BinaryData::notch_svg, BinaryData::notch_svgSize},
+        {BinaryData::bp_svg, BinaryData::bp_svgSize}
     };
     static constexpr int margin = 4;
     static constexpr int sectionAHeight = 30;
@@ -45,7 +46,7 @@ private:
     static inline const std::array<juce::String, 2> masterGainLabels {
         "M", "S"
     };
-    std::array<juce::Slider, 2> masterGainSliders;
+    std::array<CustomSlider, 2> masterGainSliders;
     std::array<std::unique_ptr<juce::Label>, 2> masterGainLabelsComponents;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
 

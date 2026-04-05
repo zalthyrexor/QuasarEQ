@@ -49,19 +49,22 @@ public:
             localPath = channelPathToDraw;
         }
 
-        auto meterArea = getLevelMeterArea();
+        auto meterArea = getLevelMeterArea().toFloat();
         auto meterAreaX = meterArea.getX();
         auto meterAreaY = meterArea.getY();
         auto meterAreaW = meterArea.getWidth();
         auto meterAreaB = meterArea.getBottom();
-        const auto meterMax = config::METER_MAX;
-        const auto meterMin = config::METER_MIN;
-        const int meterHeightM = juce::jmap(juce::jlimit(meterMin, meterMax, localPath.dbM), meterMin, meterMax, (float)meterAreaB, (float)meterAreaY);
-        const int meterHeightS = juce::jmap(juce::jlimit(meterMin, meterMax, localPath.dbS), meterMin, meterMax, (float)meterAreaB, (float)meterAreaY);
+        auto meterDbM = localPath.dbM;
+        auto meterDbS = localPath.dbS;
+        auto meterMax = config::METER_MAX;
+        auto meterMin = config::METER_MIN;
+        auto meterHeightM = juce::jmap(juce::jlimit(meterMin, meterMax, meterDbM), meterMin, meterMax, meterAreaB, meterAreaY);
+        auto meterHeightS = juce::jmap(juce::jlimit(meterMin, meterMax, meterDbS), meterMin, meterMax, meterAreaB, meterAreaY);
+
         g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.55f));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(meterAreaX + meterAreaW * 0.25, meterHeightM, meterAreaX + meterAreaW * 0.75, meterAreaB));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(meterAreaX, meterHeightS, meterAreaX + meterAreaW * 0.25, meterAreaB));
-        g.fillRect(juce::Rectangle<int>::leftTopRightBottom(meterAreaX + meterAreaW * 0.75, meterHeightS, meterAreaX + meterAreaW, meterAreaB));
+        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.25, meterHeightM, meterAreaX + meterAreaW * 0.75, meterAreaB));
+        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX, meterHeightS, meterAreaX + meterAreaW * 0.25, meterAreaB));
+        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.75, meterHeightS, meterAreaX + meterAreaW, meterAreaB));
 
         auto spectrumArea = getCurveArea().toFloat();
         auto spectrumAreaX = spectrumArea.getX();
@@ -110,6 +113,7 @@ public:
         };
         updatePath(localPath.spectrumPath, spectrumPoints, spectrumPath, true);
         updatePath(localPath.peakHoldPath, peakHoldPoints, peakHoldPath, false);
+
         g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.45f));
         g.fillPath(spectrumPath);
         g.setColour(juce::Colour(zlth::ui::colors::theme));
@@ -158,6 +162,7 @@ public:
         }
         return -1;
     }
+
     void mouseDown(const juce::MouseEvent& e) override
     {
         if (!getCurveArea().contains(e.getPosition()))
@@ -196,6 +201,7 @@ public:
         setParam(ID_BAND_CHANNEL, apvts.getParameter(ID_BAND_CHANNEL + index)->getDefaultValue());
         setParam(ID_BAND_FILTER, normalizedValue);
     }
+
     void mouseDrag(const juce::MouseEvent& e) override
     {
         if (draggingBand == -1) return;
