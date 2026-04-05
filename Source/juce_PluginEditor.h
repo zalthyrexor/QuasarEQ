@@ -17,8 +17,8 @@ private:
     {BinaryData::lp_svg, BinaryData::lp_svgSize},
     {BinaryData::hs_svg, BinaryData::hs_svgSize},
     {BinaryData::ls_svg, BinaryData::ls_svgSize},
-    {BinaryData::peak_svg, BinaryData::peak_svgSize},
     {BinaryData::tilt_svg, BinaryData::tilt_svgSize},
+    {BinaryData::peak_svg, BinaryData::peak_svgSize},
     {BinaryData::notch_svg, BinaryData::notch_svgSize},
     {BinaryData::bp_svg, BinaryData::bp_svgSize}
     };
@@ -51,5 +51,5 @@ private:
 
     std::vector<std::unique_ptr<FilterBandControl>> bandControls;
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
-    int selectedFilterType = 4;
+    int selectedFilterType = 5;
 };
