@@ -3,7 +3,7 @@
 <JUCERPROJECT id="A71OhK" name="qsr EQ 5" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyName="Zalthyrexor"
               pluginVST3Category="EQ" pluginManufacturerCode="Zlth" companyCopyright="Copyright (c) 2026 Zalthyrexor"
-              cppLanguageStandard="20" pluginCode="J163" version="5.0.0" pluginFormats="buildVST3">
+              cppLanguageStandard="20" pluginCode="J163" version="5.0.0" pluginFormats="buildStandalone">
   <MAINGROUP id="HFHuMF" name="qsr EQ 5">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
       <GROUP id="{201A037D-7962-C3BC-25C2-A5136CA7E78B}" name="zlth">
@@ -15,13 +15,16 @@
               file="Source/zlth_dsp_filter_tpt2pole.h"/>
         <FILE id="ZAWpcs" name="zlth_dsp_fft_resampler510.h" compile="0" resource="0"
               file="Source/zlth_dsp_fft_resampler510.h"/>
+        <FILE id="o96eJW" name="zlth_dsp_fft_radix4.h" compile="0" resource="0"
+              file="Source/zlth_dsp_fft_radix4.h"/>
+        <FILE id="gZWWfX" name="zlth_dsp_fft_radix2.h" compile="0" resource="0"
+              file="Source/zlth_dsp_fft_radix2.h"/>
         <FILE id="R93In1" name="zlth_ui_colors.h" compile="0" resource="0"
               file="Source/zlth_ui_colors.h"/>
         <FILE id="eP5yng" name="zlth_dsp_window_coefficients.h" compile="0"
               resource="0" file="Source/zlth_dsp_window_coefficients.h"/>
         <FILE id="mIpJE1" name="zlth_dsp_window.h" compile="0" resource="0"
               file="Source/zlth_dsp_window.h"/>
-        <FILE id="o96eJW" name="zlth_dsp_fft.h" compile="0" resource="0" file="Source/zlth_dsp_fft.h"/>
         <FILE id="KLtBHD" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
         <FILE id="uKejzG" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
       </GROUP>

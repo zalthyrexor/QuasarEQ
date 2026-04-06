@@ -88,3 +88,5 @@ namespace zlth::simd
         }
     }
 }
+
+// https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#avxnewtechs=AVX2
