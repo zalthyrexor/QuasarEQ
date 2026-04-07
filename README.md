@@ -1,4 +1,4 @@
-![Screenshot](./screenshots/screenshot20260401180346.png)
+![Screenshot](./screenshots/screenshot20260407222418.png)
 
 # Quasar EQ
 **Developed by Zalthyrexor**
