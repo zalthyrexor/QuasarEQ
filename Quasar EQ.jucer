@@ -33,7 +33,6 @@
       <FILE id="BykYah" name="config.h" compile="0" resource="0" file="Source/config.h"/>
       <FILE id="YMBk0U" name="VisualizerComponent.h" compile="0" resource="0"
             file="Source/VisualizerComponent.h"/>
-      <FILE id="s9YH2g" name="Ballistics.h" compile="0" resource="0" file="Source/Ballistics.h"/>
       <FILE id="hIpOaE" name="PathProducer.h" compile="0" resource="0" file="Source/PathProducer.h"/>
       <FILE id="C5yINs" name="juce_LookAndFeel.h" compile="0" resource="0"
             file="Source/juce_LookAndFeel.h"/>

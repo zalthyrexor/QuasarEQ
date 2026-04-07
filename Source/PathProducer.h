@@ -6,7 +6,6 @@
 #include "zlth_dsp_window.h"
 #include "zlth_dsp_window_coefficients.h"
 #include "zlth_simd.h"
-#include "Ballistics.h"
 
 struct SpectrumRenderData
 {
@@ -25,7 +24,9 @@ public:
         decibelsCurrent.assign(FFT_SIZE_HALF, 0.0f);
 
         zlth::dsp::window::fill_window(windowTable, zlth::dsp::window::coefficients::blackman_harris_92);
-        zlth::simd::multiply(windowTable, windowTable.size() / std::accumulate(windowTable.begin(), windowTable.end(), 0.0));
+        const float windowNormalize = static_cast<float>(windowTable.size()) / std::accumulate(windowTable.begin(), windowTable.end(), 0.0f);
+        const float fftNormalize = 1.0f / static_cast<float>(FFT_SIZE_HALF);
+        zlth::simd::multiply_inplace(windowTable, windowNormalize * fftNormalize);
 
         for (int i = 0; i < 32; ++i)
         {
@@ -42,6 +43,7 @@ public:
             if (channelFifoL->getAudioBuffer(incomingBufferL) && channelFifoR->getAudioBuffer(incomingBufferR))
             {
                 const int originalIncomingSize = incomingBufferL.getNumSamples();
+                const float deltaTime = originalIncomingSize / sampleRate;
                 decibelLCurrent = juce::Decibels::gainToDecibels(incomingBufferL.getMagnitude(0, 0, originalIncomingSize));
                 decibelRCurrent = juce::Decibels::gainToDecibels(incomingBufferR.getMagnitude(0, 0, originalIncomingSize));
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
@@ -52,29 +54,23 @@ public:
                     std::memmove(audioBuffer.data(), audioBuffer.data() + useSize, copySize * sizeof(float));
                 }
                 std::copy(incomingBufferL.getReadPointer(0, sourceOffset), incomingBufferL.getReadPointer(0, sourceOffset) + useSize, audioBuffer.begin() + copySize);
+
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftBufferReal.begin());
-                zlth::simd::multiply_two_buffers(fftBufferReal, windowTable);
-
                 fftBufferImag.fill(0.0f);
+
+                zlth::simd::multiply_two_buffers(fftBufferReal, windowTable);
                 fft.performFFT(fftBufferReal, fftBufferImag);
-
-                __m256 v_inv_sqr = _mm256_set1_ps(INVERSE_FFT_SIZE_HALF * INVERSE_FFT_SIZE_HALF);
-                for (size_t i = 0; i < FFT_SIZE_HALF; i += 8)
-                {
-                    __m256 v_r = _mm256_loadu_ps(&fftBufferReal[i]);
-                    __m256 v_im = _mm256_loadu_ps(&fftBufferImag[i]);
-                    __m256 v_r2 = _mm256_mul_ps(v_r, v_r);
-                    __m256 v_im2 = _mm256_mul_ps(v_im, v_im);
-                    __m256 v_sum = _mm256_add_ps(v_r2, v_im2);
-                    __m256 v_res = _mm256_mul_ps(v_sum, v_inv_sqr);
-                    _mm256_storeu_ps(&magnitudesBuffer[i], v_res);
-                }
-
-                const float deltaTime = static_cast<float>(originalIncomingSize) / sampleRate;
-                spectrumBallistics.process(magnitudesBuffer, deltaTime);
+                auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
+                auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);
+                zlth::simd::complex_power(powersBuffer, realPart, imagPart);
+                const float factor = 1.0f - std::exp(-deltaTime * 50.0f);
                 for (size_t i = 0; i < FFT_SIZE_HALF; ++i)
                 {
-                    decibelsCurrent[i] = std::log10(std::max(1e-10f, magnitudesBuffer[i])) * 10.0f;
+                    const float target = powersBuffer[i];
+                    float released = powers[i] + factor * (target - powers[i]);
+                    powers[i] = std::max(target, released);
+                    powersBuffer[i] = powers[i];
+                    decibelsCurrent[i] = std::log10(std::max(1e-10f, powersBuffer[i])) * 10.0f;
                 }
 
                 const float peakFall = 15.0f * deltaTime;
@@ -126,15 +122,13 @@ private:
     static constexpr int FFT_ORDER = 12;
     static constexpr int FFT_SIZE = 1 << FFT_ORDER;
     static constexpr int FFT_SIZE_HALF = FFT_SIZE >> 1;
-    static constexpr float INVERSE_FFT_SIZE_HALF = 1.0f / FFT_SIZE_HALF;
-
-    zlth::dsp::fft::Radix4<FFT_ORDER> fft;
-
     std::array<float, FFT_SIZE> fftBufferReal {};
     std::array<float, FFT_SIZE> fftBufferImag {};
+    std::array<float, FFT_SIZE_HALF> powersBuffer {};
     std::array<float, FFT_SIZE> audioBuffer {};
     std::array<float, FFT_SIZE> windowTable {};
-    std::array<float, FFT_SIZE_HALF> magnitudesBuffer {};
+    std::array<float, FFT_SIZE_HALF> powers {};
+    zlth::dsp::fft::Radix4<FFT_ORDER> fft;
 
     SingleChannelSampleFifo* channelFifoL;
     SingleChannelSampleFifo* channelFifoR;
@@ -145,5 +139,4 @@ private:
     float decibelLSmoothed = -100.0f;
     float decibelRSmoothed = -100.0f;
     Fifo<SpectrumRenderData> pathFifo;
-    Ballistics<FFT_SIZE_HALF> spectrumBallistics;
 };
