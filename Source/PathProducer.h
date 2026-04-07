@@ -20,8 +20,11 @@ class PathProducer
 public:
     PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf) : channelFifoL(&leftScsf), channelFifoR(&rightScsf)
     {
-        decibelsPeak.assign(FFT_SIZE_HALF, -100.0f);
-        decibelsCurrent.assign(FFT_SIZE_HALF, 0.0f);
+        zlth::dsp::fft::radix4::twiddle(twiddleR, twiddleI, FFT_SIZE);
+        zlth::dsp::fft::radix4::bit_rev(bitRevTable, FFT_SIZE);
+
+        decibelsPeak.fill(-100.0f);
+        decibelsCurrent.fill(0.0f);
 
         zlth::dsp::window::fill_window(windowTable, zlth::dsp::window::coefficients::blackman_harris_92);
         const float windowNormalize = static_cast<float>(windowTable.size()) / std::accumulate(windowTable.begin(), windowTable.end(), 0.0f);
@@ -56,21 +59,26 @@ public:
                 std::copy(incomingBufferL.getReadPointer(0, sourceOffset), incomingBufferL.getReadPointer(0, sourceOffset) + useSize, audioBuffer.begin() + copySize);
 
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftBufferReal.begin());
+
                 fftBufferImag.fill(0.0f);
 
                 zlth::simd::multiply_two_buffers(fftBufferReal, windowTable);
-                fft.performFFT(fftBufferReal, fftBufferImag);
+                zlth::dsp::fft::radix4::performFFT(fftBufferReal, fftBufferImag, twiddleR, twiddleI, bitRevTable, FFT_SIZE);
+
                 auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
                 auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);
-                zlth::simd::complex_power(powersBuffer, realPart, imagPart);
+
+                zlth::simd::complex_power(powersBufferCurrent, realPart, imagPart);
+
                 const float factor = 1.0f - std::exp(-deltaTime * 50.0f);
+
                 for (size_t i = 0; i < FFT_SIZE_HALF; ++i)
                 {
-                    const float target = powersBuffer[i];
-                    float released = powers[i] + factor * (target - powers[i]);
-                    powers[i] = std::max(target, released);
-                    powersBuffer[i] = powers[i];
-                    decibelsCurrent[i] = std::log10(std::max(1e-10f, powersBuffer[i])) * 10.0f;
+                    const float target = powersBufferCurrent[i];
+                    float released = powersBuffer[i] + factor * (target - powersBuffer[i]);
+                    powersBuffer[i] = std::max(target, released);
+                    powersBufferCurrent[i] = powersBuffer[i];
+                    decibelsCurrent[i] = std::log10(std::max(1e-10f, powersBufferCurrent[i])) * 10.0f;
                 }
 
                 const float peakFall = 15.0f * deltaTime;
@@ -107,33 +115,24 @@ public:
         }
         return false;
     }
-    std::vector<float> makeFreqLUT(const double sampleRate, const float minHz, const float maxHz) const
-    {
-        std::vector<float> frequencyLUT;
-        frequencyLUT.reserve(FFT_SIZE_HALF);
-        const float binWidth = static_cast<float>(sampleRate / FFT_SIZE);
-        for (int i = 0; i < FFT_SIZE_HALF; ++i)
-        {
-            frequencyLUT.push_back(juce::mapFromLog10((binWidth * i), minHz, maxHz));
-        }
-        return frequencyLUT;
-    }
 private:
-    static constexpr int FFT_ORDER = 12;
+    static constexpr int FFT_ORDER = 12; // Radix-4 requires even Order
     static constexpr int FFT_SIZE = 1 << FFT_ORDER;
     static constexpr int FFT_SIZE_HALF = FFT_SIZE >> 1;
     std::array<float, FFT_SIZE> fftBufferReal {};
     std::array<float, FFT_SIZE> fftBufferImag {};
-    std::array<float, FFT_SIZE_HALF> powersBuffer {};
     std::array<float, FFT_SIZE> audioBuffer {};
     std::array<float, FFT_SIZE> windowTable {};
-    std::array<float, FFT_SIZE_HALF> powers {};
-    zlth::dsp::fft::Radix4<FFT_ORDER> fft;
+    std::array<float, FFT_SIZE> twiddleR;
+    std::array<float, FFT_SIZE> twiddleI;
+    std::array<size_t, FFT_SIZE> bitRevTable;
+    std::array<float, FFT_SIZE_HALF> powersBuffer {};
+    std::array<float, FFT_SIZE_HALF> powersBufferCurrent {};
 
     SingleChannelSampleFifo* channelFifoL;
     SingleChannelSampleFifo* channelFifoR;
-    std::vector<float> decibelsCurrent;
-    std::vector<float> decibelsPeak;
+    std::array<float, FFT_SIZE_HALF> decibelsCurrent;
+    std::array<float, FFT_SIZE_HALF> decibelsPeak;
     float decibelLCurrent = 0.0f;
     float decibelRCurrent = 0.0f;
     float decibelLSmoothed = -100.0f;
