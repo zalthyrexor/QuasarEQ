@@ -87,6 +87,47 @@ namespace zlth::simd
             _mm256_storeu_ps(&dest[i], _mm256_mul_ps(_mm256_loadu_ps(&dest[i]), _mm256_loadu_ps(&src[i])));
         }
     }
+
+    [[msvc::forceinline]] static void weighted_hadamard_transform(std::span<float> span1, std::span<float> span2, float weight1, float weight2)
+    {
+        const size_t count = std::min(span1.size(), span2.size());
+        const __m256 v_weight1 = _mm256_set1_ps(weight1);
+        const __m256 v_weight2 = _mm256_set1_ps(weight2);
+        size_t i = 0;
+        for (; i + vSize <= count; i += vSize)
+        {
+            __m256 vL = _mm256_loadu_ps(&span1[i]);
+            __m256 vR = _mm256_loadu_ps(&span2[i]);
+            _mm256_storeu_ps(&span1[i], _mm256_mul_ps(_mm256_add_ps(vL, vR), v_weight1));
+            _mm256_storeu_ps(&span2[i], _mm256_mul_ps(_mm256_sub_ps(vL, vR), v_weight2));
+        }
+        for (; i < count; ++i)
+        {
+            float l = span1[i];
+            float r = span2[i];
+            span1[i] = (l + r) * weight1;
+            span2[i] = (l - r) * weight2;
+        }
+    }
+    [[msvc::forceinline]] static void hadamard_transform(std::span<float> span1, std::span<float> span2)
+    {
+        const size_t count = std::min(span1.size(), span2.size());
+        size_t i = 0;
+        for (; i + vSize <= count; i += vSize)
+        {
+            __m256 vL = _mm256_loadu_ps(&span1[i]);
+            __m256 vR = _mm256_loadu_ps(&span2[i]);
+            _mm256_storeu_ps(&span1[i], _mm256_add_ps(vL, vR));
+            _mm256_storeu_ps(&span2[i], _mm256_sub_ps(vL, vR));
+        }
+        for (; i < count; ++i)
+        {
+            float l = span1[i];
+            float r = span2[i];
+            span1[i] = l + r;
+            span2[i] = l - r;
+        }
+    }
 }
 
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#avxnewtechs=AVX2

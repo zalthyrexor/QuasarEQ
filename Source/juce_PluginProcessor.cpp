@@ -70,38 +70,17 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         updateFilters(flags);
     }
     const int numSamples = buffer.getNumSamples();
-    auto* channelL = buffer.getWritePointer(0);
-    auto* channelR = buffer.getWritePointer(1);
-    const float optimizedGainMid = globalGainLinearMid * 0.5f;
-    const float optimizedGainSide = globalGainLinearSide * 0.5f;
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float l = channelL[i];
-        float r = channelR[i];
-        channelL[i] = (l + r) * optimizedGainMid;
-        channelR[i] = (l - r) * optimizedGainSide;
-    }
-    auto processBand = [numSamples](float* data, auto& filter)
-    {
-        for (int s = 0; s < numSamples; ++s)
-        {
-            data[s] = filter.process_sample(data[s]);
-        }
-    };
+    std::span<float> spanL {buffer.getWritePointer(0), static_cast<size_t>(numSamples)};
+    std::span<float> spanR {buffer.getWritePointer(1), static_cast<size_t>(numSamples)};
+	zlth::simd::weighted_hadamard_transform(spanL, spanR, globalGainLinearMid * 0.5f, globalGainLinearSide * 0.5f);
     for (int i = 0; i < config::BAND_COUNT; ++i)
     {
-        if (isBandMActive[i]) processBand(channelL, bandsM[i]);
-        if (isBandSActive[i]) processBand(channelR, bandsS[i]);
+        if (isBandMActive[i]) bandsM[i].process_span(spanL);
+        if (isBandSActive[i]) bandsS[i].process_span(spanR);
     }
     leftChannelFifo.update(buffer);
     rightChannelFifo.update(buffer);
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float m = channelL[i];
-        float s = channelR[i];
-        channelL[i] = m + s;
-        channelR[i] = m - s;
-    }
+    zlth::simd::hadamard_transform(spanL, spanR);
 }
 
 void QuasarEQAudioProcessor::updateFilters(uint32_t flags)

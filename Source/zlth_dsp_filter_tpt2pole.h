@@ -4,6 +4,7 @@
 #include <cmath>
 #include <complex>
 #include <numbers>
+#include <span>
 
 namespace zlth::dsp::filter
 {
@@ -80,13 +81,20 @@ namespace zlth::dsp::filter
             ic1eq = 0.0f;
             ic2eq = 0.0f;
         }
-        float process_sample(const float v0) noexcept
+        [[msvc::forceinline]] float process_sample(const float v0) noexcept
         {
             float v1 = a1 * (ic1eq + g * (v0 - ic2eq));
             float v2 = ic2eq + g * v1;
             ic1eq = 2.0f * v1 - ic1eq;
             ic2eq = 2.0f * v2 - ic2eq;
             return m0 * v0 + m1 * v1 + m2 * v2;
+        }
+        [[msvc::forceinline]] void process_span(std::span<float> data) noexcept
+        {
+            for (auto& v0 : data)
+            {
+                v0 = process_sample(v0);
+            }
         }
         std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept
         {
