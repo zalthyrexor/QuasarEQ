@@ -87,7 +87,7 @@ namespace zlth::simd
             _mm256_storeu_ps(&dest[i], _mm256_mul_ps(_mm256_loadu_ps(&dest[i]), _mm256_loadu_ps(&src[i])));
         }
     }
-
+    // Using forceinline here because the compiler is stupid.
     [[msvc::forceinline]] static void weighted_hadamard_transform(std::span<float> span1, std::span<float> span2, float weight1, float weight2)
     {
         const size_t count = std::min(span1.size(), span2.size());
@@ -126,6 +126,30 @@ namespace zlth::simd
             float r = span2[i];
             span1[i] = l + r;
             span2[i] = l - r;
+        }
+    }
+
+    void process_db_conversion(float* input, float* output, int N) 
+    {
+        constexpr float pow2_23 = 8388608.0f;
+        constexpr float log10_2 = 0.30102999566f;
+        constexpr float factor_val = 10.0f * log10_2 / pow2_23;
+        const __m256i offset = _mm256_set1_epi32(0x3f800000);
+        const __m256 factor = _mm256_set1_ps(factor_val);
+        int i = 0;
+        for (; i <= N - 8; i += 8)
+        {
+            __m256 x = _mm256_loadu_ps(&input[i]);
+            __m256i int_x = _mm256_castps_si256(x);
+            __m256 log2_approx = _mm256_cvtepi32_ps(_mm256_sub_epi32(int_x, offset));
+            __m256 db = _mm256_mul_ps(log2_approx, factor);
+            _mm256_storeu_ps(&output[i], db);
+        }
+        for (; i < N; ++i)
+        {
+            uint32_t i_val;
+            std::memcpy(&i_val, &input[i], sizeof(float));
+            output[i] = static_cast<float>(static_cast<int32_t>(i_val) - 0x3f800000) * factor_val;
         }
     }
 }
