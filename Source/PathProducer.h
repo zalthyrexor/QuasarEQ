@@ -60,17 +60,18 @@ public:
 
                 fftBufferImag.fill(0.0f);
                 zlth::simd::multiply_two_buffers(fftBufferReal, windowTable);
-                zlth::simd::multiply_inplace(fftBufferReal, fftNormalize);
+                zlth::simd::multiply_inplace(fftBufferReal, fftSizeHalfInverse);
 				fft.performFFT(fftBufferReal, fftBufferImag);
+
                 auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
                 auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);
-                zlth::simd::complex_power(powersBufferCurrent, realPart, imagPart);
+                zlth::simd::complex_mag_sq(powersBufferCurrent, realPart, imagPart);
 
                 const float factor = 1.0f - std::exp(-deltaTime * 50.0f);
 
                 for (size_t i = 0; i < FFT_SIZE_HALF; ++i)
                 {
-                    const float target = powersBufferCurrent[i];
+                    float target = powersBufferCurrent[i];
                     float released = powersBuffer[i] + factor * (target - powersBuffer[i]);
                     powersBuffer[i] = std::max(target, released);
                     powersBufferCurrent[i] = powersBuffer[i];
@@ -122,7 +123,7 @@ private:
     std::array<float, FFT_SIZE_HALF> powersBuffer {};
     std::array<float, FFT_SIZE_HALF> powersBufferCurrent {};
 	zlth::dsp::fft::Radix4<FFT_ORDER> fft;
-    const float fftNormalize = 1.0f / static_cast<float>(FFT_SIZE_HALF);
+    const float fftSizeHalfInverse = 1.0f / static_cast<float>(FFT_SIZE_HALF);
 
     SingleChannelSampleFifo* channelFifoL;
     SingleChannelSampleFifo* channelFifoR;

@@ -64,7 +64,7 @@ namespace zlth::simd
             _mm256_storeu_ps(&data[i], _mm256_mul_ps(_mm256_loadu_ps(&data[i]), v_factor));
         }
     }
-    static void complex_power(std::span<float> dest, std::span<const float> real, std::span<const float> imag)
+    static void complex_mag_sq(std::span<float> dest, std::span<const float> real, std::span<const float> imag)
     {
         assert(dest.size() % vSize == 0);
         assert(dest.size() == real.size());
