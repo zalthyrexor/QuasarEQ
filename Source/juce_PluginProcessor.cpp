@@ -180,8 +180,8 @@ void QuasarEQAudioProcessor::setStateInformation(const void* data, int sizeInByt
 bool QuasarEQAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     const auto mainInput = layouts.getMainInputChannelSet();
-    const auto mainOutput = layouts.getMainOutputChannelSet();
-    return mainInput == mainOutput && (mainInput == juce::AudioChannelSet::mono() || mainInput == juce::AudioChannelSet::stereo());
+    const auto mainOutput = layouts.getMainOutputChannelSet(); 
+    return mainInput == mainOutput && mainInput == juce::AudioChannelSet::stereo();
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new QuasarEQAudioProcessor(); }
