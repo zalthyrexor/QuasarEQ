@@ -20,16 +20,13 @@ class PathProducer
 public:
     PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf) : channelFifoL(&leftScsf), channelFifoR(&rightScsf)
     {
-        zlth::dsp::fft::radix4::twiddle(twiddleR, twiddleI, FFT_SIZE);
-        zlth::dsp::fft::radix4::bit_rev(bitRevTable, FFT_SIZE);
 
         decibelsPeak.fill(-100.0f);
         decibelsCurrent.fill(0.0f);
 
         zlth::dsp::window::fill_window(windowTable, zlth::dsp::window::coefficients::blackman_harris_92);
         const float windowNormalize = static_cast<float>(windowTable.size()) / std::accumulate(windowTable.begin(), windowTable.end(), 0.0f);
-        const float fftNormalize = 1.0f / static_cast<float>(FFT_SIZE_HALF);
-        zlth::simd::multiply_inplace(windowTable, windowNormalize * fftNormalize);
+        zlth::simd::multiply_inplace(windowTable, windowNormalize);
 
         for (int i = 0; i < 32; ++i)
         {
@@ -63,7 +60,8 @@ public:
 
                 fftBufferImag.fill(0.0f);
                 zlth::simd::multiply_two_buffers(fftBufferReal, windowTable);
-                zlth::dsp::fft::radix4::performFFT(fftBufferReal, fftBufferImag, twiddleR, twiddleI, bitRevTable, FFT_SIZE);
+                zlth::simd::multiply_inplace(fftBufferReal, fftNormalize);
+				fft.performFFT(fftBufferReal, fftBufferImag);
                 auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
                 auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);
                 zlth::simd::complex_power(powersBufferCurrent, realPart, imagPart);
@@ -121,11 +119,10 @@ private:
     std::array<float, FFT_SIZE> fftBufferImag {};
     std::array<float, FFT_SIZE> audioBuffer {};
     std::array<float, FFT_SIZE> windowTable {};
-    std::array<float, FFT_SIZE> twiddleR;
-    std::array<float, FFT_SIZE> twiddleI;
-    std::array<size_t, FFT_SIZE> bitRevTable;
     std::array<float, FFT_SIZE_HALF> powersBuffer {};
     std::array<float, FFT_SIZE_HALF> powersBufferCurrent {};
+	zlth::dsp::fft::Radix4<FFT_ORDER> fft;
+    const float fftNormalize = 1.0f / static_cast<float>(FFT_SIZE_HALF);
 
     SingleChannelSampleFifo* channelFifoL;
     SingleChannelSampleFifo* channelFifoR;

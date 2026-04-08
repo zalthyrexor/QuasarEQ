@@ -18,10 +18,16 @@ namespace zlth::dsp::fft
         static constexpr size_t FFT_SIZE = static_cast<size_t>(1) << stages;
         Radix4()
         {
+            zlth::dsp::fft::radix4::twiddle(twiddleR, twiddleI, FFT_SIZE);
+            zlth::dsp::fft::radix4::bit_rev(bitRevTable, FFT_SIZE);
         }
         void performFFT(std::span<float> real, std::span<float> imag)
         {
+            zlth::dsp::fft::radix4::performFFT(real, imag, twiddleR, twiddleI, bitRevTable, FFT_SIZE);
         }
     private:
+        std::array<float, FFT_SIZE> twiddleR;
+        std::array<float, FFT_SIZE> twiddleI;
+        std::array<size_t, FFT_SIZE> bitRevTable;
     };
 }
