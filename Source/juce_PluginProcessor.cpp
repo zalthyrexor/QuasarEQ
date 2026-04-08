@@ -51,8 +51,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
 
 void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    leftChannelFifo.prepare(samplesPerBlock);
-    rightChannelFifo.prepare(samplesPerBlock);
+    channelFifo0.prepare(samplesPerBlock);
+    channelFifo1.prepare(samplesPerBlock);
     updateFilters(ALL_UPDATE_MASK);
 }
 
@@ -70,17 +70,19 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         updateFilters(flags);
     }
     const int numSamples = buffer.getNumSamples();
-    std::span<float> spanL {buffer.getWritePointer(0), static_cast<size_t>(numSamples)};
-    std::span<float> spanR {buffer.getWritePointer(1), static_cast<size_t>(numSamples)};
-	zlth::simd::weighted_hadamard_transform(spanL, spanR, globalGainLinearMid * 0.5f, globalGainLinearSide * 0.5f);
+    std::span<float> span0 {buffer.getWritePointer(0), static_cast<size_t>(numSamples)};
+    std::span<float> span1 {buffer.getWritePointer(1), static_cast<size_t>(numSamples)};
+    zlth::simd::hadamard_transform(span0, span1);
+	zlth::simd::multiply_inplace(span0, globalGainLinear0 * 0.5f);
+    zlth::simd::multiply_inplace(span1, globalGainLinear1 * 0.5f);
     for (int i = 0; i < config::BAND_COUNT; ++i)
     {
-        if (isBandMActive[i]) bandsM[i].process_span(spanL);
-        if (isBandSActive[i]) bandsS[i].process_span(spanR);
+        if (isBand0Active[i]) bands0[i].process_span(span0);
+        if (isBand1Active[i]) bands1[i].process_span(span1);
     }
-    leftChannelFifo.update(buffer);
-    rightChannelFifo.update(buffer);
-    zlth::simd::hadamard_transform(spanL, spanR);
+    channelFifo0.update(buffer);
+    channelFifo1.update(buffer);
+    zlth::simd::hadamard_transform(span0, span1);
 }
 
 void QuasarEQAudioProcessor::updateFilters(uint32_t flags)
@@ -100,18 +102,18 @@ void QuasarEQAudioProcessor::updateFilters(uint32_t flags)
         const auto type = static_cast<zlth::dsp::filter::TPT2Pole::FilterType>((int)loadBandParam(ID_BAND_FILTER));
         const auto mode = (int)loadBandParam(ID_BAND_CHANNEL);
         const bool bypassed = loadBandParam(ID_BAND_BYPASS) > 0.5f;
-        bandsM[i].set_coefficients(type, freq, k, gain, sampleRate);
-        bandsS[i].set_coefficients(type, freq, k, gain, sampleRate);
-        isBandMActive[i] = !bypassed && (mode == 0 || mode == 1);
-        isBandSActive[i] = !bypassed && (mode == 0 || mode == 2);
+        bands0[i].set_coefficients(type, freq, k, gain, sampleRate);
+        bands1[i].set_coefficients(type, freq, k, gain, sampleRate);
+        isBand0Active[i] = !bypassed && (mode == 0 || mode == 1);
+        isBand1Active[i] = !bypassed && (mode == 0 || mode == 2);
     }
     if (shouldUpdateGlobal(flags))
     {
         auto loadGlobal = [this](const juce::String& id) {
             return std::pow(10.0f, apvts.getRawParameterValue(id)->load() / 20.0f);
         };
-        globalGainLinearMid = loadGlobal(ID_OUT_GAIN_MID);
-        globalGainLinearSide = loadGlobal(ID_OUT_GAIN_SIDE);
+        globalGainLinear0 = loadGlobal(ID_OUT_GAIN_MID);
+        globalGainLinear1 = loadGlobal(ID_OUT_GAIN_SIDE);
     }
 }
 

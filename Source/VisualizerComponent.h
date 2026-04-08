@@ -11,7 +11,7 @@ class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, p
 public:
     VisualizerComponent(QuasarEQAudioProcessor& p) :
         audioProcessor(p),
-        pathProducer(audioProcessor.leftChannelFifo, audioProcessor.rightChannelFifo),
+        pathProducer(audioProcessor.channelFifo0, audioProcessor.channelFifo1),
         analyzerThread(pathProducer, *this)
     {
         for (int i = 0; i < config::BAND_COUNT; ++i)

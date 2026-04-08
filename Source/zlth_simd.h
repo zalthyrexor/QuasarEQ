@@ -56,14 +56,20 @@ namespace zlth::simd
 
     static void multiply_inplace(std::span<float> data, float factor)
     {
-        assert(data.size() % vSize == 0);
-        size_t size = data.size();
-        __m256 v_factor = _mm256_set1_ps(factor);
-        for (size_t i = 0; i < size; i += vSize)
+        const size_t size = data.size();
+        const __m256 v_factor = _mm256_set1_ps(factor);
+        size_t i = 0;
+        for (; i + vSize <= size; i += vSize)
         {
-            _mm256_storeu_ps(&data[i], _mm256_mul_ps(_mm256_loadu_ps(&data[i]), v_factor));
+            __m256 v_data = _mm256_loadu_ps(&data[i]);
+            _mm256_storeu_ps(&data[i], _mm256_mul_ps(v_data, v_factor));
+        }
+        for (; i < size; ++i)
+        {
+            data[i] *= factor;
         }
     }
+
     static void complex_mag_sq(std::span<float> dest, std::span<const float> real, std::span<const float> imag)
     {
         assert(dest.size() % vSize == 0);
@@ -88,27 +94,6 @@ namespace zlth::simd
         }
     }
     // Using forceinline here because the compiler is stupid.
-    [[msvc::forceinline]] static void weighted_hadamard_transform(std::span<float> span1, std::span<float> span2, float weight1, float weight2)
-    {
-        const size_t count = std::min(span1.size(), span2.size());
-        const __m256 v_weight1 = _mm256_set1_ps(weight1);
-        const __m256 v_weight2 = _mm256_set1_ps(weight2);
-        size_t i = 0;
-        for (; i + vSize <= count; i += vSize)
-        {
-            __m256 vL = _mm256_loadu_ps(&span1[i]);
-            __m256 vR = _mm256_loadu_ps(&span2[i]);
-            _mm256_storeu_ps(&span1[i], _mm256_mul_ps(_mm256_add_ps(vL, vR), v_weight1));
-            _mm256_storeu_ps(&span2[i], _mm256_mul_ps(_mm256_sub_ps(vL, vR), v_weight2));
-        }
-        for (; i < count; ++i)
-        {
-            float l = span1[i];
-            float r = span2[i];
-            span1[i] = (l + r) * weight1;
-            span2[i] = (l - r) * weight2;
-        }
-    }
     [[msvc::forceinline]] static void hadamard_transform(std::span<float> span1, std::span<float> span2)
     {
         const size_t count = std::min(span1.size(), span2.size());
@@ -128,7 +113,7 @@ namespace zlth::simd
             span2[i] = l - r;
         }
     }
-
+    /*
     void process_db_conversion(float* input, float* output, int N) 
     {
         constexpr float pow2_23 = 8388608.0f;
@@ -152,6 +137,7 @@ namespace zlth::simd
             output[i] = static_cast<float>(static_cast<int32_t>(i_val) - 0x3f800000) * factor_val;
         }
     }
+    */
 }
 
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#avxnewtechs=AVX2

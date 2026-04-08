@@ -49,8 +49,8 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     juce::AudioProcessorValueTreeState apvts;
     juce::UndoManager undoManager;
-    SingleChannelSampleFifo leftChannelFifo {Channel::Left};
-    SingleChannelSampleFifo rightChannelFifo {Channel::Right};
+    SingleChannelSampleFifo channelFifo0 {Channel::Left};
+    SingleChannelSampleFifo channelFifo1 {Channel::Right};
     std::vector<FilterSnapshot> getFilterSnapshots() const;
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
@@ -61,12 +61,12 @@ private:
     static constexpr uint32_t GLOBAL_PARAMS_MASK = (1u << config::BAND_COUNT);
     static constexpr uint32_t ALL_UPDATE_MASK = ALL_BANDS_MASK | GLOBAL_PARAMS_MASK;
     std::atomic<uint32_t> updateFlags {ALL_UPDATE_MASK};
-    std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bandsM;
-    std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bandsS;
-    std::array<bool, config::BAND_COUNT> isBandMActive;
-    std::array<bool, config::BAND_COUNT> isBandSActive;
-    float globalGainLinearMid {1.0f};
-    float globalGainLinearSide {1.0f};
+    std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bands0;
+    std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bands1;
+    std::array<bool, config::BAND_COUNT> isBand0Active;
+    std::array<bool, config::BAND_COUNT> isBand1Active;
+    float globalGainLinear0 {1.0f};
+    float globalGainLinear1 {1.0f};
     struct Params
     {
         static inline juce::String getID(const juce::String& prefix, int bandIdx)
