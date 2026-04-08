@@ -72,7 +72,7 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     const int numSamples = buffer.getNumSamples();
     std::span<float> span0 {buffer.getWritePointer(0), static_cast<size_t>(numSamples)};
     std::span<float> span1 {buffer.getWritePointer(1), static_cast<size_t>(numSamples)};
-    zlth::simd::hadamard_transform(span0, span1);
+    zlth::simd::hadamard_butterfly(span0, span1);
 	zlth::simd::multiply_inplace(span0, globalGainLinear0 * 0.5f);
     zlth::simd::multiply_inplace(span1, globalGainLinear1 * 0.5f);
     for (int i = 0; i < config::BAND_COUNT; ++i)
@@ -82,7 +82,7 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     }
     channelFifo0.update(buffer);
     channelFifo1.update(buffer);
-    zlth::simd::hadamard_transform(span0, span1);
+    zlth::simd::hadamard_butterfly(span0, span1);
 }
 
 void QuasarEQAudioProcessor::updateFilters(uint32_t flags)

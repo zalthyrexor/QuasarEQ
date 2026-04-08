@@ -54,21 +54,6 @@ namespace zlth::simd
         }
     }
 
-    static void multiply_inplace(std::span<float> data, float factor)
-    {
-        const size_t size = data.size();
-        const __m256 v_factor = _mm256_set1_ps(factor);
-        size_t i = 0;
-        for (; i + vSize <= size; i += vSize)
-        {
-            __m256 v_data = _mm256_loadu_ps(&data[i]);
-            _mm256_storeu_ps(&data[i], _mm256_mul_ps(v_data, v_factor));
-        }
-        for (; i < size; ++i)
-        {
-            data[i] *= factor;
-        }
-    }
 
     static void complex_mag_sq(std::span<float> dest, std::span<const float> real, std::span<const float> imag)
     {
@@ -93,8 +78,24 @@ namespace zlth::simd
             _mm256_storeu_ps(&dest[i], _mm256_mul_ps(_mm256_loadu_ps(&dest[i]), _mm256_loadu_ps(&src[i])));
         }
     }
-    // Using forceinline here because the compiler is stupid.
-    [[msvc::forceinline]] static void hadamard_transform(std::span<float> span1, std::span<float> span2)
+
+    [[msvc::forceinline]] static void multiply_inplace(std::span<float> data, float factor)
+    {
+        const size_t size = data.size();
+        const __m256 v_factor = _mm256_set1_ps(factor);
+        size_t i = 0;
+        for (; i + vSize <= size; i += vSize)
+        {
+            __m256 v_data = _mm256_loadu_ps(&data[i]);
+            _mm256_storeu_ps(&data[i], _mm256_mul_ps(v_data, v_factor));
+        }
+        for (; i < size; ++i)
+        {
+            data[i] *= factor;
+        }
+    }
+
+    [[msvc::forceinline]] static void hadamard_butterfly(std::span<float> span1, std::span<float> span2)
     {
         const size_t count = std::min(span1.size(), span2.size());
         size_t i = 0;
@@ -113,6 +114,7 @@ namespace zlth::simd
             span2[i] = l - r;
         }
     }
+
     /*
     void process_db_conversion(float* input, float* output, int N) 
     {

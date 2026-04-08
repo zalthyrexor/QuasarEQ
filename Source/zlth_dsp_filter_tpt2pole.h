@@ -81,19 +81,15 @@ namespace zlth::dsp::filter
             ic1eq = 0.0f;
             ic2eq = 0.0f;
         }
-        [[msvc::forceinline]] float process_sample(const float v0) noexcept
-        {
-            float v1 = a1 * (ic1eq + g * (v0 - ic2eq));
-            float v2 = ic2eq + g * v1;
-            ic1eq = 2.0f * v1 - ic1eq;
-            ic2eq = 2.0f * v2 - ic2eq;
-            return m0 * v0 + m1 * v1 + m2 * v2;
-        }
         [[msvc::forceinline]] void process_span(std::span<float> data) noexcept
         {
             for (auto& v0 : data)
             {
-                v0 = process_sample(v0);
+                float v1 = a1 * (ic1eq + g * (v0 - ic2eq));
+                float v2 = ic2eq + g * v1;
+                ic1eq = 2.0f * v1 - ic1eq;
+                ic2eq = 2.0f * v2 - ic2eq;
+                v0 = m0 * v0 + m1 * v1 + m2 * v2;
             }
         }
         std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept

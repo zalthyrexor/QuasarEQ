@@ -6,7 +6,7 @@
 #include <numbers>
 #include "zlth_dsp_filter_tpt1pole.h"
 #include "zlth_dsp_filter_tpt2pole.h"
-
+/*
 namespace zlth::dsp::filter
 {
     template <size_t Stages>
@@ -35,3 +35,4 @@ namespace zlth::dsp::filter
         static constexpr float pi = std::numbers::pi_v<float>;
     };
 }
+*/
