@@ -24,9 +24,10 @@ public:
         decibelsPeak.fill(-100.0f);
         decibelsCurrent.fill(0.0f);
 
-        zlth::dsp::window::fill_window(windowTable, zlth::dsp::window::coefficients::blackman_harris_92);
-        const float windowNormalize = static_cast<float>(windowTable.size()) / std::accumulate(windowTable.begin(), windowTable.end(), 0.0f);
-        zlth::simd::multiply_inplace(windowTable, windowNormalize);
+        zlth::dsp::window::fill_window(windowTable_mul_fftNormalize, zlth::dsp::window::coefficients::blackman_harris_92);
+        const float windowNormalize = static_cast<float>(windowTable_mul_fftNormalize.size()) / std::accumulate(windowTable_mul_fftNormalize.begin(), windowTable_mul_fftNormalize.end(), 0.0f);
+        zlth::simd::multiply_inplace(windowTable_mul_fftNormalize, windowNormalize);
+        zlth::simd::multiply_inplace(windowTable_mul_fftNormalize, fftSizeHalfInverse);
 
         for (int i = 0; i < 32; ++i)
         {
@@ -58,12 +59,11 @@ public:
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftBufferReal.begin());
 
                 fftBufferImag.fill(0.0f);
-                zlth::simd::multiply_two_buffers(fftBufferReal, windowTable);
-                zlth::simd::multiply_inplace(fftBufferReal, fftSizeHalfInverse);
+                zlth::simd::multiply_two_buffers(fftBufferReal, windowTable_mul_fftNormalize);
 				fft.performFFT(fftBufferReal, fftBufferImag);
                 auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
                 auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);
-                zlth::simd::complex_mag_sq(powersBufferCurrent, realPart, imagPart);
+                zlth::simd::magnitude_sqr(powersBufferCurrent, realPart, imagPart);
                 const float factor = 1.0f - std::exp(-deltaTime * 50.0f);
                 for (size_t i = 0; i < FFT_SIZE_HALF; ++i)
                 {
@@ -115,7 +115,7 @@ private:
     std::array<float, FFT_SIZE> fftBufferReal {};
     std::array<float, FFT_SIZE> fftBufferImag {};
     std::array<float, FFT_SIZE> audioBuffer {};
-    std::array<float, FFT_SIZE> windowTable {};
+    std::array<float, FFT_SIZE> windowTable_mul_fftNormalize {};
     std::array<float, FFT_SIZE_HALF> powersBuffer {};
     std::array<float, FFT_SIZE_HALF> powersBufferCurrent {};
 	zlth::dsp::fft::Radix4<FFT_ORDER> fft;

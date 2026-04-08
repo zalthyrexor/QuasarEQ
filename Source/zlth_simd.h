@@ -54,20 +54,22 @@ namespace zlth::simd
         }
     }
 
-
-    static void complex_mag_sq(std::span<float> dest, std::span<const float> real, std::span<const float> imag)
+    static void magnitude_sqr(std::span<float> dest, std::span<const float> span0, std::span<const float> span1)
     {
-        assert(dest.size() % vSize == 0);
-        assert(dest.size() == real.size());
-        assert(dest.size() == imag.size());
-        const size_t size = dest.size();
-        for (size_t i = 0; i < size; i += vSize)
+        size_t size = dest.size();
+        size_t i = 0;
+        for (; i + vSize <= size; i += vSize)
         {
-            __m256 v_real = _mm256_loadu_ps(&real[i]);
-            __m256 v_imag = _mm256_loadu_ps(&imag[i]);
-            _mm256_storeu_ps(&dest[i], _mm256_fmadd_ps(v_imag, v_imag, _mm256_mul_ps(v_real, v_real)));
+            __m256 v_0 = _mm256_loadu_ps(&span0[i]);
+            __m256 v_1 = _mm256_loadu_ps(&span1[i]);
+            _mm256_storeu_ps(&dest[i], _mm256_fmadd_ps(v_1, v_1, _mm256_mul_ps(v_0, v_0)));
+        }
+        for (; i < size; ++i)
+        {
+            dest[i] = (span0[i] * span0[i]) + (span1[i] * span1[i]);
         }
     }
+
     static void multiply_two_buffers(std::span<float> dest, std::span<const float> src)
     {
         assert(dest.size() % vSize == 0);
