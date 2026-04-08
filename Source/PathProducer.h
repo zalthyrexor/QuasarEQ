@@ -57,18 +57,14 @@ public:
 
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftBufferReal.begin());
 
-
                 fftBufferImag.fill(0.0f);
                 zlth::simd::multiply_two_buffers(fftBufferReal, windowTable);
                 zlth::simd::multiply_inplace(fftBufferReal, fftSizeHalfInverse);
 				fft.performFFT(fftBufferReal, fftBufferImag);
-
                 auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
                 auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);
                 zlth::simd::complex_mag_sq(powersBufferCurrent, realPart, imagPart);
-
                 const float factor = 1.0f - std::exp(-deltaTime * 50.0f);
-
                 for (size_t i = 0; i < FFT_SIZE_HALF; ++i)
                 {
                     float target = powersBufferCurrent[i];
