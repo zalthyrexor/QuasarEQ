@@ -46,7 +46,7 @@ private:
     {
         static const std::array<juce::String, 2> ids 
         {
-            ID_OUT_GAIN_MID, ID_OUT_GAIN_SIDE
+            ID_OUT_GAIN_0, ID_OUT_GAIN_1
         };
         return ids;
     }

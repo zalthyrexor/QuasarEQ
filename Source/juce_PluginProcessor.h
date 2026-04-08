@@ -12,8 +12,8 @@ struct FilterSnapshot
 };
 
 static inline const juce::String ID_PARAMETERS {"PARAMETERS"};
-static inline const juce::String ID_OUT_GAIN_MID {"ID_OUT_GAIN_MID"};
-static inline const juce::String ID_OUT_GAIN_SIDE {"ID_OUT_GAIN_SIDE"};
+static inline const juce::String ID_OUT_GAIN_0 {"ID_OUT_GAIN_MID"};
+static inline const juce::String ID_OUT_GAIN_1 {"ID_OUT_GAIN_SIDE"};
 static inline const juce::String ID_BAND_FREQ {"FREQ"};
 static inline const juce::String ID_BAND_GAIN {"GAIN"};
 static inline const juce::String ID_BAND_QUAL {"QUAL"};
@@ -54,8 +54,7 @@ public:
     std::vector<FilterSnapshot> getFilterSnapshots() const;
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
-    void updateFilters(uint32_t flags);
-    bool shouldUpdateBand(uint32_t flags, int bandIdx) const;
+    void updateBands(uint32_t flags);
     bool shouldUpdateGlobal(uint32_t flags) const;
     static constexpr uint32_t ALL_BANDS_MASK = (1u << config::BAND_COUNT) - 1;
     static constexpr uint32_t GLOBAL_PARAMS_MASK = (1u << config::BAND_COUNT);
