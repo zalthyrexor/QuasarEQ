@@ -4,6 +4,7 @@
 #include "zlth_fifo.h"
 #include "zlth_dsp_filter_tpt2pole.h"
 #include "config.h"
+#include "EQProcessor.h"
 
 struct FilterSnapshot
 {
@@ -61,13 +62,8 @@ private:
     static constexpr uint32_t PARAMS_MASK_ALL = PARAMS_MASK_BAND | PARAMS_MASK_OUT;
     std::atomic<uint32_t> updateFlags {PARAMS_MASK_ALL};
 
-    std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bands0;
-    std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bands1;
-    std::array<bool, config::BAND_COUNT> isBand0Active;
-    std::array<bool, config::BAND_COUNT> isBand1Active;
-
-    float globalGainLinear0 {1.0f};
-    float globalGainLinear1 {1.0f};
+    std::array<ProcessChain<config::BAND_COUNT>, 2> processors {};
+    std::array<float, 2> globalGains {};
 
     struct Params
     {

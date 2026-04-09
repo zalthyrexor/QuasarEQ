@@ -6,7 +6,7 @@
               cppLanguageStandard="20" pluginCode="J163" version="5.0.0" pluginFormats="buildStandalone">
   <MAINGROUP id="HFHuMF" name="qsr EQ 5">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
-      <FILE id="w1sTFP" name="FFT.h" compile="0" resource="0" file="Source/FFT.h"/>
+      <FILE id="R5UEik" name="EQProcessor.h" compile="0" resource="0" file="Source/EQProcessor.h"/>
       <GROUP id="{201A037D-7962-C3BC-25C2-A5136CA7E78B}" name="zlth">
         <FILE id="RlPMqQ" name="zlth_dsp_filter_tpt2pole.h" compile="0" resource="0"
               file="Source/zlth_dsp_filter_tpt2pole.h"/>

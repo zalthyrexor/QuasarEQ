@@ -84,10 +84,12 @@ private:
     std::array<juce::AudioBuffer<float>, Capacity> buffers;
     juce::AbstractFifo fifo{Capacity};
 };
+
 enum Channel
 {
     Left, Right
 };
+
 struct SingleChannelSampleFifo
 {
     SingleChannelSampleFifo(Channel ch): channelToUse(ch)
