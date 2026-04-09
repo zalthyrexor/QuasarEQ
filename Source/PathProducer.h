@@ -26,8 +26,8 @@ public:
 
         zlth::dsp::window::fill_window(windowTable_mul_fftNormalize, zlth::dsp::window::coefficients::blackman_harris_92);
         const float windowNormalize = static_cast<float>(windowTable_mul_fftNormalize.size()) / std::accumulate(windowTable_mul_fftNormalize.begin(), windowTable_mul_fftNormalize.end(), 0.0f);
-        zlth::simd::multiply_inplace(windowTable_mul_fftNormalize, windowNormalize);
-        zlth::simd::multiply_inplace(windowTable_mul_fftNormalize, fftSizeHalfInverse);
+        zlth::simd::mul_inplace(windowTable_mul_fftNormalize, windowNormalize);
+        zlth::simd::mul_inplace(windowTable_mul_fftNormalize, fftSizeHalfInverse);
 
         for (int i = 0; i < 32; ++i)
         {
@@ -49,8 +49,8 @@ public:
                 const int originalIncomingSize = spanL.size();
                 const float deltaTime = originalIncomingSize / sampleRate;
 
-                decibelLCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_magnitude_avx2(spanL));
-                decibelRCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_magnitude_avx2(spanR));
+                decibelLCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(spanL));
+                decibelRCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(spanR));
 
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
                 const int sourceOffset = originalIncomingSize - useSize;
@@ -63,8 +63,8 @@ public:
 
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftBufferReal.begin());
 
+                zlth::simd::hadamard_product(fftBufferReal, windowTable_mul_fftNormalize);
                 fftBufferImag.fill(0.0f);
-                zlth::simd::multiply_two_buffers(fftBufferReal, windowTable_mul_fftNormalize);
 				fft.performFFT(fftBufferReal, fftBufferImag);
                 auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
                 auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);

@@ -73,8 +73,8 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     std::span<float> span0 {buffer.getWritePointer(0), static_cast<size_t>(numSamples)};
     std::span<float> span1 {buffer.getWritePointer(1), static_cast<size_t>(numSamples)};
     zlth::simd::hadamard_butterfly(span0, span1);
-	zlth::simd::multiply_inplace(span0, globalGains[0] * 0.5f);
-    zlth::simd::multiply_inplace(span1, globalGains[1] * 0.5f);
+	zlth::simd::mul_inplace(span0, globalGains[0] * 0.5f);
+    zlth::simd::mul_inplace(span1, globalGains[1] * 0.5f);
     processors[0].process(span0);
     processors[1].process(span1);
     channelFifo0.update(buffer);
