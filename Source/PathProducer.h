@@ -43,10 +43,15 @@ public:
         {
             if (channelFifoL->getAudioBuffer(incomingBufferL) && channelFifoR->getAudioBuffer(incomingBufferR))
             {
-                const int originalIncomingSize = incomingBufferL.getNumSamples();
+                std::span<const float> spanL {incomingBufferL.getReadPointer(0), static_cast<size_t>(incomingBufferL.getNumSamples())};
+                std::span<const float> spanR {incomingBufferR.getReadPointer(0), static_cast<size_t>(incomingBufferR.getNumSamples())};
+
+                const int originalIncomingSize = spanL.size();
                 const float deltaTime = originalIncomingSize / sampleRate;
-                decibelLCurrent = juce::Decibels::gainToDecibels(incomingBufferL.getMagnitude(0, 0, originalIncomingSize));
-                decibelRCurrent = juce::Decibels::gainToDecibels(incomingBufferR.getMagnitude(0, 0, originalIncomingSize));
+
+                decibelLCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_magnitude_avx2(spanL));
+                decibelRCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_magnitude_avx2(spanR));
+
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
                 const int sourceOffset = originalIncomingSize - useSize;
                 const int copySize = FFT_SIZE - useSize;
