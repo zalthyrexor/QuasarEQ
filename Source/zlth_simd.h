@@ -55,7 +55,7 @@ namespace zlth::simd
     }
     ZLTH_FORCEINLINE static void magnitude_sqr(std::span<float> dest, std::span<const float> span0, std::span<const float> span1)
     {
-        size_t size = dest.size();
+        size_t size = std::min({dest.size(), span0.size(), span1.size()});
         size_t i = 0;
         for (; i + LANES <= size; i += LANES)
         {
@@ -75,44 +75,44 @@ namespace zlth::simd
         for (; i + LANES <= size; i += LANES)
         {
             _mm256_storeu_ps(&dest[i], _mm256_mul_ps(_mm256_loadu_ps(&dest[i]), _mm256_loadu_ps(&src[i])));
-        } 
+        }
         for (; i < size; ++i)
         {
             dest[i] *= src[i];
         }
     }
-    ZLTH_FORCEINLINE static void multiply_inplace(std::span<float> data, float factor)
+    ZLTH_FORCEINLINE static void multiply_inplace(std::span<float> span, float factor)
     {
         __m256 v_factor = _mm256_set1_ps(factor);
-        size_t size = data.size();
+        size_t size = span.size();
         size_t i = 0;
         for (; i + LANES <= size; i += LANES)
         {
-            __m256 v_data = _mm256_loadu_ps(&data[i]);
-            _mm256_storeu_ps(&data[i], _mm256_mul_ps(v_data, v_factor));
+            __m256 v_data = _mm256_loadu_ps(&span[i]);
+            _mm256_storeu_ps(&span[i], _mm256_mul_ps(v_data, v_factor));
         }
         for (; i < size; ++i)
         {
-            data[i] *= factor;
+            span[i] *= factor;
         }
     }
-    ZLTH_FORCEINLINE static void hadamard_butterfly(std::span<float> span1, std::span<float> span2)
+    ZLTH_FORCEINLINE static void hadamard_butterfly(std::span<float> span0, std::span<float> span1)
     {
-        size_t count = std::min(span1.size(), span2.size());
+        size_t count = std::min(span0.size(), span1.size());
         size_t i = 0;
         for (; i + LANES <= count; i += LANES)
         {
-            __m256 vL = _mm256_loadu_ps(&span1[i]);
-            __m256 vR = _mm256_loadu_ps(&span2[i]);
-            _mm256_storeu_ps(&span1[i], _mm256_add_ps(vL, vR));
-            _mm256_storeu_ps(&span2[i], _mm256_sub_ps(vL, vR));
+            __m256 vL = _mm256_loadu_ps(&span0[i]);
+            __m256 vR = _mm256_loadu_ps(&span1[i]);
+            _mm256_storeu_ps(&span0[i], _mm256_add_ps(vL, vR));
+            _mm256_storeu_ps(&span1[i], _mm256_sub_ps(vL, vR));
         }
         for (; i < count; ++i)
         {
-            float l = span1[i];
-            float r = span2[i];
-            span1[i] = l + r;
-            span2[i] = l - r;
+            float l = span0[i];
+            float r = span1[i];
+            span0[i] = l + r;
+            span1[i] = l - r;
         }
     }
     ZLTH_FORCEINLINE static float get_max_from_m256(__m256 v)
