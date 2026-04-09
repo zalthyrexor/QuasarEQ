@@ -55,17 +55,20 @@ public:
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
     void updateBands(uint32_t flags);
-    bool shouldUpdateGlobal(uint32_t flags) const;
-    static constexpr uint32_t ALL_BANDS_MASK = (1u << config::BAND_COUNT) - 1;
-    static constexpr uint32_t GLOBAL_PARAMS_MASK = (1u << config::BAND_COUNT);
-    static constexpr uint32_t ALL_UPDATE_MASK = ALL_BANDS_MASK | GLOBAL_PARAMS_MASK;
-    std::atomic<uint32_t> updateFlags {ALL_UPDATE_MASK};
+
+    static constexpr uint32_t PARAMS_MASK_BAND = (1u << config::BAND_COUNT) - 1;
+    static constexpr uint32_t PARAMS_MASK_OUT = (1u << config::BAND_COUNT + config::OUT_GAIN_COUNT) - 1;
+    static constexpr uint32_t PARAMS_MASK_ALL = PARAMS_MASK_BAND | PARAMS_MASK_OUT;
+    std::atomic<uint32_t> updateFlags {PARAMS_MASK_ALL};
+
     std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bands0;
     std::array<zlth::dsp::filter::TPT2Pole, config::BAND_COUNT> bands1;
     std::array<bool, config::BAND_COUNT> isBand0Active;
     std::array<bool, config::BAND_COUNT> isBand1Active;
+
     float globalGainLinear0 {1.0f};
     float globalGainLinear1 {1.0f};
+
     struct Params
     {
         static inline juce::String getID(const juce::String& prefix, int bandIdx)

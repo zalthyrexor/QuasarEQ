@@ -14,9 +14,9 @@ namespace zlth::dsp::filter
         TPT2Pole() = default;
         ~TPT2Pole() = default;
         enum class FilterType { HighPass, LowPass, HighShelf, LowShelf, Tilt, Bell, Notch, BandPass };
-        void set_coefficients(FilterType filterType, float freqHz, float preK, float gainDb, float sampleRate) noexcept
+        void set_coefficients(FilterType filterType, float freqHz, float qual, float gainDb, float sampleRate) noexcept
         {
-            preK = std::max(0.0f, preK);
+            float preK = 1.0f / std::max(qual, qualMin);
             float preG = calculate_g(freqHz, sampleRate);
             float sqrtA = std::exp(ln10_div_40 * gainDb);
             float A = sqrtA * sqrtA;
@@ -108,7 +108,7 @@ namespace zlth::dsp::filter
         float ic1eq {0.0f};
         float ic2eq {0.0f};
         float m0 {}, m1 {}, m2 {};
-        static constexpr float qMin {0.0001f};
+        static constexpr float qualMin {0.0001f};
         static constexpr float freqMin {0.0001f};
         static constexpr float freqMax {0.4999f};
         static constexpr float pi {std::numbers::pi_v<float>};

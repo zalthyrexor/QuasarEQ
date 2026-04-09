@@ -6,6 +6,7 @@
 namespace config
 {
     inline constexpr int BAND_COUNT = 8;
+    inline constexpr int OUT_GAIN_COUNT = 1;
 
     inline constexpr float PARAM_BAND_FREQ_MIN = 20.0f;
     inline constexpr float PARAM_BAND_FREQ_MAX = 20000.0f;
