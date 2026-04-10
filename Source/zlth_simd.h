@@ -66,6 +66,64 @@ namespace zlth::simd
         }
     }
 
+    ZLTH_FORCEINLINE static void max_inplace(std::span<Scalar> io, Scalar value)
+    {
+        Register v_val = _mm256_set1_ps(value);
+        size_t n = io.size();
+        size_t i = 0;
+        for (; i + step <= n; i += step)
+        {
+            _mm256_storeu_ps(&io[i], _mm256_max_ps(_mm256_loadu_ps(&io[i]), v_val));
+        }
+        for (; i < n; ++i)
+        {
+            io[i] = std::max(io[i], value);
+        }
+    }
+
+    ZLTH_FORCEINLINE static void min_inplace(std::span<Scalar> io, Scalar value)
+    {
+        Register v_val = _mm256_set1_ps(value);
+        size_t n = io.size();
+        size_t i = 0;
+        for (; i + step <= n; i += step)
+        {
+            _mm256_storeu_ps(&io[i], _mm256_min_ps(_mm256_loadu_ps(&io[i]), v_val));
+        }
+        for (; i < n; ++i)
+        {
+            io[i] = std::min(io[i], value);
+        }
+    }
+
+    ZLTH_FORCEINLINE static void max_inplace(std::span<Scalar> io, std::span<const Scalar> in)
+    {
+        size_t n = std::min(io.size(), in.size());
+        size_t i = 0;
+        for (; i + step <= n; i += step)
+        {
+            _mm256_storeu_ps(&io[i], _mm256_max_ps(_mm256_loadu_ps(&io[i]), _mm256_loadu_ps(&in[i])));
+        }
+        for (; i < n; ++i)
+        {
+            io[i] = std::max(io[i], in[i]);
+        }
+    }
+
+    ZLTH_FORCEINLINE static void min_inplace(std::span<Scalar> io, std::span<const Scalar> in)
+    {
+        size_t n = std::min(io.size(), in.size());
+        size_t i = 0;
+        for (; i + step <= n; i += step)
+        {
+            _mm256_storeu_ps(&io[i], _mm256_min_ps(_mm256_loadu_ps(&io[i]), _mm256_loadu_ps(&in[i])));
+        }
+        for (; i < n; ++i)
+        {
+            io[i] = std::min(io[i], in[i]);
+        }
+    }
+
     ZLTH_FORCEINLINE static void magnitude_sqr(std::span<Scalar> out, std::span<const Scalar> in0, std::span<const Scalar> in1)
     {
         size_t n = std::min({out.size(), in0.size(), in1.size()});
@@ -96,6 +154,22 @@ namespace zlth::simd
         }
     }
 
+    ZLTH_FORCEINLINE static void lerp_inplace(std::span<Scalar> io, std::span<const Scalar> in, Scalar value)
+    {
+        Register v_val = _mm256_set1_ps(value);
+        size_t n = std::min(io.size(), in.size());
+        size_t i = 0;
+        for (; i + step <= n; i += step)
+        {
+            Register v0 = _mm256_loadu_ps(&io[i]);
+            _mm256_storeu_ps(&io[i], _mm256_fmadd_ps(v_val, _mm256_sub_ps(_mm256_loadu_ps(&in[i]), v0), v0));
+        }
+        for (; i < n; ++i)
+        {
+            io[i] += value * (in[i] - io[i]);
+        }
+    }
+
     ZLTH_FORCEINLINE static void hadamard_butterfly(std::span<Scalar> io0, std::span<Scalar> io1)
     {
         size_t n = std::min(io0.size(), io1.size());
@@ -113,25 +187,6 @@ namespace zlth::simd
             Scalar s1 = io1[i];
             io0[i] = s0 + s1;
             io1[i] = s0 - s1;
-        }
-    }
-
-    ZLTH_FORCEINLINE static void apply_falloff(std::span<Scalar> io, std::span<const Scalar> in, Scalar factor)
-    {
-        Register v_fall = _mm256_set1_ps(factor);
-        size_t n = std::min(io.size(), in.size());
-        size_t i = 0;
-        for (; i + step <= n; i += step)
-        {
-            Register d = _mm256_loadu_ps(&io[i]);
-            Register s = _mm256_loadu_ps(&in[i]);
-            d = _mm256_sub_ps(d, v_fall);
-            d = _mm256_max_ps(s, d);
-            _mm256_storeu_ps(&io[i], d);
-        }
-        for (; i < n; ++i)
-        {
-            io[i] = std::max(in[i], io[i] - factor);
         }
     }
 
@@ -161,5 +216,14 @@ namespace zlth::simd
             finalMax = std::max(finalMax, std::abs(in[i]));
         }
         return finalMax;
+    }
+
+    ZLTH_FORCEINLINE static void log10(std::span<Scalar> out, std::span<Scalar> in)
+    {
+        size_t n = std::min(out.size(), in.size());
+        for (size_t i = 0; i < n; ++i)
+        {
+            out[i] = std::log10(in[i]);
+        }
     }
 }

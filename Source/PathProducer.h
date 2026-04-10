@@ -45,13 +45,12 @@ public:
             {
                 std::span<const float> spanL {incomingBufferL.getReadPointer(0), static_cast<size_t>(incomingBufferL.getNumSamples())};
                 std::span<const float> spanR {incomingBufferR.getReadPointer(0), static_cast<size_t>(incomingBufferR.getNumSamples())};
-
                 const int originalIncomingSize = spanL.size();
                 const float deltaTime = originalIncomingSize / sampleRate;
-
+                const float powersReleaseFactor = 1.0f - std::exp(-deltaTime * 50.0f);
+                const float peaksReleaseFactor = 15.0f * deltaTime;
                 decibelLCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(spanL));
                 decibelRCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(spanR));
-
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
                 const int sourceOffset = originalIncomingSize - useSize;
                 const int copySize = FFT_SIZE - useSize;
@@ -60,28 +59,21 @@ public:
                     std::memmove(audioBuffer.data(), audioBuffer.data() + useSize, copySize * sizeof(float));
                 }
                 std::copy(incomingBufferL.getReadPointer(0, sourceOffset), incomingBufferL.getReadPointer(0, sourceOffset) + useSize, audioBuffer.begin() + copySize);
-
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftBufferReal.begin());
-
                 zlth::simd::hadamard_product(fftBufferReal, windowTable_mul_fftNormalize);
                 fftBufferImag.fill(0.0f);
 				fft.performFFT(fftBufferReal, fftBufferImag);
                 auto realPart = std::span(fftBufferReal).first(FFT_SIZE_HALF);
                 auto imagPart = std::span(fftBufferImag).first(FFT_SIZE_HALF);
                 zlth::simd::magnitude_sqr(powersBufferCurrent, realPart, imagPart);
-                const float factor = 1.0f - std::exp(-deltaTime * 50.0f);
-                for (size_t i = 0; i < FFT_SIZE_HALF; ++i)
-                {
-                    float target = powersBufferCurrent[i];
-                    float released = powersBuffer[i] + factor * (target - powersBuffer[i]);
-                    powersBuffer[i] = std::max(target, released);
-                    powersBufferCurrent[i] = powersBuffer[i];
-                    decibelsCurrent[i] = std::log10(std::max(1e-10f, powersBufferCurrent[i])) * 10.0f;
-                }
-
-                const float peakFall = 15.0f * deltaTime;
+                zlth::simd::lerp_inplace(powersBuffer, powersBufferCurrent, powersReleaseFactor);
+                zlth::simd::max_inplace(powersBuffer, powersBufferCurrent);
+                zlth::simd::max_inplace(powersBuffer, 1e-10f);
+                zlth::simd::log10(decibelsCurrent, powersBuffer);
+                zlth::simd::mul_inplace(decibelsCurrent, 10.0f);
+                zlth::simd::sub_inplace(decibelsPeak, peaksReleaseFactor);
+                zlth::simd::max_inplace(decibelsPeak, decibelsCurrent);
                 const float meterFall = 50.0f * deltaTime;
-                zlth::simd::apply_falloff(decibelsPeak, decibelsCurrent, peakFall);
                 decibelLSmoothed = juce::jmax(decibelLCurrent, decibelLSmoothed - meterFall);
                 decibelRSmoothed = juce::jmax(decibelRCurrent, decibelRSmoothed - meterFall);
             }
