@@ -1,11 +1,11 @@
 #pragma once
 
-#include <immintrin.h>
-#include <ranges>
 #include <algorithm>
-#include <span>
-#include <concepts>
 #include <cmath>
+#include <cstddef>
+#include <immintrin.h>
+#include <initializer_list>
+#include <span>
 
 #if defined(_MSC_VER)
 #define ZLTH_FORCEINLINE [[msvc::forceinline]]
@@ -168,7 +168,7 @@ namespace zlth::simd
         }
         return finalMax;
     }
-    ZLTH_FORCEINLINE static void log10(std::span<Scalar> out, std::span<Scalar> in) {
+    ZLTH_FORCEINLINE static void log10(std::span<Scalar> out, std::span<const Scalar> in) {
         size_t n = std::min(out.size(), in.size());
         for (size_t i = 0; i < n; ++i) {
             out[i] = std::log10(in[i]);
