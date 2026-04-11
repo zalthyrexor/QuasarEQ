@@ -6,13 +6,21 @@
 #include <numbers>
 #include <span>
 
-namespace zlth::dsp::filter
+#if defined(_MSC_VER)
+#define ZLTH_FORCEINLINE [[msvc::forceinline]]
+#elif defined(__GNUC__) || defined(__clang__)
+#define ZLTH_FORCEINLINE __attribute__((always_inline)) inline
+#else
+#define ZLTH_FORCEINLINE inline
+#endif
+
+namespace zlth::dsp
 {
-    class TPT2Pole
+    class Filter
     {
     public:
-        TPT2Pole() = default;
-        ~TPT2Pole() = default;
+        Filter() = default;
+        ~Filter() = default;
         enum class FilterType { HighPass, LowPass, HighShelf, LowShelf, Tilt, Bell, Notch, BandPass };
         void set_coefficients(FilterType filterType, float freqHz, float qual, float gainDb, float sampleRate) noexcept {
             float preK = 1.0f / std::max(qual, qualMin);
@@ -74,11 +82,11 @@ namespace zlth::dsp::filter
             g = preG;
             a1 = 1.0f / (1.0f + preG * (preG + preK));
         }
-        void reset() noexcept {
+        ZLTH_FORCEINLINE void reset() noexcept {
             ic1eq = 0.0f;
             ic2eq = 0.0f;
         }
-        [[msvc::forceinline]] void process_span(std::span<float> data) noexcept {
+        ZLTH_FORCEINLINE void process_span(std::span<float> data) noexcept {
             for (auto& v0 : data) {
                 float v1 = a1 * (ic1eq + g * (v0 - ic2eq));
                 float v2 = ic2eq + g * v1;
@@ -87,12 +95,12 @@ namespace zlth::dsp::filter
                 v0 = m0 * v0 + m1 * v1 + m2 * v2;
             }
         }
-        std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept {
+        ZLTH_FORCEINLINE std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept {
             std::complex<float> s {0.0f, calculate_g(freqHz, sampleRate) / g};
             return m0 + (m1 * s + m2) / (1.0f + s * (s + k));
         }
     private:
-        static float calculate_g(float freqHz, float sampleRate) {
+        ZLTH_FORCEINLINE static float calculate_g(float freqHz, float sampleRate) {
             return std::tan(pi * std::clamp(freqHz, sampleRate * freqMin, sampleRate * freqMax) / sampleRate);
         }
         float k {};

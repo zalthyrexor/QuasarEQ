@@ -2,13 +2,13 @@
 
 #include <JuceHeader.h>
 #include "zlth_fifo.h"
-#include "zlth_dsp_filter_tpt2pole.h"
+#include "zlth_dsp_filter.h"
 #include "config.h"
 #include "EQProcessor.h"
 
 struct FilterSnapshot
 {
-    zlth::dsp::filter::TPT2Pole filter {};
+    zlth::dsp::Filter filter {};
     int channelMode = 0;
 };
 

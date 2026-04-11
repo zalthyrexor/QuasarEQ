@@ -8,18 +8,16 @@
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
       <FILE id="I9ek7m" name="cpp.hint" compile="0" resource="1" file="Source/cpp.hint"/>
       <FILE id="R5UEik" name="EQProcessor.h" compile="0" resource="0" file="Source/EQProcessor.h"/>
-      <GROUP id="{201A037D-7962-C3BC-25C2-A5136CA7E78B}" name="zlth">
-        <FILE id="RlPMqQ" name="zlth_dsp_filter_tpt2pole.h" compile="0" resource="0"
-              file="Source/zlth_dsp_filter_tpt2pole.h"/>
-        <FILE id="ZAWpcs" name="zlth_dsp_fft_resampler510.h" compile="0" resource="0"
-              file="Source/zlth_dsp_fft_resampler510.h"/>
-        <FILE id="o96eJW" name="zlth_dsp_fft_radix4.h" compile="0" resource="0"
-              file="Source/zlth_dsp_fft_radix4.h"/>
-        <FILE id="R93In1" name="zlth_ui_colors.h" compile="0" resource="0"
-              file="Source/zlth_ui_colors.h"/>
-        <FILE id="KLtBHD" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
-        <FILE id="uKejzG" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
-      </GROUP>
+      <FILE id="RlPMqQ" name="zlth_dsp_filter.h" compile="0" resource="0"
+            file="Source/zlth_dsp_filter.h"/>
+      <FILE id="ZAWpcs" name="zlth_dsp_fft_resampler510.h" compile="0" resource="0"
+            file="Source/zlth_dsp_fft_resampler510.h"/>
+      <FILE id="o96eJW" name="zlth_dsp_fft_radix4.h" compile="0" resource="0"
+            file="Source/zlth_dsp_fft_radix4.h"/>
+      <FILE id="R93In1" name="zlth_ui_colors.h" compile="0" resource="0"
+            file="Source/zlth_ui_colors.h"/>
+      <FILE id="KLtBHD" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
+      <FILE id="uKejzG" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
       <FILE id="Fwkmwv" name="custom_components.h" compile="0" resource="0"
             file="Source/custom_components.h"/>
       <FILE id="BykYah" name="config.h" compile="0" resource="0" file="Source/config.h"/>
