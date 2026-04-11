@@ -2,6 +2,7 @@
 
 #include <array>
 #include <JuceHeader.h>
+#include <span>
 
 template <typename T, int Capacity = 32>
 struct Fifo
@@ -37,73 +38,58 @@ private:
     juce::AbstractFifo fifo {Capacity};
 };
 
-template <int Capacity>
-struct AudioBufferFifo
+template <typename T, int Capacity>
+struct SimpleFifo
 {
-    void prepare(const int numChannels, const int numSamples) {
+    void prepare(int size) {
         for (auto& buffer : buffers) {
-            buffer.setSize(numChannels, numSamples, false, true, true);
-            buffer.clear();
+            buffer.assign(size, 0.0f);
         }
+        fifo.reset();
     }
-    bool push(const juce::AudioBuffer<float>& t) {
+    bool push(const std::vector<T>& data) {
         auto write = fifo.write(1);
         if (write.blockSize1 > 0) {
-            buffers[write.startIndex1] = t;
+            buffers[write.startIndex1] = data;
             return true;
         }
         return false;
     }
-    bool pull(juce::AudioBuffer<float>& t) {
+    bool pull(std::vector<T>& target) {
         auto read = fifo.read(1);
         if (read.blockSize1 > 0) {
-            t = buffers[read.startIndex1];
+            target = buffers[read.startIndex1];
             return true;
         }
         return false;
     }
-    int getNumAvailableForReading() const {
-        return fifo.getNumReady();
-    }
+    int getNumAvailable() const { return fifo.getNumReady(); }
+
 private:
-    std::array<juce::AudioBuffer<float>, Capacity> buffers;
+    std::array<std::vector<T>, Capacity> buffers;
     juce::AbstractFifo fifo {Capacity};
 };
 
-enum Channel
+struct SampleFifo
 {
-    Left, Right
-};
-
-struct SingleChannelSampleFifo
-{
-    SingleChannelSampleFifo(Channel ch): channelToUse(ch) {
+    void prepare(int bufferSize) {
+        samplesToFill.assign(bufferSize, 0.0f);
+        fifo.prepare(bufferSize);
+        writeIndex = 0;
     }
-    void update(const juce::AudioBuffer<float>& buffer) {
-        auto* channelPtr = buffer.getReadPointer(channelToUse);
-        for (int i = 0; i < buffer.getNumSamples(); ++i) {
-            if (fifoIndex == bufferToFill.getNumSamples()) {
-                juce::ignoreUnused(audioBufferFifo.push(bufferToFill));
-                fifoIndex = 0;
+    void update(std::span<const float> source) {
+        for (const float sample : source) {
+            if (writeIndex >= samplesToFill.size()) {
+                fifo.push(samplesToFill);
+                writeIndex = 0;
             }
-            bufferToFill.setSample(0, fifoIndex, channelPtr[i]);
-            ++fifoIndex;
+            samplesToFill[writeIndex++] = sample;
         }
     }
-    void prepare(int bufferSize) {
-        bufferToFill.setSize(1, bufferSize, false, true, true);
-        audioBufferFifo.prepare(1, bufferSize);
-        fifoIndex = 0;
-    }
-    int getNumCompleteBuffersAvailable() const {
-        return audioBufferFifo.getNumAvailableForReading();
-    }
-    bool getAudioBuffer(juce::AudioBuffer<float>& buf) {
-        return audioBufferFifo.pull(buf);
-    }
+    int getNumAvailable() const { return fifo.getNumAvailable(); }
+    bool pull(std::vector<float>& target) { return fifo.pull(target); }
 private:
-    Channel channelToUse;
-    int fifoIndex = 0;
-    AudioBufferFifo<16> audioBufferFifo;
-    juce::AudioBuffer<float> bufferToFill;
+    int writeIndex = 0;
+    std::vector<float> samplesToFill;
+    SimpleFifo<float, 16> fifo;
 };

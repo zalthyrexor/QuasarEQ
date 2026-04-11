@@ -16,7 +16,7 @@ struct SpectrumRenderData
 class PathProducer
 {
 public:
-    PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf): channelFifoL(&leftScsf), channelFifoR(&rightScsf) {
+    PathProducer(SampleFifo& leftScsf, SampleFifo& rightScsf): fifoL(leftScsf), fifoR(rightScsf) {
         decibelsPeak.fill(-100.0f);
         decibelsCurrent.fill(0.0f);
         fill_blackman_harris(windowTable_mul_fftNormalize);
@@ -30,11 +30,11 @@ public:
         }
     }
     void process(double sampleRate) {
-        juce::AudioBuffer<float> incomingBufferL, incomingBufferR;
-        while (channelFifoL->getNumCompleteBuffersAvailable() > 0 && channelFifoR->getNumCompleteBuffersAvailable() > 0) {
-            if (channelFifoL->getAudioBuffer(incomingBufferL) && channelFifoR->getAudioBuffer(incomingBufferR)) {
-                std::span<const float> spanL {incomingBufferL.getReadPointer(0), static_cast<size_t>(incomingBufferL.getNumSamples())};
-                std::span<const float> spanR {incomingBufferR.getReadPointer(0), static_cast<size_t>(incomingBufferR.getNumSamples())};
+        std::vector<float> bufferL, bufferR;
+        while (fifoL.getNumAvailable() > 0 && fifoR.getNumAvailable() > 0) {
+            if (fifoL.pull(bufferL) && fifoR.pull(bufferR)) {
+                std::span<const float> spanL {bufferL};
+                std::span<const float> spanR {bufferR};
                 const int originalIncomingSize = spanL.size();
                 const float deltaTime = originalIncomingSize / sampleRate;
                 const float powersReleaseFactor = 1.0f - std::exp(-deltaTime * 50.0f);
@@ -47,7 +47,7 @@ public:
                 if (copySize > 0) {
                     std::memmove(audioBuffer.data(), audioBuffer.data() + useSize, copySize * sizeof(float));
                 }
-                std::copy(incomingBufferL.getReadPointer(0, sourceOffset), incomingBufferL.getReadPointer(0, sourceOffset) + useSize, audioBuffer.begin() + copySize);
+                std::copy(bufferL.begin() + sourceOffset, bufferL.end(), audioBuffer.begin() + copySize);
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftReal.begin());
                 zlth::simd::mul_inplace(fftReal, windowTable_mul_fftNormalize);
                 fftImag.fill(0.0f);
@@ -114,8 +114,8 @@ private:
     std::span<float, FFT_SIZE_HALF> fftRealHalf {fftReal.data(), FFT_SIZE_HALF};
     std::span<float, FFT_SIZE_HALF> fftImagHalf {fftImag.data(), FFT_SIZE_HALF};
     zlth::dsp::fft::Radix4<FFT_ORDER> fft;
-    SingleChannelSampleFifo* channelFifoL;
-    SingleChannelSampleFifo* channelFifoR;
+    SampleFifo& fifoL;
+    SampleFifo& fifoR;
     std::array<float, FFT_SIZE_HALF> decibelsCurrent;
     std::array<float, FFT_SIZE_HALF> decibelsPeak;
     float decibelLCurrent = 0.0f;

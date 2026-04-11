@@ -45,8 +45,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
 }
 
 void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
-    channelFifo0.prepare(samplesPerBlock);
-    channelFifo1.prepare(samplesPerBlock);
+    channelFifo[0].prepare(samplesPerBlock);
+    channelFifo[1].prepare(samplesPerBlock);
     updateBands(PARAMS_MASK_ALL);
 }
 
@@ -60,14 +60,14 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     if (auto flags = updateFlags.exchange(0)) {
         updateBands(flags);
     }
-    const int numSamples = buffer.getNumSamples();
-    std::span<float> span0 {buffer.getWritePointer(0), static_cast<size_t>(numSamples)};
-    std::span<float> span1 {buffer.getWritePointer(1), static_cast<size_t>(numSamples)};
+    const auto numSamples = static_cast<size_t>(buffer.getNumSamples());
+    std::span<float> span0 {buffer.getWritePointer(0), numSamples};
+    std::span<float> span1 {buffer.getWritePointer(1), numSamples};
     zlth::simd::hadamard_butterfly(span0, span1);
     processors[0].process(span0);
     processors[1].process(span1);
-    channelFifo0.update(buffer);
-    channelFifo1.update(buffer);
+    channelFifo[0].update(span0);
+    channelFifo[1].update(span1);
     zlth::simd::hadamard_butterfly(span0, span1);
 }
 

@@ -51,8 +51,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     juce::AudioProcessorValueTreeState apvts;
     juce::UndoManager undoManager;
-    SingleChannelSampleFifo channelFifo0 {Channel::Left};
-    SingleChannelSampleFifo channelFifo1 {Channel::Right};
+    std::array<SampleFifo, 2> channelFifo {};
     std::vector<FilterSnapshot> getFilterSnapshots();
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;

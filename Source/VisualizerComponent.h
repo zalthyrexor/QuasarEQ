@@ -11,7 +11,7 @@ class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, p
 public:
     VisualizerComponent(QuasarEQAudioProcessor& p):
         audioProcessor(p),
-        pathProducer(audioProcessor.channelFifo0, audioProcessor.channelFifo1),
+        pathProducer(audioProcessor.channelFifo[0], audioProcessor.channelFifo[1]),
         analyzerThread(pathProducer, *this) {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
             const juce::String index = juce::String(i + 1);
@@ -326,16 +326,16 @@ private:
         g.setColour(juce::Colours::black);
         g.fillRect(curveArea);
         g.fillRect(meterArea);
-        g.drawRect(curveArea);
-        g.drawRect(meterArea);
         const auto meterAreaFloat = meterArea.toFloat();
         const auto meterAreaX = meterAreaFloat.getX();
         const auto meterAreaY = meterAreaFloat.getY();
         const auto meterAreaW = meterAreaFloat.getWidth();
         const auto meterAreaB = meterAreaFloat.getBottom();
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+        g.drawVerticalLine(meterAreaX + meterAreaW * 0.00, meterAreaY, meterAreaB);
         g.drawVerticalLine(meterAreaX + meterAreaW * 0.25, meterAreaY, meterAreaB);
         g.drawVerticalLine(meterAreaX + meterAreaW * 0.75, meterAreaY, meterAreaB);
+        g.drawVerticalLine(meterAreaX + meterAreaW * 1.00, meterAreaY, meterAreaB);
         for (const auto& m : xMarkers) {
             g.drawVerticalLine(m.pos, curveAreaFloat.getY(), curveAreaFloat.getBottom());
         }
@@ -433,15 +433,14 @@ private:
     SpectrumRenderData channelPathToDraw;
     AnalyzerThread analyzerThread;
     juce::Image gridCache;
+    juce::CriticalSection pathLock;
+    zlth::dsp::fft::Resampler510 resampler;
 
     std::vector<juce::Point<float>> spectrumPoints;
     std::vector<juce::Point<float>> peakHoldPoints;
 
     juce::Path spectrumPath;
     juce::Path peakHoldPath;
-
-    juce::CriticalSection pathLock;
     juce::Path responseCurvePathMid;
     juce::Path responseCurvePathSide;
-    zlth::dsp::fft::Resampler510 resampler;
 };
