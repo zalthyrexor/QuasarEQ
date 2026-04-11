@@ -336,14 +336,19 @@ private:
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
         g.drawVerticalLine(meterAreaX + meterAreaW * 0.25, meterAreaY, meterAreaB);
         g.drawVerticalLine(meterAreaX + meterAreaW * 0.75, meterAreaY, meterAreaB);
-        for (const auto& m : xMarkers)g.drawVerticalLine(m.pos, curveAreaFloat.getY(), curveAreaFloat.getBottom());
-        for (const auto& m : curveYMarkers)g.drawHorizontalLine(m.pos, curveAreaFloat.getX(), curveAreaFloat.getRight());
-        for (const auto& m : meterYMarkers)g.drawHorizontalLine(m.pos, meterAreaFloat.getX(), meterAreaFloat.getRight());
+        for (const auto& m : xMarkers) {
+            g.drawVerticalLine(m.pos, curveAreaFloat.getY(), curveAreaFloat.getBottom());
+        }
+        for (const auto& m : curveYMarkers) {
+            g.drawHorizontalLine(m.pos, curveAreaFloat.getX(), curveAreaFloat.getRight());
+        }
+        for (const auto& m : meterYMarkers) {
+            g.drawHorizontalLine(m.pos, meterAreaFloat.getX(), meterAreaFloat.getRight());
+        }
         g.setColour(juce::Colour(zlth::ui::colors::text));
         g.setFont(FONT_HEIGHT);
         auto drawLabelAt = [&](const juce::String& text, int centreX, int centreY) {
-            g.drawText(text, juce::Rectangle<int>(labelBorderSize, labelBorderSize)
-                .withCentre({centreX, centreY}), juce::Justification::centred);
+            g.drawText(text, juce::Rectangle<int>(labelBorderSize, labelBorderSize).withCentre({centreX, centreY}), juce::Justification::centred);
         };
         for (const auto& m : xMarkers) {
             drawLabelAt(m.text, m.pos, curveArea.getBottom() + margin);
