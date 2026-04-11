@@ -57,7 +57,7 @@ public:
                 }
                 std::copy(incomingBufferL.getReadPointer(0, sourceOffset), incomingBufferL.getReadPointer(0, sourceOffset) + useSize, audioBuffer.begin() + copySize);
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftReal.begin());
-                zlth::simd::hadamard_product(fftReal, windowTable_mul_fftNormalize);
+                zlth::simd::mul_inplace(fftReal, windowTable_mul_fftNormalize);
                 fftImag.fill(0.0f);
                 fft.performFFT(fftReal, fftImag);
                 zlth::simd::magnitude_sqr(powersBufferCurrent, fftRealHalf, fftImagHalf);
