@@ -3,8 +3,6 @@
 #include <vector>
 #include "zlth_fifo.h"
 #include "zlth_dsp_fft_radix4.h"
-#include "zlth_dsp_window.h"
-#include "zlth_dsp_window_coefficients.h"
 #include "zlth_simd.h"
 
 struct SpectrumRenderData
@@ -18,28 +16,23 @@ struct SpectrumRenderData
 class PathProducer
 {
 public:
-    PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf): channelFifoL(&leftScsf), channelFifoR(&rightScsf)
-    {
+    PathProducer(SingleChannelSampleFifo& leftScsf, SingleChannelSampleFifo& rightScsf): channelFifoL(&leftScsf), channelFifoR(&rightScsf) {
         decibelsPeak.fill(-100.0f);
         decibelsCurrent.fill(0.0f);
-        zlth::dsp::window::fill_window(windowTable_mul_fftNormalize, zlth::dsp::window::coefficients::blackman_harris_92);
+        fill_blackman_harris(windowTable_mul_fftNormalize);
         const float windowNormalize = static_cast<float>(windowTable_mul_fftNormalize.size()) / std::accumulate(windowTable_mul_fftNormalize.begin(), windowTable_mul_fftNormalize.end(), 0.0f);
         zlth::simd::mul_inplace(windowTable_mul_fftNormalize, windowNormalize);
         zlth::simd::mul_inplace(windowTable_mul_fftNormalize, fftSizeHalfInverse);
-        for (int i = 0; i < 32; ++i)
-        {
+        for (int i = 0; i < 32; ++i) {
             auto& data = pathFifo.getBufferAt(i);
             data.spectrumPath.assign(FFT_SIZE_HALF, -100.0f);
             data.peakHoldPath.assign(FFT_SIZE_HALF, -100.0f);
         }
     }
-    void process(double sampleRate)
-    {
+    void process(double sampleRate) {
         juce::AudioBuffer<float> incomingBufferL, incomingBufferR;
-        while (channelFifoL->getNumCompleteBuffersAvailable() > 0 && channelFifoR->getNumCompleteBuffersAvailable() > 0)
-        {
-            if (channelFifoL->getAudioBuffer(incomingBufferL) && channelFifoR->getAudioBuffer(incomingBufferR))
-            {
+        while (channelFifoL->getNumCompleteBuffersAvailable() > 0 && channelFifoR->getNumCompleteBuffersAvailable() > 0) {
+            if (channelFifoL->getAudioBuffer(incomingBufferL) && channelFifoR->getAudioBuffer(incomingBufferR)) {
                 std::span<const float> spanL {incomingBufferL.getReadPointer(0), static_cast<size_t>(incomingBufferL.getNumSamples())};
                 std::span<const float> spanR {incomingBufferR.getReadPointer(0), static_cast<size_t>(incomingBufferR.getNumSamples())};
                 const int originalIncomingSize = spanL.size();
@@ -51,8 +44,7 @@ public:
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
                 const int sourceOffset = originalIncomingSize - useSize;
                 const int copySize = FFT_SIZE - useSize;
-                if (copySize > 0)
-                {
+                if (copySize > 0) {
                     std::memmove(audioBuffer.data(), audioBuffer.data() + useSize, copySize * sizeof(float));
                 }
                 std::copy(incomingBufferL.getReadPointer(0, sourceOffset), incomingBufferL.getReadPointer(0, sourceOffset) + useSize, audioBuffer.begin() + copySize);
@@ -73,8 +65,7 @@ public:
                 decibelRSmoothed = juce::jmax(decibelRCurrent, decibelRSmoothed - meterFall);
             }
         }
-        if (auto* renderData = pathFifo.getWriteBuffer())
-        {
+        if (auto* renderData = pathFifo.getWriteBuffer()) {
             std::copy(decibelsCurrent.begin(), decibelsCurrent.end(), renderData->spectrumPath.begin());
             std::copy(decibelsPeak.begin(), decibelsPeak.end(), renderData->peakHoldPath.begin());
             renderData->dbM = decibelLSmoothed;
@@ -82,14 +73,11 @@ public:
             pathFifo.finishedWrite();
         }
     }
-    int getNumPathsAvailable() const
-    {
+    int getNumPathsAvailable() const {
         return pathFifo.getNumAvailableForReading();
     }
-    bool getPath(SpectrumRenderData& path)
-    {
-        if (auto* renderData = pathFifo.getReadBuffer())
-        {
+    bool getPath(SpectrumRenderData& path) {
+        if (auto* renderData = pathFifo.getReadBuffer()) {
             path.spectrumPath = renderData->spectrumPath;
             path.peakHoldPath = renderData->peakHoldPath;
             path.dbM = renderData->dbM;
@@ -101,6 +89,18 @@ public:
         return false;
     }
 private:
+    static void fill_blackman_harris(std::span<float> target) noexcept {
+        auto size = target.size();
+        float invSize = std::numbers::pi_v<float> *2.0f / static_cast<float>(size);
+        for (std::size_t i = 0; i < size; ++i) {
+            float phi = static_cast<float>(i) * invSize;
+            target[i] =
+                0.35875f -
+                0.48829f * std::cos(phi) +
+                0.14128f * std::cos(2.0f * phi) -
+                0.01168f * std::cos(3.0f * phi);
+        }
+    }
     static constexpr int FFT_ORDER = 12;
     static constexpr int FFT_SIZE = 1 << FFT_ORDER;
     static constexpr int FFT_SIZE_HALF = FFT_SIZE >> 1;
