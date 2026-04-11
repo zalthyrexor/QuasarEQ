@@ -2,25 +2,21 @@
 
 #include "VisualizerComponent.h"
 
-class CustomButton : public juce::Button
+class CustomButton: public juce::Button
 {
 public:
-    CustomButton(const juce::String& buttonText) : juce::Button(buttonText), displayText(buttonText)
-    {
+    CustomButton(const juce::String& buttonText): juce::Button(buttonText), displayText(buttonText) {
         setMouseCursor(juce::MouseCursor::PointingHandCursor);
     }
-    void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override
-    {
+    void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override {
         auto bounds = getLocalBounds().toFloat();
         g.setColour(juce::Colours::black);
         g.fillRect(bounds);
-        if (getToggleState())
-        {
+        if (getToggleState()) {
             g.setColour(juce::Colour(zlth::ui::colors::theme));
             g.drawRect(bounds, 2.0f);
         }
-        else
-        {
+        else {
             g.setColour(juce::Colour(zlth::ui::colors::buttonDisabled));
             g.drawRect(bounds, 1.0f);
         }
@@ -31,34 +27,28 @@ private:
     juce::String displayText;
 };
 
-class CustomIconButton : public juce::Button
+class CustomIconButton: public juce::Button
 {
 public:
-    CustomIconButton(const char* svgData, int svgSize) : juce::Button("IconButton")
-    {
-        if (svgData != nullptr)
-        {
+    CustomIconButton(const char* svgData, int svgSize): juce::Button("IconButton") {
+        if (svgData != nullptr) {
             drawable = juce::Drawable::createFromSVG(*juce::XmlDocument::parse(juce::String::fromUTF8(svgData, svgSize)));
         }
         setMouseCursor(juce::MouseCursor::PointingHandCursor);
     }
-    void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override
-    {
+    void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override {
         auto bounds = getLocalBounds().toFloat();
         g.setColour(juce::Colours::black);
         g.fillRect(bounds);
-        if (getToggleState())
-        {
+        if (getToggleState()) {
             g.setColour(juce::Colour(zlth::ui::colors::theme));
             g.drawRect(bounds, 2.0f);
         }
-        else
-        {
+        else {
             g.setColour(juce::Colour(zlth::ui::colors::buttonDisabled));
             g.drawRect(bounds, 1.0f);
         }
-        if (drawable != nullptr)
-        {
+        if (drawable != nullptr) {
             drawable->replaceColour(juce::Colours::black, juce::Colours::white);
             drawable->drawWithin(g, bounds.reduced(6.0f), juce::RectanglePlacement::centred, 1.0f);
         }
@@ -70,20 +60,17 @@ private:
 class FilterBandControl: public juce::Component
 {
 public:
-    FilterBandControl(juce::AudioProcessorValueTreeState& apvts, int bandIndex)
-    {
+    FilterBandControl(juce::AudioProcessorValueTreeState& apvts, int bandIndex) {
         typeComboBox.setJustificationType(juce::Justification::centred);
         typeComboBox.addItemList(filterModes, 1);
         modeComboBox.setJustificationType(juce::Justification::centred);
         modeComboBox.addItemList(channelModes, 1);
         bypassButton.setClickingTogglesState(true);
-        for (auto* s : {&freqSlider, &gainSlider, &qSlider})
-        {
+        for (auto* s : {&freqSlider, &gainSlider, &qSlider}) {
             s->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
             s->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 54, 16);
         }
-        for (auto* c : allComponents)
-        {
+        for (auto* c : allComponents) {
             addAndMakeVisible(c);
         }
         const juce::String index = juce::String(bandIndex + 1);
@@ -95,8 +82,7 @@ public:
         modeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, ID_BAND_CHANNEL + index, modeComboBox);
     };
     ~FilterBandControl() override {};
-    void paintOverChildren(juce::Graphics& g) override
-    {
+    void paintOverChildren(juce::Graphics& g) override {
         g.setColour(juce::Colours::white);
         g.setFont(10.0f);
         auto drawUnit = [&](juce::Slider& s, const char* unit) {
@@ -109,8 +95,7 @@ public:
         drawUnit(gainSlider, "dB");
         drawUnit(qSlider, "Q");
     }
-    void resized() override
-    {
+    void resized() override {
         auto bounds = getLocalBounds();
         auto topHeader = bounds.removeFromTop(30);
         bypassButton.setBounds(topHeader.reduced(margin));
@@ -126,7 +111,7 @@ public:
     };
 private:
     static constexpr int margin = 4;
-    std::vector<juce::Component*> allComponents {&typeComboBox,&modeComboBox, &bypassButton, &freqSlider, &gainSlider, &qSlider};
+    std::vector<juce::Component*> allComponents {&typeComboBox, &modeComboBox, &bypassButton, &freqSlider, &gainSlider, &qSlider};
     CustomButton bypassButton {ID_BAND_BYPASS};
     juce::Slider freqSlider;
     juce::Slider gainSlider;

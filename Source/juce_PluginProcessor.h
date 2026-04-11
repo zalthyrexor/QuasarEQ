@@ -67,12 +67,10 @@ private:
 
     struct Params
     {
-        static inline juce::String getID(const juce::String& prefix, int bandIdx)
-        {
+        static inline juce::String getID(const juce::String& prefix, int bandIdx) {
             return prefix + juce::String(bandIdx + 1);
         }
-        static inline int getBandIndex(const juce::String& parameterID)
-        {
+        static inline int getBandIndex(const juce::String& parameterID) {
             return parameterID.getTrailingIntValue() - 1;
         }
     };

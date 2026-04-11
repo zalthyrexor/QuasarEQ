@@ -18,7 +18,7 @@ private:
     int selectedMode = 0;
 
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
-    std::vector<IconData> icons 
+    std::vector<IconData> icons
     {
         {BinaryData::hp_svg, BinaryData::hp_svgSize},
         {BinaryData::lp_svg, BinaryData::lp_svgSize},
@@ -33,7 +33,7 @@ private:
     static constexpr int margin = 5;
     static constexpr int sectionBHeight = 44;
     static constexpr int sectionCHeight = 300;
-    static constexpr int sectionDHeight = 300+30;
+    static constexpr int sectionDHeight = 300 + 30;
     static constexpr int windowHeight = margin * 2 + sectionBHeight + sectionCHeight + sectionDHeight;
     static constexpr int windowWidth = 657;
     CustomLNF customLNF;
@@ -42,9 +42,8 @@ private:
     juce::Label pluginInfoLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
-    static auto getMasterGainIDs() -> const std::array<juce::String, 2>&
-    {
-        static const std::array<juce::String, 2> ids 
+    static auto getMasterGainIDs() -> const std::array<juce::String, 2>& {
+        static const std::array<juce::String, 2> ids
         {
             ID_OUT_GAIN_0, ID_OUT_GAIN_1
         };

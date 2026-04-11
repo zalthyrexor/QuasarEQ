@@ -16,36 +16,29 @@ namespace zlth::dsp::fft
         static_assert(Order % 2 == 0, "Radix-4 requires even Order (e.g., 10, 12).");
     public:
         static constexpr size_t Size = static_cast<size_t>(1) << Order;
-        Radix4()
-        {
+        Radix4() {
             twiddle();
             bit_rev(2);
         }
-        void performFFT(std::span<float> real, std::span<float> imag)
-        {
-            for (size_t i = 0; i < Size; ++i)
-            {
+        void performFFT(std::span<float> real, std::span<float> imag) {
+            for (size_t i = 0; i < Size; ++i) {
                 size_t j = bitRevTable[i];
-                if (i < j)
-                {
+                if (i < j) {
                     std::swap(real[i], real[j]);
                     std::swap(imag[i], imag[j]);
                 }
             }
-            for (size_t m = 4; m <= Size; m <<= 2)
-            {
+            for (size_t m = 4; m <= Size; m <<= 2) {
                 const size_t m4 = m >> 2;
                 const size_t step = Size / m;
-                for (size_t j = 0; j < m4; ++j)
-                {
+                for (size_t j = 0; j < m4; ++j) {
                     float wr1 = twiddleR[j * step];
                     float wi1 = twiddleI[j * step];
                     float wr2 = twiddleR[2 * j * step];
                     float wi2 = twiddleI[2 * j * step];
                     float wr3 = twiddleR[3 * j * step];
                     float wi3 = twiddleI[3 * j * step];
-                    for (size_t k = j; k < Size; k += m)
-                    {
+                    for (size_t k = j; k < Size; k += m) {
                         const size_t i0 = k;
                         const size_t i1 = k + m4;
                         const size_t i2 = k + 2 * m4;
@@ -79,24 +72,19 @@ namespace zlth::dsp::fft
             }
         }
     private:
-        void twiddle()
-        {
-            for (size_t i = 0; i < Size; ++i)
-            {
+        void twiddle() {
+            for (size_t i = 0; i < Size; ++i) {
                 float theta = tau_div_size * -static_cast<float>(i);
                 twiddleR[i] = std::cos(theta);
                 twiddleI[i] = std::sin(theta);
             }
         }
-        void bit_rev(size_t Step)
-        {
+        void bit_rev(size_t Step) {
             size_t mask = (1ULL << Step) - 1;
-            for (size_t i = 0; i < Size; ++i)
-            {
+            for (size_t i = 0; i < Size; ++i) {
                 size_t rev = 0;
                 size_t temp = i;
-                for (size_t j = 0; j < Order; j += Step)
-                {
+                for (size_t j = 0; j < Order; j += Step) {
                     rev = (rev << Step) | (temp & mask);
                     temp >>= Step;
                 }

@@ -6,13 +6,11 @@
 class CustomLNF: public juce::LookAndFeel_V4
 {
 public:
-    CustomLNF()
-    {
+    CustomLNF() {
         setColour(juce::Label::textColourId, juce::Colour(zlth::ui::colors::text));
         setColour(juce::Label::backgroundWhenEditingColourId, juce::Colours::black);
     }
-    void drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider) override
-    {
+    void drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider) override {
         auto center = juce::Rectangle<float>(x, y, w, h).getCentre();
         auto centerX = center.x;
         auto centerY = center.y;
@@ -49,8 +47,7 @@ public:
         pointer.applyTransform(juce::AffineTransform::rotation(toAngle).translated(centerX, centerY));
         g.fillPath(pointer);
     }
-    void drawComboBox(juce::Graphics& g, int w, int h, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, juce::ComboBox& box) override
-    {
+    void drawComboBox(juce::Graphics& g, int w, int h, bool isButtonDown, int buttonX, int buttonY, int buttonW, int buttonH, juce::ComboBox& box) override {
         const auto color = juce::Colour(zlth::ui::colors::textBackground);
         const auto bounds = juce::Rectangle<int>(0, 0, w, h).toFloat();
         g.setColour(color);
@@ -58,18 +55,15 @@ public:
         g.setColour(juce::Colours::white.withAlpha(0.3f));
         g.drawRect(bounds);
     }
-    juce::Font getComboBoxFont(juce::ComboBox& box) override
-    {
+    juce::Font getComboBoxFont(juce::ComboBox& box) override {
         return {13.0f};
     }
-    void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override
-    {
+    void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override {
         label.setBounds(1, 1, box.getWidth() - 2, box.getHeight() - 2);
         label.setFont(getComboBoxFont(box));
         label.setJustificationType(juce::Justification::centred);
     }
-    void drawLinearSlider(juce::Graphics& g, int x, int y, int w, int h, float pos, float min, float max, const juce::Slider::SliderStyle style, juce::Slider& slider) override
-    {
+    void drawLinearSlider(juce::Graphics& g, int x, int y, int w, int h, float pos, float min, float max, const juce::Slider::SliderStyle style, juce::Slider& slider) override {
         auto bounds = juce::Rectangle<float>(x, y, w, h).reduced(10.0f, 5.0f);
         float trackWidth = 6.0f;
         auto track = bounds.withSizeKeepingCentre(trackWidth, bounds.getHeight());

@@ -15,20 +15,17 @@ namespace zlth::dsp::fft
     public:
         Resampler510() = default;
         ~Resampler510() = default;
-        std::vector<std::pair<float, float>> resample(const float* data, const double sampleRate)
-        {
+        std::vector<std::pair<float, float>> resample(const float* data, const double sampleRate) {
             std::vector<std::pair<float, float>> spectrum;
             spectrum.reserve(RENDER_OUT_SIZE);
             const float binWidth = static_cast<float>(sampleRate / FFT_SIZE);
             int outIndex = 0;
             int dataIndex = 0;
             int levelIndex = 0;
-            for (; levelIndex < NUM_SECTIONS; ++levelIndex)
-            {
+            for (; levelIndex < NUM_SECTIONS; ++levelIndex) {
                 const int windowSize = 1 << levelIndex;
                 const int nextOutputStart = outIndex + (SECTION_SIZE >> levelIndex);
-                for (; outIndex < nextOutputStart; ++outIndex)
-                {
+                for (; outIndex < nextOutputStart; ++outIndex) {
                     const float freq = dataIndex * binWidth;
                     const float gain = *std::max_element(data + dataIndex, data + dataIndex + windowSize);
                     spectrum.emplace_back(freq, gain);
