@@ -300,67 +300,47 @@ private:
     }
 
     void resized() override {
-        struct Marker { juce::String text; int pos; };
-        const auto meterArea = getLevelMeterArea();
-        auto formatFreqText = [](float f) { return (f < 1000.0f) ? juce::String(static_cast<int>(f)) : juce::String(static_cast<int>(f / 1000.0f)) + "k"; };
-        auto formatDbText = [](float db) { return (db > 0 ? "+" : "") + juce::String(static_cast<int> (db)); };
-        auto createYMarkers = [&](const std::vector<float>& dbs, const juce::Rectangle<int>& area, float maxDb, float minDb) {
-            std::vector<Marker> markers;
-            markers.reserve(dbs.size());
-            std::transform(dbs.begin(), dbs.end(), std::back_inserter(markers), [&](float db) {
-                return Marker {formatDbText(db), (int)area.getRelativePoint(0.0f, juce::jmap(db, maxDb, minDb, 0.0f, 1.0f)).y};
-            });
-            return markers;
-        };
-        std::vector<Marker> xMarkers;
-        xMarkers.reserve(frequencies.size());
-        const auto curveArea = getCurveArea();
-        const auto curveAreaFloat = curveArea.toFloat();
-        std::transform(frequencies.begin(), frequencies.end(), std::back_inserter(xMarkers), [&](float f) {
-            return Marker {formatFreqText(f), (int)curveArea.getRelativePoint(juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ), 0.0f).x};
-        });
-        auto curveYMarkers = createYMarkers(editorDBs, curveArea, EDITOR_MAX_DB, EDITOR_MIN_DB);
-        auto meterYMarkers = createYMarkers(meterDBs, meterArea, config::METER_MAX, config::METER_MIN);
+        const auto meterArea = getLevelMeterArea().toFloat();
+        const auto curveArea = getCurveArea().toFloat();
         gridCache = juce::Image(juce::Image::ARGB, getWidth(), getHeight(), true);
         juce::Graphics g(gridCache);
         g.setColour(juce::Colours::black);
         g.fillRect(curveArea);
         g.fillRect(meterArea);
-        const auto meterAreaFloat = meterArea.toFloat();
-        const auto meterAreaX = meterAreaFloat.getX();
-        const auto meterAreaY = meterAreaFloat.getY();
-        const auto meterAreaW = meterAreaFloat.getWidth();
-        const auto meterAreaB = meterAreaFloat.getBottom();
-        g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
-        g.drawVerticalLine(meterAreaX + meterAreaW * 0.00, meterAreaY, meterAreaB);
-        g.drawVerticalLine(meterAreaX + meterAreaW * 0.25, meterAreaY, meterAreaB);
-        g.drawVerticalLine(meterAreaX + meterAreaW * 0.75, meterAreaY, meterAreaB);
-        g.drawVerticalLine(meterAreaX + meterAreaW * 1.00, meterAreaY, meterAreaB);
-        for (const auto& m : xMarkers) {
-            g.drawVerticalLine(m.pos, curveAreaFloat.getY(), curveAreaFloat.getBottom());
-        }
-        for (const auto& m : curveYMarkers) {
-            g.drawHorizontalLine(m.pos, curveAreaFloat.getX(), curveAreaFloat.getRight());
-        }
-        for (const auto& m : meterYMarkers) {
-            g.drawHorizontalLine(m.pos, meterAreaFloat.getX(), meterAreaFloat.getRight());
-        }
-        g.setColour(juce::Colour(zlth::ui::colors::text));
-        g.setFont(FONT_HEIGHT);
-        auto drawLabelAt = [&](const juce::String& text, int centreX, int centreY) {
-            g.drawText(text, juce::Rectangle<int>(labelBorderSize, labelBorderSize).withCentre({centreX, centreY}), juce::Justification::centred);
+        auto formatFreq = [](float f) { return (f < 1000.0f) ? juce::String((int)f) : juce::String((int)(f / 1000.0f)) + "k"; };
+        auto formatDb = [](float db) { return (db > 0 ? "+" : "") + juce::String((int)db); };
+        auto drawLabel = [&](const juce::String& text, int x, int y) {
+            g.drawText(text, juce::Rectangle<int>(labelBorderSize, labelBorderSize).withCentre({x, y}), juce::Justification::centred);
         };
-        for (const auto& m : xMarkers) {
-            drawLabelAt(m.text, m.pos, curveArea.getBottom() + margin);
-            drawLabelAt(m.text, m.pos, curveArea.getY() - margin);
+        for (auto f : frequencies) {
+            int x = (int)curveArea.getRelativePoint(juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ), 0.0f).x;
+            g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+            g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
+            g.setColour(juce::Colour(zlth::ui::colors::text));
+            g.setFont(FONT_HEIGHT);
+            drawLabel(formatFreq(f), x, (int)curveArea.getBottom() + margin);
+            drawLabel(formatFreq(f), x, (int)curveArea.getY() - margin);
         }
-        for (const auto& m : curveYMarkers) {
-            drawLabelAt(m.text, curveArea.getX() - margin, m.pos);
+        for (auto db : editorDBs) {
+            int y = (int)curveArea.getRelativePoint(0.0f, juce::jmap(db, EDITOR_MAX_DB, EDITOR_MIN_DB, 0.0f, 1.0f)).y;
+            g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+            g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
+            g.setColour(juce::Colour(zlth::ui::colors::text));
+            drawLabel(formatDb(db), (int)curveArea.getX() - margin, y);
         }
-        for (const auto& m : meterYMarkers) {
-            drawLabelAt(m.text, meterArea.getX() - margin, m.pos);
+        for (auto db : meterDBs) {
+            int y = (int)meterArea.getRelativePoint(0.0f, juce::jmap(db, config::METER_MAX, config::METER_MIN, 0.0f, 1.0f)).y;
+            g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+            g.drawHorizontalLine(y, meterArea.getX(), meterArea.getRight());
+            g.setColour(juce::Colour(zlth::ui::colors::text));
+            drawLabel(formatDb(db), (int)meterArea.getX() - margin, y);
+        }
+        g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+        for (float ratio : { 0.0f, 0.25f, 0.75f, 1.0f }) {
+            g.drawVerticalLine((int)(meterArea.getX() + meterArea.getWidth() * ratio), meterArea.getY(), meterArea.getBottom());
         }
     }
+
     juce::Rectangle<int> getLevelMeterArea() {
         auto a = getLocalBounds().reduced(margin << 1);
         return a.removeFromRight(margin << 1);
