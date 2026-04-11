@@ -21,50 +21,43 @@ namespace zlth::simd
     using Register = __m256;
     static constexpr int step = sizeof(Register) / sizeof(Scalar);
 
-    ZLTH_FORCEINLINE static void add_inplace(std::span<Scalar> io, Scalar value)
+    struct Batch
     {
-        Register v_val = _mm256_set1_ps(value);
+        Register data;
+        Batch(Register m): data(m) {}
+        Batch(Scalar s): data(_mm256_set1_ps(s)) {}
+        ZLTH_FORCEINLINE void store(Scalar* ptr) const { _mm256_storeu_ps(ptr, data); }
+        ZLTH_FORCEINLINE static Batch load(const Scalar* ptr) { return _mm256_loadu_ps(ptr); }
+        ZLTH_FORCEINLINE Batch operator+(const Batch other) const { return _mm256_add_ps(data, other.data); }
+        ZLTH_FORCEINLINE Batch operator-(const Batch other) const { return _mm256_sub_ps(data, other.data); }
+        ZLTH_FORCEINLINE Batch operator*(const Batch other) const { return _mm256_mul_ps(data, other.data); }
+        ZLTH_FORCEINLINE Batch operator/(const Batch other) const { return _mm256_div_ps(data, other.data); }
+    };
+    template <typename Lambda>
+    ZLTH_FORCEINLINE void forEach(std::span<Scalar> io, Lambda action)
+    {
         size_t n = io.size();
         size_t i = 0;
         for (; i + step <= n; i += step)
         {
-            _mm256_storeu_ps(&io[i], _mm256_add_ps(_mm256_loadu_ps(&io[i]), v_val));
+            Batch v = Batch::load(&io[i]);
+            Batch result = action(v);
+            result.store(&io[i]);
         }
         for (; i < n; ++i)
         {
-            io[i] += value;
+            io[i] = action(io[i]);
         }
     }
+}
 
-    ZLTH_FORCEINLINE static void sub_inplace(std::span<Scalar> io, Scalar value)
-    {
-        Register v_val = _mm256_set1_ps(value);
-        size_t n = io.size();
-        size_t i = 0;
-        for (; i + step <= n; i += step)
-        {
-            _mm256_storeu_ps(&io[i], _mm256_sub_ps(_mm256_loadu_ps(&io[i]), v_val));
-        }
-        for (; i < n; ++i) 
-        {
-            io[i] -= value;
-        }
-    }
+namespace zlth::simd
+{
 
-    ZLTH_FORCEINLINE static void mul_inplace(std::span<Scalar> io, Scalar value)
-    {
-        Register v_val = _mm256_set1_ps(value);
-        size_t n = io.size();
-        size_t i = 0;
-        for (; i + step <= n; i += step)
-        {
-            _mm256_storeu_ps(&io[i], _mm256_mul_ps(_mm256_loadu_ps(&io[i]), v_val));
-        }
-        for (; i < n; ++i)
-        {
-            io[i] *= value;
-        }
-    }
+    ZLTH_FORCEINLINE static void add_inplace(std::span<Scalar> io, Scalar value) { forEach(io, [value](auto v) { return v + value; }); }
+    ZLTH_FORCEINLINE static void sub_inplace(std::span<Scalar> io, Scalar value) { forEach(io, [value](auto v) { return v - value; }); }
+    ZLTH_FORCEINLINE static void mul_inplace(std::span<Scalar> io, Scalar value) { forEach(io, [value](auto v) { return v * value; }); }
+    ZLTH_FORCEINLINE static void div_inplace(std::span<Scalar> io, Scalar value) { forEach(io, [value](auto v) { return v / value; }); }
 
     ZLTH_FORCEINLINE static void max_inplace(std::span<Scalar> io, Scalar value)
     {
