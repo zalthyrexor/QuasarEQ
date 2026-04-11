@@ -6,21 +6,17 @@ QuasarEQAudioProcessor::QuasarEQAudioProcessor():
         BusesProperties().
         withInput("Input", juce::AudioChannelSet::stereo(), true).
         withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-    apvts(*this, &undoManager, ID_PARAMETERS, createParameterLayout())
-{
+    apvts(*this, &undoManager, ID_PARAMETERS, createParameterLayout()) {
     apvts.addParameterListener(ID_OUT_GAIN_0, this);
     apvts.addParameterListener(ID_OUT_GAIN_1, this);
-    for (int i = 0; i < config::BAND_COUNT; ++i)
-    {
-        for (const auto& prefix : bandParamPrefixes)
-        {
+    for (int i = 0; i < config::BAND_COUNT; ++i) {
+        for (const auto& prefix : bandParamPrefixes) {
             apvts.addParameterListener(Params::getID(prefix, i), this);
         }
     }
 }
 
-juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::createParameterLayout() const
-{
+juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::createParameterLayout() const {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     juce::String UNIT_DB = juce::String(config::UNIT_DB.data());
     juce::String UNIT_HZ = juce::String(config::UNIT_HZ.data());
@@ -36,8 +32,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
     bandQualRange.setSkewForCentre(qualLegalValue);
     layout.add(std::make_unique<juce::AudioParameterFloat>(ID_OUT_GAIN_0, ID_OUT_GAIN_0, outGainRange, outGainLegalValue, UNIT_DB));
     layout.add(std::make_unique<juce::AudioParameterFloat>(ID_OUT_GAIN_1, ID_OUT_GAIN_1, outGainRange, outGainLegalValue, UNIT_DB));
-    for (int i = 0; i < config::BAND_COUNT; ++i)
-    {
+    for (int i = 0; i < config::BAND_COUNT; ++i) {
         const auto id = [i](auto prefix) { return Params::getID(prefix, i); };
         layout.add(std::make_unique<juce::AudioParameterFloat>(id(ID_BAND_GAIN), id(ID_BAND_GAIN), bandGainRange, gainLegalValue, UNIT_DB));
         layout.add(std::make_unique<juce::AudioParameterFloat>(id(ID_BAND_FREQ), id(ID_BAND_FREQ), bandFreqRange, freqLegalValue, UNIT_HZ));
@@ -49,31 +44,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
     return layout;
 }
 
-void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
-{
+void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     channelFifo0.prepare(samplesPerBlock);
     channelFifo1.prepare(samplesPerBlock);
     updateBands(PARAMS_MASK_ALL);
 }
 
-void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
-{
+void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-    {
+    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i) {
         buffer.clear(i, 0, buffer.getNumSamples());
     }
-    if (auto flags = updateFlags.exchange(0))
-    {
+    if (auto flags = updateFlags.exchange(0)) {
         updateBands(flags);
     }
     const int numSamples = buffer.getNumSamples();
     std::span<float> span0 {buffer.getWritePointer(0), static_cast<size_t>(numSamples)};
     std::span<float> span1 {buffer.getWritePointer(1), static_cast<size_t>(numSamples)};
     zlth::simd::hadamard_butterfly(span0, span1);
-	zlth::simd::mul_inplace(span0, globalGains[0] * 0.5f);
+    zlth::simd::mul_inplace(span0, globalGains[0] * 0.5f);
     zlth::simd::mul_inplace(span1, globalGains[1] * 0.5f);
     processors[0].process(span0);
     processors[1].process(span1);
@@ -82,28 +73,21 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     zlth::simd::hadamard_butterfly(span0, span1);
 }
 
-void QuasarEQAudioProcessor::parameterChanged(const juce::String& parameterID, float)
-{
-    if (parameterID == ID_OUT_GAIN_0 || parameterID == ID_OUT_GAIN_1)
-    {
+void QuasarEQAudioProcessor::parameterChanged(const juce::String& parameterID, float) {
+    if (parameterID == ID_OUT_GAIN_0 || parameterID == ID_OUT_GAIN_1) {
         updateFlags.fetch_or(PARAMS_MASK_OUT);
     }
-    else
-    {
+    else {
         const int i = Params::getBandIndex(parameterID);
         updateFlags.fetch_or(1u << i);
     }
 }
 
-void QuasarEQAudioProcessor::updateBands(uint32_t flags)
-{
+void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
     const auto sampleRate = getSampleRate();
-    for (int i = 0; i < config::BAND_COUNT; ++i)
-    {
-        if (flags & 1u << i)
-        {
-            auto loadBandParam = [this, i](const juce::String& prefix)
-            {
+    for (int i = 0; i < config::BAND_COUNT; ++i) {
+        if (flags & 1u << i) {
+            auto loadBandParam = [this, i](const juce::String& prefix) {
                 return apvts.getRawParameterValue(Params::getID(prefix, i))->load();
             };
             auto qual = loadBandParam(ID_BAND_QUAL);
@@ -118,10 +102,8 @@ void QuasarEQAudioProcessor::updateBands(uint32_t flags)
             processors[1].set_band_active_state(isActive && (mode == 0 || mode == 2), i);
         }
     }
-    if (flags & PARAMS_MASK_OUT)
-    {
-        auto loadGlobal = [this](const juce::String& id)
-        {
+    if (flags & PARAMS_MASK_OUT) {
+        auto loadGlobal = [this](const juce::String& id) {
             return std::pow(10.0f, apvts.getRawParameterValue(id)->load() / 20.0f);
         };
         globalGains[0] = loadGlobal(ID_OUT_GAIN_0);
@@ -129,15 +111,12 @@ void QuasarEQAudioProcessor::updateBands(uint32_t flags)
     }
 }
 
-std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() const
-{
+std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() const {
     std::vector<FilterSnapshot> snapshots;
     snapshots.reserve(config::BAND_COUNT);
     float sampleRate = static_cast<float>(getSampleRate());
-    for (int i = 0; i < config::BAND_COUNT; ++i)
-    {
-        auto load = [this, i](const juce::String& prefix) 
-        {
+    for (int i = 0; i < config::BAND_COUNT; ++i) {
+        auto load = [this, i](const juce::String& prefix) {
             return apvts.getRawParameterValue(Params::getID(prefix, i))->load();
         };
         if (load(ID_BAND_BYPASS) > 0.5f) continue;
@@ -153,24 +132,20 @@ std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() const
     return snapshots;
 }
 
-void QuasarEQAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
-{
+void QuasarEQAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
     juce::MemoryOutputStream stream(destData, false);
     apvts.state.writeToStream(stream);
 }
-void QuasarEQAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
-{
+void QuasarEQAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
     auto tree = juce::ValueTree::readFromData(data, size_t(sizeInBytes));
-    if (tree.isValid())
-    {
+    if (tree.isValid()) {
         apvts.replaceState(tree);
     }
 }
 
-bool QuasarEQAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
-{
+bool QuasarEQAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
     const auto mainInput = layouts.getMainInputChannelSet();
-    const auto mainOutput = layouts.getMainOutputChannelSet(); 
+    const auto mainOutput = layouts.getMainOutputChannelSet();
     return mainInput == mainOutput && mainInput == juce::AudioChannelSet::stereo();
 }
 
