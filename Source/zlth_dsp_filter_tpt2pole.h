@@ -14,14 +14,12 @@ namespace zlth::dsp::filter
         TPT2Pole() = default;
         ~TPT2Pole() = default;
         enum class FilterType { HighPass, LowPass, HighShelf, LowShelf, Tilt, Bell, Notch, BandPass };
-        void set_coefficients(FilterType filterType, float freqHz, float qual, float gainDb, float sampleRate) noexcept
-        {
+        void set_coefficients(FilterType filterType, float freqHz, float qual, float gainDb, float sampleRate) noexcept {
             float preK = 1.0f / std::max(qual, qualMin);
             float preG = calculate_g(freqHz, sampleRate);
             float sqrtA = std::exp(ln10_div_40 * gainDb);
             float A = sqrtA * sqrtA;
-            switch (filterType)
-            {
+            switch (filterType) {
             case FilterType::LowPass:
                 m0 = 0.0f;
                 m1 = 0.0f;
@@ -76,15 +74,12 @@ namespace zlth::dsp::filter
             g = preG;
             a1 = 1.0f / (1.0f + preG * (preG + preK));
         }
-        void reset() noexcept
-        {
+        void reset() noexcept {
             ic1eq = 0.0f;
             ic2eq = 0.0f;
         }
-        [[msvc::forceinline]] void process_span(std::span<float> data) noexcept
-        {
-            for (auto& v0 : data)
-            {
+        [[msvc::forceinline]] void process_span(std::span<float> data) noexcept {
+            for (auto& v0 : data) {
                 float v1 = a1 * (ic1eq + g * (v0 - ic2eq));
                 float v2 = ic2eq + g * v1;
                 ic1eq = 2.0f * v1 - ic1eq;
@@ -92,14 +87,12 @@ namespace zlth::dsp::filter
                 v0 = m0 * v0 + m1 * v1 + m2 * v2;
             }
         }
-        std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept
-        {
+        std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept {
             std::complex<float> s {0.0f, calculate_g(freqHz, sampleRate) / g};
             return m0 + (m1 * s + m2) / (1.0f + s * (s + k));
         }
     private:
-        static float calculate_g(float freqHz, float sampleRate)
-        {
+        static float calculate_g(float freqHz, float sampleRate) {
             return std::tan(pi * std::clamp(freqHz, sampleRate * freqMin, sampleRate * freqMax) / sampleRate);
         }
         float k {};
