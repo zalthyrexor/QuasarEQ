@@ -80,21 +80,28 @@ void QuasarEQAudioProcessor::parameterChanged(const juce::String& parameterID, f
     }
 }
 
+void QuasarEQAudioProcessor::coefsSetter(zlth::dsp::Filter& filter, int i, float sampleRate) {
+    auto loadBandParam = [this, i](const juce::String& prefix) {
+        return apvts.getRawParameterValue(getID(prefix, i))->load();
+    };
+    auto qual = loadBandParam(ID_BAND_QUAL);
+    auto freq = loadBandParam(ID_BAND_FREQ);
+    auto gain = loadBandParam(ID_BAND_GAIN);
+    auto type = static_cast<zlth::dsp::Filter::FilterType>((int)loadBandParam(ID_BAND_FILTER));
+    filter.set_coefficients(type, freq, qual, gain, sampleRate);
+}
+
 void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
     const auto sampleRate = getSampleRate();
     for (int i = 0; i < config::BAND_COUNT; ++i) {
         if (flags & 1u << i) {
+            coefsSetter(processors[0].bands[i], i, sampleRate);
+            coefsSetter(processors[1].bands[i], i, sampleRate);
             auto loadBandParam = [this, i](const juce::String& prefix) {
                 return apvts.getRawParameterValue(getID(prefix, i))->load();
             };
-            auto qual = loadBandParam(ID_BAND_QUAL);
-            auto freq = loadBandParam(ID_BAND_FREQ);
-            auto gain = loadBandParam(ID_BAND_GAIN);
-            auto type = static_cast<zlth::dsp::Filter::FilterType>((int)loadBandParam(ID_BAND_FILTER));
             auto mode = (int)loadBandParam(ID_BAND_CHANNEL);
             bool isActive = loadBandParam(ID_BAND_BYPASS) < 0.5f;
-            processors[0].bands[i].set_coefficients(type, freq, qual, gain, sampleRate);
-            processors[1].bands[i].set_coefficients(type, freq, qual, gain, sampleRate);
             processors[0].isBandActive[i] = isActive && (mode == 0 || mode == 1);
             processors[1].isBandActive[i] = isActive && (mode == 0 || mode == 2);
         }
@@ -108,8 +115,8 @@ void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
     }
 }
 
-std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() const {
-    std::vector<FilterSnapshot> snapshots;
+std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() {
+    std::vector<FilterSnapshot> snapshots {};
     snapshots.reserve(config::BAND_COUNT);
     float sampleRate = static_cast<float>(getSampleRate());
     for (int i = 0; i < config::BAND_COUNT; ++i) {
@@ -117,12 +124,8 @@ std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() const {
             return apvts.getRawParameterValue(getID(prefix, i))->load();
         };
         if (load(ID_BAND_BYPASS) > 0.5f) continue;
-        auto qual = load(ID_BAND_QUAL);
-        auto freq = load(ID_BAND_FREQ);
-        auto gain = load(ID_BAND_GAIN);
-        auto type = static_cast<zlth::dsp::Filter::FilterType>((int)load(ID_BAND_FILTER));
-        FilterSnapshot snapshot;
-        snapshot.filter.set_coefficients(type, freq, qual, gain, sampleRate);
+        FilterSnapshot snapshot {};
+        coefsSetter(snapshot.filter, i, sampleRate);
         snapshot.channelMode = (int)load(ID_BAND_CHANNEL);
         snapshots.push_back(snapshot);
     }

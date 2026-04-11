@@ -47,12 +47,13 @@ public:
     double getTailLengthSeconds() const override;
     const juce::String getName() const override;
     const juce::String getProgramName(int index);
+    void coefsSetter(zlth::dsp::Filter& filter, int i, float sampleRate);
     juce::AudioProcessorEditor* createEditor() override;
     juce::AudioProcessorValueTreeState apvts;
     juce::UndoManager undoManager;
     SingleChannelSampleFifo channelFifo0 {Channel::Left};
     SingleChannelSampleFifo channelFifo1 {Channel::Right};
-    std::vector<FilterSnapshot> getFilterSnapshots() const;
+    std::vector<FilterSnapshot> getFilterSnapshots();
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
     void updateBands(uint32_t flags);
