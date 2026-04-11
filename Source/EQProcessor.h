@@ -5,23 +5,27 @@
 #include "config.h"
 #include "zlth_simd.h"
 
+#if defined(_MSC_VER)
+#define ZLTH_FORCEINLINE [[msvc::forceinline]]
+#elif defined(__GNUC__) || defined(__clang__)
+#define ZLTH_FORCEINLINE __attribute__((always_inline)) inline
+#else
+#define ZLTH_FORCEINLINE inline
+#endif
+
 template <int BandCount>
 class ProcessChain
 {
 public:
-    void process(std::span<float> span) {
+    ZLTH_FORCEINLINE void process(std::span<float> span) {
+        zlth::simd::mul_inplace(span, globalGain);
         for (int i = 0; i < BandCount; ++i) {
             if (isBandActive[i]) {
                 bands[i].process_span(span);
             }
         }
     }
-    void set_band_active_state(bool flag, int i) {
-        isBandActive[i] = flag;
-    }
-    void set_band_coefficients(zlth::dsp::Filter::FilterType type, float freq, float qual, float gain, float sampleRate, int i) {
-        bands[i].set_coefficients(type, freq, qual, gain, sampleRate);
-    }
+    float globalGain {};
     std::array<zlth::dsp::Filter, BandCount> bands {};
     std::array<bool, BandCount> isBandActive {};
 };

@@ -301,24 +301,21 @@ private:
 
     void resized() override {
         struct Marker { juce::String text; int pos; };
-        const auto curveArea = getCurveArea();
-        const auto curveAreaF = curveArea.toFloat();
         const auto meterArea = getLevelMeterArea();
         auto formatFreqText = [](float f) { return (f < 1000.0f) ? juce::String(static_cast<int>(f)) : juce::String(static_cast<int>(f / 1000.0f)) + "k"; };
         auto formatDbText = [](float db) { return (db > 0 ? "+" : "") + juce::String(static_cast<int> (db)); };
-        auto dbToY = [&](float db, const juce::Rectangle<int>& area, float maxDb, float minDb) {
-            return (int)area.getRelativePoint(0.0f, juce::jmap(db, maxDb, minDb, 0.0f, 1.0f)).y;
-        };
         auto createYMarkers = [&](const std::vector<float>& dbs, const juce::Rectangle<int>& area, float maxDb, float minDb) {
             std::vector<Marker> markers;
             markers.reserve(dbs.size());
             std::transform(dbs.begin(), dbs.end(), std::back_inserter(markers), [&](float db) {
-                return Marker {formatDbText(db), dbToY(db, area, maxDb, minDb)};
+                return Marker {formatDbText(db), (int)area.getRelativePoint(0.0f, juce::jmap(db, maxDb, minDb, 0.0f, 1.0f)).y};
             });
             return markers;
         };
         std::vector<Marker> xMarkers;
         xMarkers.reserve(frequencies.size());
+        const auto curveArea = getCurveArea();
+        const auto curveAreaFloat = curveArea.toFloat();
         std::transform(frequencies.begin(), frequencies.end(), std::back_inserter(xMarkers), [&](float f) {
             return Marker {formatFreqText(f), (int)curveArea.getRelativePoint(juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ), 0.0f).x};
         });
@@ -329,36 +326,35 @@ private:
         g.setColour(juce::Colours::black);
         g.fillRect(curveArea);
         g.fillRect(meterArea);
-
-        const auto meterZeroDecibelY = dbToY(0.0f, meterArea, config::METER_MAX, config::METER_MIN);
+        g.drawRect(curveArea);
+        g.drawRect(meterArea);
         const auto meterAreaFloat = meterArea.toFloat();
         const auto meterAreaX = meterAreaFloat.getX();
         const auto meterAreaY = meterAreaFloat.getY();
         const auto meterAreaW = meterAreaFloat.getWidth();
         const auto meterAreaB = meterAreaFloat.getBottom();
-        const auto meterAreaR = meterAreaFloat.getRight();
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
-        g.drawHorizontalLine(meterZeroDecibelY, meterAreaX, meterAreaR);
-        g.drawHorizontalLine(meterAreaB, meterAreaX, meterAreaR);
-        g.drawHorizontalLine(meterAreaY, meterAreaX, meterAreaR);
-        g.drawVerticalLine(meterAreaX, meterAreaY, meterAreaB);
         g.drawVerticalLine(meterAreaX + meterAreaW * 0.25, meterAreaY, meterAreaB);
         g.drawVerticalLine(meterAreaX + meterAreaW * 0.75, meterAreaY, meterAreaB);
-        g.drawVerticalLine(meterAreaX + meterAreaW, meterAreaY, meterAreaB);
-
-        for (const auto& m : xMarkers)g.drawVerticalLine(m.pos, curveAreaF.getY(), curveAreaF.getBottom());
-        for (const auto& m : curveYMarkers)g.drawHorizontalLine(m.pos, curveAreaF.getX(), curveAreaF.getRight());
-        g.drawHorizontalLine(curveAreaF.getY(), curveAreaF.getX(), curveAreaF.getRight());
-        g.drawHorizontalLine(curveAreaF.getBottom(), curveAreaF.getX(), curveAreaF.getRight());
+        for (const auto& m : xMarkers)g.drawVerticalLine(m.pos, curveAreaFloat.getY(), curveAreaFloat.getBottom());
+        for (const auto& m : curveYMarkers)g.drawHorizontalLine(m.pos, curveAreaFloat.getX(), curveAreaFloat.getRight());
+        for (const auto& m : meterYMarkers)g.drawHorizontalLine(m.pos, meterAreaFloat.getX(), meterAreaFloat.getRight());
         g.setColour(juce::Colour(zlth::ui::colors::text));
         g.setFont(FONT_HEIGHT);
-        for (const auto& m : xMarkers)drawLabelAt(g, m.text, m.pos, curveArea.getBottom() + margin, labelBorderSize);
-        for (const auto& m : xMarkers)drawLabelAt(g, m.text, m.pos, curveArea.getY() - margin, labelBorderSize);
-        for (const auto& m : curveYMarkers)drawLabelAt(g, m.text, curveArea.getX() - margin, m.pos, labelBorderSize);
-        for (const auto& m : meterYMarkers)drawLabelAt(g, m.text, meterArea.getX() - margin, m.pos, labelBorderSize);
-    }
-    void drawLabelAt(juce::Graphics& g, const juce::String& text, int centreX, int centreY, int size) {
-        g.drawText(text, juce::Rectangle<int>(size, size).withCentre({centreX, centreY}), juce::Justification::centred);
+        auto drawLabelAt = [&](const juce::String& text, int centreX, int centreY) {
+            g.drawText(text, juce::Rectangle<int>(labelBorderSize, labelBorderSize)
+                .withCentre({centreX, centreY}), juce::Justification::centred);
+        };
+        for (const auto& m : xMarkers) {
+            drawLabelAt(m.text, m.pos, curveArea.getBottom() + margin);
+            drawLabelAt(m.text, m.pos, curveArea.getY() - margin);
+        }
+        for (const auto& m : curveYMarkers) {
+            drawLabelAt(m.text, curveArea.getX() - margin, m.pos);
+        }
+        for (const auto& m : meterYMarkers) {
+            drawLabelAt(m.text, meterArea.getX() - margin, m.pos);
+        }
     }
     juce::Rectangle<int> getLevelMeterArea() {
         auto a = getLocalBounds().reduced(margin << 1);
@@ -423,7 +419,7 @@ private:
     int draggingBand = -1;
     bool parametersNeedUpdate = true;
 
-    const std::vector<float> editorDBs = {18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f};
+    const std::vector<float> editorDBs = {24.0f, 18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f};
     const std::vector<float> meterDBs = {12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f, -30.0f, -36.0f};
     const std::vector<float> frequencies = {20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f};
 

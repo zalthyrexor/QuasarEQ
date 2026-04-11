@@ -2,7 +2,6 @@
 
 #include "custom_components.h"
 
-
 struct IconData { const char* data; int size; };
 
 class QuasarEQAudioProcessorEditor: public juce::AudioProcessorEditor
