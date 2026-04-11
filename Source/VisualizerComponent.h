@@ -313,7 +313,7 @@ private:
             g.drawText(text, juce::Rectangle<int>(labelBorderSize, labelBorderSize).withCentre({x, y}), juce::Justification::centred);
         };
         for (auto f : frequencies) {
-            int x = (int)curveArea.getRelativePoint(juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ), 0.0f).x;
+            int x = curveArea.getX() + juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ) * curveArea.getWidth();
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
             g.setColour(juce::Colour(zlth::ui::colors::text));
@@ -322,14 +322,14 @@ private:
             drawLabel(formatFreq(f), x, (int)curveArea.getY() - margin);
         }
         for (auto db : editorDBs) {
-            int y = (int)curveArea.getRelativePoint(0.0f, juce::jmap(db, EDITOR_MAX_DB, EDITOR_MIN_DB, 0.0f, 1.0f)).y;
+            int y = juce::jmap(db, EDITOR_MAX_DB, EDITOR_MIN_DB, curveArea.getY(), curveArea.getBottom());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
             g.setColour(juce::Colour(zlth::ui::colors::text));
             drawLabel(formatDb(db), (int)curveArea.getX() - margin, y);
         }
         for (auto db : meterDBs) {
-            int y = (int)meterArea.getRelativePoint(0.0f, juce::jmap(db, config::METER_MAX, config::METER_MIN, 0.0f, 1.0f)).y;
+            int y = juce::jmap(db, config::METER_MAX, config::METER_MIN, meterArea.getY(), meterArea.getBottom());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, meterArea.getX(), meterArea.getRight());
             g.setColour(juce::Colour(zlth::ui::colors::text));
