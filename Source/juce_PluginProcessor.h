@@ -48,10 +48,4 @@ private:
     static constexpr uint32_t PARAMS_MASK_ALL = PARAMS_MASK_BAND | PARAMS_MASK_OUT;
     std::atomic<uint32_t> updateFlags {PARAMS_MASK_ALL};
     std::array<ProcessChain<config::BAND_COUNT>, 2> processors {};
-    static inline juce::String getID(const juce::String& prefix, int bandIdx) {
-        return prefix + juce::String(bandIdx + 1);
-    }
-    static inline int getBandIndex(const juce::String& parameterID) {
-        return parameterID.getTrailingIntValue() - 1;
-    }
 };

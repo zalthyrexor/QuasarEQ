@@ -12,14 +12,14 @@ public:
     VisualizerComponent(QuasarEQAudioProcessor& p): audioProcessor(p), pathProducer(audioProcessor.channelFifo), analyzerThread(pathProducer, *this) {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
             for (const auto& prefix : config::bandParamPrefixes) {
-                audioProcessor.apvts.addParameterListener(prefix + juce::String(IndexToID(i)), this);
+                audioProcessor.apvts.addParameterListener(config::getID(prefix, i), this);
             }
         }
     }
     ~VisualizerComponent() {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
             for (const auto& prefix : config::bandParamPrefixes) {
-                audioProcessor.apvts.removeParameterListener(prefix + juce::String(IndexToID(i)), this);
+                audioProcessor.apvts.removeParameterListener(config::getID(prefix,i), this);
             }
         }
     }
@@ -139,7 +139,7 @@ public:
 
     int findNextAvailableBand() const {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            if (audioProcessor.apvts.getRawParameterValue(config::ID_BAND_BYPASS + juce::String(IndexToID(i)))->load() > 0.5f) {
+            if (audioProcessor.apvts.getRawParameterValue(config::getID(config::ID_BAND_BYPASS, i))->load() > 0.5f) {
                 return i;
             }
         }
@@ -198,9 +198,9 @@ public:
         float freqHz = juce::jlimit(MIN_HZ, MAX_HZ, juce::mapToLog10(juce::jlimit(0.0f, 1.0f, (mousePos.getX() - bounds.getX()) / bounds.getWidth()), MIN_HZ, MAX_HZ));
         float gainDb = juce::jlimit(MIN_DB, MAX_DB, juce::jmap(mousePos.getY(), bounds.getBottom(), bounds.getY(), MIN_DB, MAX_DB));
         auto setParam = [&](const juce::String& paramID, float plainValue) {
-            juce::String index = juce::String(IndexToID(draggingBand));
-            if (auto* p = audioProcessor.apvts.getParameter(paramID + index)) {
-                p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(paramID + index).convertTo0to1(plainValue));
+            juce::String index = config::getID(paramID, draggingBand);
+            if (auto* p = audioProcessor.apvts.getParameter(index)) {
+                p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(index).convertTo0to1(plainValue));
             }
         };
         setParam(config::ID_BAND_FREQ, freqHz);
@@ -212,7 +212,7 @@ public:
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override {
         const int bandIdx = getClosestBand(e.position);
         if (bandIdx == NoBandSelected) return;
-        const juce::String paramID = config::ID_BAND_QUAL + juce::String(IndexToID(bandIdx));
+        const juce::String paramID = config::getID(config::ID_BAND_QUAL, bandIdx);
         if (auto* qParam = audioProcessor.apvts.getParameter(paramID)) {
             float currentRealValue = audioProcessor.apvts.getRawParameterValue(paramID)->load();
             float currentNormalized = qParam->getValue();
@@ -264,7 +264,7 @@ private:
         auto& apvts = audioProcessor.apvts;
         for (int i = 0; i < config::BAND_COUNT; ++i) {
             auto getParam = [&](const juce::String& prefix) {
-                return apvts.getRawParameterValue(prefix + juce::String(IndexToID(i)))->load();
+                return apvts.getRawParameterValue(config::getID(prefix,i))->load();
             };
             if (getParam(config::ID_BAND_BYPASS) > 0.5f) continue;
             float freqHz = getParam(config::ID_BAND_FREQ);

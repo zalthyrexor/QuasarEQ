@@ -63,4 +63,11 @@ namespace config
     inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
     inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
     inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
+
+    inline juce::String getID(const juce::String& prefix, int bandIdx) {
+        return prefix + juce::String(bandIdx + 1);
+    }
+    inline int getBandIndex(const juce::String& parameterID) {
+        return parameterID.getTrailingIntValue() - 1;
+    }
 }
