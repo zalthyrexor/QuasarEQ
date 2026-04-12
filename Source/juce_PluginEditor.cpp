@@ -63,12 +63,15 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
 
     setSize(windowWidth, windowHeight);
 }
+
 QuasarEQAudioProcessorEditor::~QuasarEQAudioProcessorEditor() {
     setLookAndFeel(nullptr);
 }
+
 void QuasarEQAudioProcessorEditor::paint(juce::Graphics& g) {
     g.fillAll(config::pluginBackground);
 }
+
 void QuasarEQAudioProcessorEditor::resized() {
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
     juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
@@ -77,8 +80,8 @@ void QuasarEQAudioProcessorEditor::resized() {
 
     sectionB.reduce(margin, margin);
     sectionB.removeFromRight(60);
-    sectionB.removeFromLeft(14 + 20);
-    sectionB.removeFromRight(14 + 20);
+    sectionB.removeFromLeft(34);
+    sectionB.removeFromRight(34);
 
     int btnW = 44;
 
@@ -99,8 +102,9 @@ void QuasarEQAudioProcessorEditor::resized() {
     int knowbWidth = masterSectionArea.getWidth() / masterGainSliders.size();
     for (int i = 0; i < masterGainSliders.size(); ++i) {
         auto area = masterSectionArea.removeFromLeft(knowbWidth);
-        if (masterGainLabelsComponents[i])
+        if (masterGainLabelsComponents[i]) {
             masterGainLabelsComponents[i]->setBounds(area.removeFromTop(12));
+        }
         masterGainSliders[i].setBounds(area);
     }
 
