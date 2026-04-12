@@ -103,9 +103,6 @@ namespace zlth::simd
             [](Register a, Register b) { return _mm256_max_ps(a, b); },
             [](Scalar& a, Scalar b) { a = std::max(a, b); });
     }
-}
-namespace zlth::simd
-{
     ZLTH_FORCEINLINE static void magnitude_sqr(std::span<Scalar> out, std::span<const Scalar> in0, std::span<const Scalar> in1) {
         size_t n = std::min({out.size(), in0.size(), in1.size()});
         size_t i = 0;
