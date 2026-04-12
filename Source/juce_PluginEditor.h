@@ -102,7 +102,7 @@ public:
         }
     }
 private:
-    static constexpr int margin = 5;
+    static constexpr int margin = 4;
     CustomButton bypassButton {config::ID_BAND_BYPASS};
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
     static constexpr int comboBoxCount {2};
@@ -132,13 +132,13 @@ public:
 private:
     std::vector<std::unique_ptr<CustomButton>> modeButtons;
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
-    static constexpr int margin = 5;
-    static constexpr int sectionAHeight = 34;
-    static constexpr int sectionBHeight = 34;
+    static constexpr int margin = 4;
+    static constexpr int sectionAHeight = 32;
+    static constexpr int sectionBHeight = 32;
     static constexpr int sectionCHeight = 300;
     static constexpr int sectionDHeight = 330;
     static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
-    static constexpr int windowWidth = 657;
+    static constexpr int windowWidth = 662;
     CustomLNF customLNF;
     QuasarEQAudioProcessor& audioProcessor;
     VisualizerComponent visualizerComponent;

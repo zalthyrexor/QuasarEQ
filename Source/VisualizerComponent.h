@@ -307,7 +307,7 @@ private:
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
             g.setColour(config::text);
-            g.setFont(FONT_HEIGHT);
+            g.setFont(margin);
             drawLabel(formatFreq(f), x, (int)curveArea.getBottom() + margin);
             drawLabel(formatFreq(f), x, (int)curveArea.getY() - margin);
         }
@@ -332,15 +332,13 @@ private:
     }
 
     juce::Rectangle<int> getLevelMeterArea() {
-        auto a = getLocalBounds().removeFromRight(margin * 7).reduced(4);
-        a = a.reduced(margin << 1);
-        return a;
+        auto a = getLocalBounds().removeFromRight(70);
+        return a.reduced(margin * 2).reduced(4);
     }
     juce::Rectangle<int> getCurveArea() {
-        auto a = getLocalBounds().reduced(4);
-        a.removeFromRight(margin * 7);
-        a = a.reduced(margin << 1);
-        return a;
+        auto a = getLocalBounds();
+        a.removeFromRight(70);
+        return a.reduced(margin * 2).reduced(4);
     }
 
     void calculateResponseCurve() {
@@ -381,7 +379,6 @@ private:
         }
     }
 
-    static constexpr int FONT_HEIGHT = 10;
     static constexpr int margin = 10;
     static constexpr int THREAD_SLEEP_TIME = 20;
     static constexpr int labelBorderSize = 48;
