@@ -117,4 +117,8 @@ private:
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, sliderCount> bandAttachments;
 };
 
-class CustomSlider: public juce::Slider { public:void mouseDoubleClick(const juce::MouseEvent& event) override {}; };
+class CustomSlider: public juce::Slider
+{
+public:
+    void mouseDoubleClick(const juce::MouseEvent&) override {};
+};
