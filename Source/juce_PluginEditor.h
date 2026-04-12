@@ -44,7 +44,7 @@ private:
     static auto getMasterGainIDs() -> const std::array<juce::String, 2>& {
         static const std::array<juce::String, 2> ids
         {
-            ID_OUT_GAIN_0, ID_OUT_GAIN_1
+            config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_1
         };
         return ids;
     }

@@ -11,14 +11,14 @@ class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, p
 public:
     VisualizerComponent(QuasarEQAudioProcessor& p): audioProcessor(p), pathProducer(audioProcessor.channelFifo), analyzerThread(pathProducer, *this) {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            for (const auto& prefix : bandParamPrefixes) {
+            for (const auto& prefix : config::bandParamPrefixes) {
                 audioProcessor.apvts.addParameterListener(prefix + juce::String(IndexToID(i)), this);
             }
         }
     }
     ~VisualizerComponent() {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            for (const auto& prefix : bandParamPrefixes) {
+            for (const auto& prefix : config::bandParamPrefixes) {
                 audioProcessor.apvts.removeParameterListener(prefix + juce::String(IndexToID(i)), this);
             }
         }
@@ -119,9 +119,9 @@ public:
             auto getParam = [&](const juce::String& prefix) {
                 return apvts.getRawParameterValue(prefix + index)->load();
             };
-            if (getParam(ID_BAND_BYPASS) > 0.5f) continue;
-            float freqHz = getParam(ID_BAND_FREQ);
-            float gainDb = getParam(ID_BAND_GAIN);
+            if (getParam(config::ID_BAND_BYPASS) > 0.5f) continue;
+            float freqHz = getParam(config::ID_BAND_FREQ);
+            float gainDb = getParam(config::ID_BAND_GAIN);
             float x = spectrumAreaX + spectrumAreaW * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
             float y = juce::jmap(gainDb, minDb, maxDb, spectrumAreaB, spectrumAreaY);
             const int pointSize = 14;
@@ -139,7 +139,7 @@ public:
 
     int findNextAvailableBand() const {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            if (audioProcessor.apvts.getRawParameterValue(ID_BAND_BYPASS + juce::String(IndexToID(i)))->load() > 0.5f) {
+            if (audioProcessor.apvts.getRawParameterValue(config::ID_BAND_BYPASS + juce::String(IndexToID(i)))->load() > 0.5f) {
                 return i;
             }
         }
@@ -170,21 +170,21 @@ public:
         float freqHz = juce::mapToLog10(juce::jlimit(0.0f, 1.0f, (e.position.getX() - bounds.getX()) / bounds.getWidth()), EDITOR_MIN_HZ, EDITOR_MAX_HZ);
         float gainDb = juce::jlimit(minDb, maxDb, juce::jmap(e.position.getY(), bounds.getBottom(), bounds.getY(), minDb, maxDb));
         float normalizedValue = getSelectedTypeCallback ?
-            apvts.getParameterRange(ID_BAND_FILTER + index).convertTo0to1((float)getSelectedTypeCallback()) :
-            apvts.getParameter(ID_BAND_FILTER + index)->getDefaultValue();
+            apvts.getParameterRange(config::ID_BAND_FILTER + index).convertTo0to1((float)getSelectedTypeCallback()) :
+            apvts.getParameter(config::ID_BAND_FILTER + index)->getDefaultValue();
 
         float aaa = getMSTypeCallback ?
-            apvts.getParameterRange(ID_BAND_CHANNEL + index).convertTo0to1((float)getMSTypeCallback()) :
-            apvts.getParameter(ID_BAND_CHANNEL + index)->getDefaultValue();
+            apvts.getParameterRange(config::ID_BAND_CHANNEL + index).convertTo0to1((float)getMSTypeCallback()) :
+            apvts.getParameter(config::ID_BAND_CHANNEL + index)->getDefaultValue();
 
-        setParam(ID_BAND_BYPASS, 0.0f);
-        setParam(ID_BAND_FREQ, apvts.getParameterRange(ID_BAND_FREQ + index).convertTo0to1(freqHz));
-        setParam(ID_BAND_GAIN, apvts.getParameterRange(ID_BAND_GAIN + index).convertTo0to1(gainDb));
-        setParam(ID_BAND_QUAL, apvts.getParameter(ID_BAND_QUAL + index)->getDefaultValue());
+        setParam(config::ID_BAND_BYPASS, 0.0f);
+        setParam(config::ID_BAND_FREQ, apvts.getParameterRange(config::ID_BAND_FREQ + index).convertTo0to1(freqHz));
+        setParam(config::ID_BAND_GAIN, apvts.getParameterRange(config::ID_BAND_GAIN + index).convertTo0to1(gainDb));
+        setParam(config::ID_BAND_QUAL, apvts.getParameter(config::ID_BAND_QUAL + index)->getDefaultValue());
 
-        setParam(ID_BAND_CHANNEL, aaa);
+        setParam(config::ID_BAND_CHANNEL, aaa);
 
-        setParam(ID_BAND_FILTER, normalizedValue);
+        setParam(config::ID_BAND_FILTER, normalizedValue);
     }
 
     void mouseDrag(const juce::MouseEvent& e) override {
@@ -203,8 +203,8 @@ public:
                 p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(paramID + index).convertTo0to1(plainValue));
             }
         };
-        setParam(ID_BAND_FREQ, freqHz);
-        setParam(ID_BAND_GAIN, gainDb);
+        setParam(config::ID_BAND_FREQ, freqHz);
+        setParam(config::ID_BAND_GAIN, gainDb);
     }
     void mouseUp(const juce::MouseEvent& e) override {
         draggingBand = NoBandSelected;
@@ -212,7 +212,7 @@ public:
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override {
         const int bandIdx = getClosestBand(e.position);
         if (bandIdx == NoBandSelected) return;
-        const juce::String paramID = ID_BAND_QUAL + juce::String(IndexToID(bandIdx));
+        const juce::String paramID = config::ID_BAND_QUAL + juce::String(IndexToID(bandIdx));
         if (auto* qParam = audioProcessor.apvts.getParameter(paramID)) {
             float currentRealValue = audioProcessor.apvts.getRawParameterValue(paramID)->load();
             float currentNormalized = qParam->getValue();
@@ -266,9 +266,9 @@ private:
             auto getParam = [&](const juce::String& prefix) {
                 return apvts.getRawParameterValue(prefix + juce::String(IndexToID(i)))->load();
             };
-            if (getParam(ID_BAND_BYPASS) > 0.5f) continue;
-            float freqHz = getParam(ID_BAND_FREQ);
-            float gainDb = getParam(ID_BAND_GAIN);
+            if (getParam(config::ID_BAND_BYPASS) > 0.5f) continue;
+            float freqHz = getParam(config::ID_BAND_FREQ);
+            float gainDb = getParam(config::ID_BAND_GAIN);
             float x = areaX + areaW * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
             float y = juce::jmap(gainDb, minDb, maxDb, areaB, areaY);
             if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq) return i;

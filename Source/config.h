@@ -50,4 +50,17 @@ namespace config
     inline const juce::Colour sliderRim {0xff505050};
     inline const juce::Colour sliderPointer {0xffffffff};
     inline const juce::Colour side {0xffff3d67};
+
+    inline const juce::String ID_PARAMETERS {"PARAMETERS"};
+    inline const juce::String ID_OUT_GAIN_0 {"ID_OUT_GAIN_MID"};
+    inline const juce::String ID_OUT_GAIN_1 {"ID_OUT_GAIN_SIDE"};
+    inline const juce::String ID_BAND_FREQ {"FREQ"};
+    inline const juce::String ID_BAND_GAIN {"GAIN"};
+    inline const juce::String ID_BAND_QUAL {"QUAL"};
+    inline const juce::String ID_BAND_FILTER {"TYPE"};
+    inline const juce::String ID_BAND_BYPASS {"BYPASS"};
+    inline const juce::String ID_BAND_CHANNEL {"MODE"};
+    inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
+    inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
+    inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
 }

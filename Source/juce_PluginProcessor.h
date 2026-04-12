@@ -12,19 +12,6 @@ struct FilterSnapshot
     int channelMode = 0;
 };
 
-static inline const juce::String ID_PARAMETERS {"PARAMETERS"};
-static inline const juce::String ID_OUT_GAIN_0 {"ID_OUT_GAIN_MID"};
-static inline const juce::String ID_OUT_GAIN_1 {"ID_OUT_GAIN_SIDE"};
-static inline const juce::String ID_BAND_FREQ {"FREQ"};
-static inline const juce::String ID_BAND_GAIN {"GAIN"};
-static inline const juce::String ID_BAND_QUAL {"QUAL"};
-static inline const juce::String ID_BAND_FILTER {"TYPE"};
-static inline const juce::String ID_BAND_BYPASS {"BYPASS"};
-static inline const juce::String ID_BAND_CHANNEL {"MODE"};
-static inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
-static inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
-static inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
-
 class QuasarEQAudioProcessor: public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener
 {
 public:
