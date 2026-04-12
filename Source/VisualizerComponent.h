@@ -332,12 +332,14 @@ private:
     }
 
     juce::Rectangle<int> getLevelMeterArea() {
-        auto a = getLocalBounds().reduced(margin << 1);
-        return a.removeFromRight(margin << 1);
+        auto a = getLocalBounds().removeFromRight(margin * 7).reduced(4);
+        a = a.reduced(margin << 1);
+        return a;
     }
     juce::Rectangle<int> getCurveArea() {
-        auto a = getLocalBounds().reduced(margin << 1);
-        a.removeFromRight(margin * 6);
+        auto a = getLocalBounds().reduced(4);
+        a.removeFromRight(margin * 7);
+        a = a.reduced(margin << 1);
         return a;
     }
 

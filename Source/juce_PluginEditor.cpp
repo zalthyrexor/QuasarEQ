@@ -45,7 +45,7 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
     for (int i = 0; i < masterGainSliders.size(); ++i) {
         auto& slider = masterGainSliders[i];
         slider.setSliderStyle(juce::Slider::LinearVertical);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 15);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 15);
         addAndMakeVisible(slider);
 
         auto label = std::make_unique<juce::Label>("", config::masterGainLabels[i]);
@@ -69,28 +69,34 @@ void QuasarEQAudioProcessorEditor::paint(juce::Graphics& g) {
 }
 
 void QuasarEQAudioProcessorEditor::resized() {
+
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
-    juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
-    juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
-    juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight).reduced(margin);
-    juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight).reduced(margin);
     int btnW = 44;
+
+    juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
     for (auto& btn : modeButtons) {
         if (btn) {
             btn->setBounds(sectionA.removeFromLeft(btnW).reduced(1));
         }
     }
+
+    juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
     for (auto& btn : paletteButtons) {
         if (btn) {
             btn->setBounds(sectionB.removeFromLeft(btnW).reduced(1));
         }
     }
+
+    juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight);
     visualizerComponent.setBounds(sectionC);
 
-    auto masterSectionArea = sectionD.removeFromRight(60).reduced(margin);
-    int knowbWidth = masterSectionArea.getWidth() / masterGainSliders.size();
+    juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
+
+    auto sectionD1 = sectionD.removeFromRight(70);
+
+    int knowbWidth = sectionD1.getWidth() / masterGainSliders.size();
     for (int i = 0; i < masterGainSliders.size(); ++i) {
-        auto area = masterSectionArea.removeFromLeft(knowbWidth);
+        auto area = sectionD1.removeFromLeft(knowbWidth).reduced(margin);
         if (masterGainLabelsComponents[i]) {
             masterGainLabelsComponents[i]->setBounds(area.removeFromTop(12));
         }

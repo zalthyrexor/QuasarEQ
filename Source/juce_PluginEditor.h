@@ -102,7 +102,7 @@ public:
         }
     }
 private:
-    static constexpr int margin = 4;
+    static constexpr int margin = 5;
     CustomButton bypassButton {config::ID_BAND_BYPASS};
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
     static constexpr int comboBoxCount {2};
