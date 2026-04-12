@@ -143,18 +143,18 @@ public:
                 return i;
             }
         }
-        return -1;
+        return NoBandSelected;
     }
 
     void mouseDown(const juce::MouseEvent& e) override {
         if (!getCurveArea().contains(e.getPosition())) {
-            draggingBand = -1;
+            draggingBand = NoBandSelected;
             return;
         }
         draggingBand = getClosestBand(e.position);
-        if (draggingBand != -1) return;
+        if (draggingBand != NoBandSelected) return;
         int availableIdx = findNextAvailableBand();
-        if (availableIdx == -1) return;
+        if (availableIdx == NoBandSelected) return;
 
         juce::String index = juce::String(IndexToID(availableIdx));
         draggingBand = availableIdx;
@@ -188,7 +188,7 @@ public:
     }
 
     void mouseDrag(const juce::MouseEvent& e) override {
-        if (draggingBand == -1) return;
+        if (draggingBand == NoBandSelected) return;
         auto mousePos = e.position;
         auto bounds = getCurveArea().toFloat();
         const float MIN_DB = EDITOR_MIN_DB;
@@ -207,11 +207,11 @@ public:
         setParam(ID_BAND_GAIN, gainDb);
     }
     void mouseUp(const juce::MouseEvent& e) override {
-        draggingBand = -1;
+        draggingBand = NoBandSelected;
     }
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override {
         const int bandIdx = getClosestBand(e.position);
-        if (bandIdx == -1) return;
+        if (bandIdx == NoBandSelected) return;
         const juce::String paramID = ID_BAND_QUAL + juce::String(IndexToID(bandIdx));
         if (auto* qParam = audioProcessor.apvts.getParameter(paramID)) {
             float currentRealValue = audioProcessor.apvts.getRawParameterValue(paramID)->load();
@@ -273,7 +273,7 @@ private:
             float y = juce::jmap(gainDb, minDb, maxDb, areaB, areaY);
             if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq) return i;
         }
-        return -1;
+        return NoBandSelected;
     }
 
     void handleAsyncUpdate() override {
@@ -399,7 +399,7 @@ private:
     static constexpr float EDITOR_MIN_DB = -24.0f;
     static constexpr float EDITOR_MAX_DB = 24.0f;
 
-    int draggingBand = -1;
+    int draggingBand = NoBandSelected;
     bool parametersNeedUpdate = true;
 
     const std::vector<float> editorDBs = {24.0f, 18.0f, 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -18.0f, -24.0f};
@@ -421,4 +421,5 @@ private:
     juce::Path peakHoldPath;
     juce::Path responseCurvePathMid;
     juce::Path responseCurvePathSide;
+    static constexpr int NoBandSelected = -1;
 };
