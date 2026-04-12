@@ -23,7 +23,7 @@ public:
             }
         }
     }
-    int IndexToID(int bandIdx) const{
+    int IndexToID(int bandIdx) const {
         return bandIdx + 1;
     }
     void parameterChanged(const juce::String& parameterID, float newValue) {
@@ -51,7 +51,7 @@ public:
         auto meterHeightM = juce::jmap(juce::jlimit(meterMin, meterMax, meterDbM), meterMin, meterMax, meterAreaB, meterAreaY);
         auto meterHeightS = juce::jmap(juce::jlimit(meterMin, meterMax, meterDbS), meterMin, meterMax, meterAreaB, meterAreaY);
 
-        g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.55f));
+        g.setColour(config::theme.withAlpha(0.55f));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.25, meterHeightM, meterAreaX + meterAreaW * 0.75, meterAreaB));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX, meterHeightS, meterAreaX + meterAreaW * 0.25, meterAreaB));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.75, meterHeightS, meterAreaX + meterAreaW, meterAreaB));
@@ -100,13 +100,13 @@ public:
         updatePath(localPath.spectrumPath, spectrumPoints, spectrumPath, true);
         updatePath(localPath.peakHoldPath, peakHoldPoints, peakHoldPath, false);
 
-        g.setColour(juce::Colour(zlth::ui::colors::theme).withAlpha(0.45f));
+        g.setColour(config::theme.withAlpha(0.45f));
         g.fillPath(spectrumPath);
-        g.setColour(juce::Colour(zlth::ui::colors::theme));
+        g.setColour(config::theme);
         g.strokePath(peakHoldPath, juce::PathStrokeType(1.5f));
-        g.setColour(juce::Colour(zlth::ui::colors::side));
+        g.setColour(config::side);
         g.strokePath(responseCurvePathSide, juce::PathStrokeType(2.5f));
-        g.setColour(juce::Colour(zlth::ui::colors::theme));
+        g.setColour(config::theme);
         g.strokePath(responseCurvePathMid, juce::PathStrokeType(2.5f));
         g.restoreState();
 
@@ -125,9 +125,9 @@ public:
             float x = spectrumAreaX + spectrumAreaW * juce::mapFromLog10(freqHz, EDITOR_MIN_HZ, EDITOR_MAX_HZ);
             float y = juce::jmap(gainDb, minDb, maxDb, spectrumAreaB, spectrumAreaY);
             const int pointSize = 14;
-            g.setColour(juce::Colour(zlth::ui::colors::textBackground));
+            g.setColour(config::textBackground);
             g.fillEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize);
-            g.setColour(juce::Colour(zlth::ui::colors::text));
+            g.setColour(config::text);
             g.drawEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize, 1.5f);
             const int textHeight = 12;
             g.setFont(textHeight);
@@ -314,7 +314,7 @@ private:
             int x = curveArea.getX() + juce::mapFromLog10(f, EDITOR_MIN_HZ, EDITOR_MAX_HZ) * curveArea.getWidth();
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
-            g.setColour(juce::Colour(zlth::ui::colors::text));
+            g.setColour(config::text);
             g.setFont(FONT_HEIGHT);
             drawLabel(formatFreq(f), x, (int)curveArea.getBottom() + margin);
             drawLabel(formatFreq(f), x, (int)curveArea.getY() - margin);
@@ -323,14 +323,14 @@ private:
             int y = juce::jmap(db, EDITOR_MAX_DB, EDITOR_MIN_DB, curveArea.getY(), curveArea.getBottom());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
-            g.setColour(juce::Colour(zlth::ui::colors::text));
+            g.setColour(config::text);
             drawLabel(formatDb(db), (int)curveArea.getX() - margin, y);
         }
         for (auto db : meterDBs) {
             int y = juce::jmap(db, config::METER_MAX, config::METER_MIN, meterArea.getY(), meterArea.getBottom());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, meterArea.getX(), meterArea.getRight());
-            g.setColour(juce::Colour(zlth::ui::colors::text));
+            g.setColour(config::text);
             drawLabel(formatDb(db), (int)meterArea.getX() - margin, y);
         }
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));

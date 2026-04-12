@@ -48,10 +48,7 @@ private:
         };
         return ids;
     }
-    static inline const std::array<juce::String, 2> masterGainLabels
-    {
-        "M", "S"
-    };
+    static inline const std::array<juce::String, 2> masterGainLabels {"M", "S"};
     std::array<CustomSlider, 2> masterGainSliders;
     std::array<std::unique_ptr<juce::Label>, 2> masterGainLabelsComponents;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;

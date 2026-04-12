@@ -67,7 +67,7 @@ QuasarEQAudioProcessorEditor::~QuasarEQAudioProcessorEditor() {
     setLookAndFeel(nullptr);
 }
 void QuasarEQAudioProcessorEditor::paint(juce::Graphics& g) {
-    g.fillAll(juce::Colour(zlth::ui::colors::pluginBackground));
+    g.fillAll(config::pluginBackground);
 }
 void QuasarEQAudioProcessorEditor::resized() {
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);

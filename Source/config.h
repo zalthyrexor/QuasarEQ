@@ -39,4 +39,15 @@ namespace config
 
     inline constexpr std::string_view UNIT_HZ {"Hz"};
     inline constexpr std::string_view UNIT_DB {"dB"};
+
+    inline const juce::Colour theme {0xff4284ff};
+    inline const juce::Colour groove {0xff101010};
+    inline const juce::Colour buttonDisabled {0xff555555};
+    inline const juce::Colour text {0xffffffff};
+    inline const juce::Colour textBackground {0xff000000};
+    inline const juce::Colour pluginBackground {0xff202020};
+    inline const juce::Colour slider {0xff181818};
+    inline const juce::Colour sliderRim {0xff505050};
+    inline const juce::Colour sliderPointer {0xffffffff};
+    inline const juce::Colour side {0xffff3d67};
 }

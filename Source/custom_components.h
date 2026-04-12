@@ -13,11 +13,11 @@ public:
         g.setColour(juce::Colours::black);
         g.fillRect(bounds);
         if (getToggleState()) {
-            g.setColour(juce::Colour(zlth::ui::colors::theme));
+            g.setColour(config::theme);
             g.drawRect(bounds, 2.0f);
         }
         else {
-            g.setColour(juce::Colour(zlth::ui::colors::buttonDisabled));
+            g.setColour(config::buttonDisabled);
             g.drawRect(bounds, 1.0f);
         }
         g.setFont(13.0f);
@@ -41,11 +41,11 @@ public:
         g.setColour(juce::Colours::black);
         g.fillRect(bounds);
         if (getToggleState()) {
-            g.setColour(juce::Colour(zlth::ui::colors::theme));
+            g.setColour(config::theme);
             g.drawRect(bounds, 2.0f);
         }
         else {
-            g.setColour(juce::Colour(zlth::ui::colors::buttonDisabled));
+            g.setColour(config::buttonDisabled);
             g.drawRect(bounds, 1.0f);
         }
         if (drawable != nullptr) {
