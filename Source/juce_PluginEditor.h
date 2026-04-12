@@ -74,7 +74,7 @@ public:
         for (int i = 0; i < sliderCount; ++i) {
             auto& s = bandSliders[i];
             s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-            s.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 56, 16);
+            s.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
             addAndMakeVisible(s);
             bandAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, config::getID(bandIDs[i], bandIndex), s);
         }
