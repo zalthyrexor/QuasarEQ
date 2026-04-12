@@ -45,7 +45,7 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
     for (int i = 0; i < masterGainSliders.size(); ++i) {
         auto& slider = masterGainSliders[i];
         slider.setSliderStyle(juce::Slider::LinearVertical);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 15);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
         addAndMakeVisible(slider);
 
         auto label = std::make_unique<juce::Label>("", config::masterGainLabels[i]);
@@ -71,12 +71,12 @@ void QuasarEQAudioProcessorEditor::paint(juce::Graphics& g) {
 void QuasarEQAudioProcessorEditor::resized() {
 
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
-    int btnW = 44;
+    int btnW = 45;
 
     juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
     for (auto& btn : modeButtons) {
         if (btn) {
-            btn->setBounds(sectionA.removeFromLeft(btnW).reduced(1));
+            btn->setBounds(sectionA.removeFromLeft(btnW * 2).reduced(1));
         }
     }
 

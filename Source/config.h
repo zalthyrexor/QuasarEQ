@@ -60,7 +60,7 @@ namespace config
     inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
     inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
 
-    inline const std::array<juce::String, 3> modeNames {"ST", "M", "S"};
+    inline const std::array<juce::String, 3> modeNames {"STEREO", "MID", "SIDE"};
     inline const std::array<juce::String, 2> masterGainLabels {"MID", "SIDE"};
     inline const std::array<juce::String, 3> bandUnits {"Hz", "dB", "Q"};
 
