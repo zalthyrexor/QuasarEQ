@@ -44,7 +44,7 @@ private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
     void updateBands(uint32_t flags);
     static constexpr uint32_t PARAMS_MASK_BAND = (1u << config::BAND_COUNT) - 1;
-    static constexpr uint32_t PARAMS_MASK_OUT = (1u << config::BAND_COUNT + config::OUT_GAIN_COUNT) - 1;
+    static constexpr uint32_t PARAMS_MASK_OUT = (1u << config::BAND_COUNT + 1) - 1;
     static constexpr uint32_t PARAMS_MASK_ALL = PARAMS_MASK_BAND | PARAMS_MASK_OUT;
     std::atomic<uint32_t> updateFlags {PARAMS_MASK_ALL};
     std::array<ProcessChain<config::BAND_COUNT>, 2> processors {};

@@ -6,7 +6,6 @@
 namespace config
 {
     inline constexpr int BAND_COUNT = 8;
-    inline constexpr int OUT_GAIN_COUNT = 1;
 
     inline constexpr float PARAM_BAND_FREQ_MIN = 20.0f;
     inline constexpr float PARAM_BAND_FREQ_MAX = 20000.0f;
@@ -57,8 +56,8 @@ namespace config
     inline const juce::String ID_BAND_FILTER {"TYPE"};
     inline const juce::String ID_BAND_BYPASS {"BYPASS"};
     inline const juce::String ID_BAND_CHANNEL {"MODE"};
-    inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
     inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
+    inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
     inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
 
     inline const std::array<juce::String, 3> modeNames {"ST", "M", "S"};
