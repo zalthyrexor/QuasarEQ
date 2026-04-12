@@ -61,11 +61,9 @@ class FilterBandControl: public juce::Component
 {
 public:
     FilterBandControl(juce::AudioProcessorValueTreeState& apvts, int bandIndex) {
-
         bypassButton.setClickingTogglesState(true);
         bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, config::getID(config::ID_BAND_BYPASS, bandIndex), bypassButton);
         addAndMakeVisible(bypassButton);
-
         for (int i = 0; i < comboBoxCount; ++i) {
             auto& b = comboBoxes[i];
             b.setJustificationType(juce::Justification::centred);
@@ -73,7 +71,6 @@ public:
             b.addItemList(comboArrays[i], 1);
             comboBoxAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, config::getID(comboBoxIDs[i], bandIndex), b);
         }
-
         for (int i = 0; i < sliderCount; ++i) {
             auto& s = bandSliders[i];
             s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
@@ -81,12 +78,11 @@ public:
             addAndMakeVisible(s);
             bandAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, config::getID(bandIDs[i], bandIndex), s);
         }
-    };
+    }
     ~FilterBandControl() override {};
     void paintOverChildren(juce::Graphics& g) override {
         g.setColour(juce::Colours::white);
         g.setFont(10.0f);
-
         for (int i = 0; i < sliderCount; ++i) {
             juce::Slider& s = bandSliders[i];
             auto b = s.getBounds().toFloat();
@@ -96,31 +92,24 @@ public:
     }
     void resized() override {
         auto bounds = getLocalBounds();
-        auto topHeader = bounds.removeFromTop(30);
-        bypassButton.setBounds(topHeader.reduced(margin));
-
+        bypassButton.setBounds(bounds.removeFromTop(30).reduced(margin));
         for (int i = 0; i < comboBoxCount; ++i) {
-            auto third = bounds.removeFromTop(30);
-            comboBoxes[i].setBounds(third.reduced(margin));
+            comboBoxes[i].setBounds(bounds.removeFromTop(30).reduced(margin));
         }
-
         int controlHeight = bounds.getHeight() / sliderCount;
         for (int i = 0; i < sliderCount; ++i) {
             bandSliders[i].setBounds(bounds.removeFromTop(controlHeight).reduced(margin));
         }
-    };
+    }
 private:
     static constexpr int margin = 4;
-
     CustomButton bypassButton {config::ID_BAND_BYPASS};
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
-
     static constexpr int comboBoxCount {2};
     std::array<juce::ComboBox, comboBoxCount> comboBoxes;
     std::array<juce::String, comboBoxCount> comboBoxIDs {config::ID_BAND_CHANNEL, config::ID_BAND_FILTER};
     std::array<juce::StringArray, comboBoxCount> comboArrays {config::channelModes, config::filterModes};
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>, comboBoxCount> comboBoxAttachments;
-
     static constexpr int sliderCount {3};
     std::array<juce::Slider, sliderCount> bandSliders;
     std::array<juce::String, sliderCount> bandUnits {"Hz", "dB", "Q"};
