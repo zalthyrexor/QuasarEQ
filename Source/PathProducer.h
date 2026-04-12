@@ -29,11 +29,11 @@ public:
         }
     }
     void process(double sampleRate) {
-        std::vector<float> bufferL, bufferR;
+        std::array< std::vector<float>, 2> buffer {};
         while (fifo[0].getNumAvailable() > 0 && fifo[1].getNumAvailable() > 0) {
-            if (fifo[0].pull(bufferL) && fifo[1].pull(bufferR)) {
-                std::span<const float> spanL {bufferL};
-                std::span<const float> spanR {bufferR};
+            if (fifo[0].pull(buffer[0]) && fifo[1].pull(buffer[1])) {
+                std::span<const float> spanL {buffer[0]};
+                std::span<const float> spanR {buffer[1]};
                 const int originalIncomingSize = spanL.size();
                 const float deltaTime = originalIncomingSize / sampleRate;
                 const float powersReleaseFactor = 1.0f - std::exp(-deltaTime * 50.0f);
@@ -46,7 +46,7 @@ public:
                 if (copySize > 0) {
                     std::memmove(audioBuffer.data(), audioBuffer.data() + useSize, copySize * sizeof(float));
                 }
-                std::copy(bufferL.begin() + sourceOffset, bufferL.end(), audioBuffer.begin() + copySize);
+                std::copy(buffer[0].begin() + sourceOffset, buffer[0].end(), audioBuffer.begin() + copySize);
                 std::copy(audioBuffer.begin(), audioBuffer.end(), fftReal.begin());
                 zlth::simd::mul_inplace(fftReal, windowTable_mul_fftNormalize);
                 fftImag.fill(0.0f);
