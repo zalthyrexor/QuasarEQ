@@ -29,7 +29,6 @@ public:
     void parameterChanged(const juce::String& parameterID, float newValue) {
         parametersNeedUpdate = true;
     }
-
     void paint(juce::Graphics& g) override {
         g.drawImageAt(gridCache, 0, 0);
 
@@ -39,22 +38,17 @@ public:
             localPath = channelPathToDraw;
         }
 
+        g.setColour(config::theme.withAlpha(0.55f));
         auto meterArea = getLevelMeterArea().toFloat();
         auto meterAreaX = meterArea.getX();
         auto meterAreaY = meterArea.getY();
         auto meterAreaW = meterArea.getWidth();
         auto meterAreaB = meterArea.getBottom();
-        auto meterDbM = localPath.dbM;
-        auto meterDbS = localPath.dbS;
-        auto meterMax = config::METER_MAX;
-        auto meterMin = config::METER_MIN;
-        auto meterHeightM = juce::jmap(juce::jlimit(meterMin, meterMax, meterDbM), meterMin, meterMax, meterAreaB, meterAreaY);
-        auto meterHeightS = juce::jmap(juce::jlimit(meterMin, meterMax, meterDbS), meterMin, meterMax, meterAreaB, meterAreaY);
-
-        g.setColour(config::theme.withAlpha(0.55f));
+        auto meterHeightM = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.db[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto meterHeightS = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.db[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.00, meterHeightS, meterAreaX + meterAreaW * 0.25, meterAreaB));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.25, meterHeightM, meterAreaX + meterAreaW * 0.75, meterAreaB));
-        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX, meterHeightS, meterAreaX + meterAreaW * 0.25, meterAreaB));
-        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.75, meterHeightS, meterAreaX + meterAreaW, meterAreaB));
+        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.75, meterHeightS, meterAreaX + meterAreaW * 1.00, meterAreaB));
 
         auto spectrumArea = getCurveArea().toFloat();
         auto spectrumAreaX = spectrumArea.getX();
@@ -64,8 +58,6 @@ public:
 
         g.saveState();
         g.reduceClipRegion(getCurveArea());
-        auto fftMinDB = config::FFT_MIN_DB;
-        auto fftMaxDB = config::FFT_MAX_DB;
         auto updatePath = [&](const auto& sourcePath, std::vector<juce::Point<float>>& targetPoints, juce::Path& targetPath, bool shouldClosePath) {
             targetPoints.clear();
             targetPath.clear();
@@ -74,7 +66,7 @@ public:
             auto resampled = resampler.resample(sourcePath.data(), audioProcessor.getSampleRate());
             for (int i = 1; i < resampled.size(); ++i) {
                 float x = juce::mapFromLog10(resampled[i].first, EDITOR_MIN_HZ, EDITOR_MAX_HZ) * spectrumAreaW + spectrumAreaX;
-                float y = juce::jmap(resampled[i].second, fftMinDB, fftMaxDB, spectrumAreaB, spectrumAreaY);
+                float y = juce::jmap(resampled[i].second, config::FFT_MIN_DB, config::FFT_MAX_DB, spectrumAreaB, spectrumAreaY);
                 targetPoints.emplace_back(x, y);
             }
             targetPath.startNewSubPath(targetPoints[0]);

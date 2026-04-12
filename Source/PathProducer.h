@@ -9,8 +9,7 @@ struct SpectrumRenderData
 {
     std::vector<float> spectrumPath;
     std::vector<float> peakHoldPath;
-    float dbM = -100.0f;
-    float dbS = -100.0f;
+    std::array<float, 2> db {-100.0f, -100.0f};
 };
 
 class PathProducer
@@ -68,8 +67,8 @@ public:
         if (auto* renderData = pathFifo.getWriteBuffer()) {
             std::copy(decibelsCurrent.begin(), decibelsCurrent.end(), renderData->spectrumPath.begin());
             std::copy(decibelsPeak.begin(), decibelsPeak.end(), renderData->peakHoldPath.begin());
-            renderData->dbM = decibelLSmoothed;
-            renderData->dbS = decibelRSmoothed;
+            renderData->db[0] = decibelLSmoothed;
+            renderData->db[1] = decibelRSmoothed;
             pathFifo.finishedWrite();
         }
     }
@@ -80,8 +79,8 @@ public:
         if (auto* renderData = pathFifo.getReadBuffer()) {
             path.spectrumPath = renderData->spectrumPath;
             path.peakHoldPath = renderData->peakHoldPath;
-            path.dbM = renderData->dbM;
-            path.dbS = renderData->dbS;
+            path.db[0] = renderData->db[0];
+            path.db[1] = renderData->db[1];
 
             pathFifo.finishedRead();
             return true;
