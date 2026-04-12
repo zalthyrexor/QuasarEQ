@@ -2,8 +2,7 @@
 #include "juce_PluginEditor.h"
 
 QuasarEQAudioProcessor::QuasarEQAudioProcessor():
-    AudioProcessor(
-        BusesProperties().
+    AudioProcessor(BusesProperties().
         withInput("Input", juce::AudioChannelSet::stereo(), true).
         withOutput("Output", juce::AudioChannelSet::stereo(), true)),
     apvts(*this, &undoManager, config::ID_PARAMETERS, createParameterLayout()) {
@@ -108,10 +107,10 @@ void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
     }
     if (flags & PARAMS_MASK_OUT) {
         auto loadGlobal = [this](const juce::String& id) {
-            return std::pow(10.0f, apvts.getRawParameterValue(id)->load() / 20.0f);
+            return std::pow(10.0f, apvts.getRawParameterValue(id)->load() / 20.0f) * 0.5f;
         };
-        processors[0].globalGain = loadGlobal(config::ID_OUT_GAIN_0) * 0.5f;
-        processors[1].globalGain = loadGlobal(config::ID_OUT_GAIN_1) * 0.5f;
+        processors[0].globalGain = loadGlobal(config::ID_OUT_GAIN_0);
+        processors[1].globalGain = loadGlobal(config::ID_OUT_GAIN_1);
     }
 }
 
@@ -136,6 +135,7 @@ void QuasarEQAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
     juce::MemoryOutputStream stream(destData, false);
     apvts.state.writeToStream(stream);
 }
+
 void QuasarEQAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
     auto tree = juce::ValueTree::readFromData(data, size_t(sizeInBytes));
     if (tree.isValid()) {
