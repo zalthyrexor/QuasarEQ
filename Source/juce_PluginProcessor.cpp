@@ -17,8 +17,6 @@ QuasarEQAudioProcessor::QuasarEQAudioProcessor():
 
 juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::createParameterLayout() const {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    juce::String UNIT_DB = juce::String(config::UNIT_DB.data());
-    juce::String UNIT_HZ = juce::String(config::UNIT_HZ.data());
     juce::NormalisableRange<float> outGainRange {config::PARAM_OUT_GAIN_MIN, config::PARAM_OUT_GAIN_MAX, config::PARAM_OUT_GAIN_INTERVAL};
     juce::NormalisableRange<float> bandGainRange {config::PARAM_BAND_GAIN_MIN, config::PARAM_BAND_GAIN_MAX, config::PARAM_BAND_GAIN_INTERVAL};
     juce::NormalisableRange<float> bandFreqRange {config::PARAM_BAND_FREQ_MIN, config::PARAM_BAND_FREQ_MAX, config::PARAM_BAND_FREQ_INTERVAL};
@@ -29,13 +27,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
     auto qualLegalValue = bandQualRange.snapToLegalValue(config::PARAM_BAND_QUAL_CENTER);
     bandFreqRange.setSkewForCentre(freqLegalValue);
     bandQualRange.setSkewForCentre(qualLegalValue);
-    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_0, outGainRange, outGainLegalValue, UNIT_DB));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, outGainRange, outGainLegalValue, UNIT_DB));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_0, outGainRange, outGainLegalValue, config::bandUnits[0]));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, outGainRange, outGainLegalValue, config::bandUnits[0]));
     for (int i = 0; i < config::BAND_COUNT; ++i) {
         const auto id = [i](auto prefix) { return config::getID(prefix, i); };
-        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_GAIN), id(config::ID_BAND_GAIN), bandGainRange, gainLegalValue, UNIT_DB));
-        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_FREQ), id(config::ID_BAND_FREQ), bandFreqRange, freqLegalValue, UNIT_HZ));
-        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_QUAL), id(config::ID_BAND_QUAL), bandQualRange, qualLegalValue));
+        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_GAIN), id(config::ID_BAND_GAIN), bandGainRange, gainLegalValue, config::bandUnits[0]));
+        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_FREQ), id(config::ID_BAND_FREQ), bandFreqRange, freqLegalValue, config::bandUnits[1]));
+        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_QUAL), id(config::ID_BAND_QUAL), bandQualRange, qualLegalValue, config::bandUnits[2]));
         layout.add(std::make_unique<juce::AudioParameterChoice>(id(config::ID_BAND_FILTER), id(config::ID_BAND_FILTER), config::filterModes, config::PARAM_BAND_FILTER_DEFAULT));
         layout.add(std::make_unique<juce::AudioParameterChoice>(id(config::ID_BAND_CHANNEL), id(config::ID_BAND_CHANNEL), config::channelModes, config::PARAM_BAND_CHANNEL_DEFAULT));
         layout.add(std::make_unique<juce::AudioParameterBool>(id(config::ID_BAND_BYPASS), id(config::ID_BAND_BYPASS), config::PARAM_BAND_BYPASS_DEFAULT));

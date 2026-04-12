@@ -87,7 +87,7 @@ public:
             juce::Slider& s = bandSliders[i];
             auto b = s.getBounds().toFloat();
             auto knobArea = b.withTrimmedBottom((float)s.getTextBoxHeight());
-            g.drawText(bandUnits[i], knobArea.reduced(-2.0f, 4.0f), juce::Justification::bottomRight);
+            g.drawText(config::bandUnits[i], knobArea.reduced(-2.0f, 4.0f), juce::Justification::bottomRight);
         }
     }
     void resized() override {
@@ -112,7 +112,6 @@ private:
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>, comboBoxCount> comboBoxAttachments;
     static constexpr int sliderCount {3};
     std::array<juce::Slider, sliderCount> bandSliders;
-    std::array<juce::String, sliderCount> bandUnits {"Hz", "dB", "Q"};
     std::array<juce::String, sliderCount> bandIDs {config::ID_BAND_FREQ, config::ID_BAND_GAIN, config::ID_BAND_QUAL};
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, sliderCount> bandAttachments;
 };
@@ -123,8 +122,6 @@ public:
     void mouseDoubleClick(const juce::MouseEvent&) override {};
 };
 
-struct IconData { const char* data; int size; };
-
 class QuasarEQAudioProcessorEditor: public juce::AudioProcessorEditor
 {
 public:
@@ -134,32 +131,20 @@ public:
     void resized() override;
 private:
     std::vector<std::unique_ptr<CustomButton>> modeButtons;
-    const std::array<juce::String, 3> modeNames {"ST", "M", "S"};
     int selectedMode = 0;
 
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
-    std::vector<IconData> icons
-    {
-        {BinaryData::hp_svg, BinaryData::hp_svgSize},
-        {BinaryData::lp_svg, BinaryData::lp_svgSize},
-        {BinaryData::hs_svg, BinaryData::hs_svgSize},
-        {BinaryData::ls_svg, BinaryData::ls_svgSize},
-        {BinaryData::tilt_svg, BinaryData::tilt_svgSize},
-        {BinaryData::peak_svg, BinaryData::peak_svgSize},
-        {BinaryData::notch_svg, BinaryData::notch_svgSize},
-        {BinaryData::bp_svg, BinaryData::bp_svgSize}
-    };
 
     static constexpr int margin = 5;
     static constexpr int sectionBHeight = 44;
     static constexpr int sectionCHeight = 300;
-    static constexpr int sectionDHeight = 300 + 30;
-    static constexpr int windowHeight = margin * 2 + sectionBHeight + sectionCHeight + sectionDHeight;
+    static constexpr int sectionDHeight = 330;
+    static constexpr int windowHeight = sectionBHeight + sectionCHeight + sectionDHeight;
     static constexpr int windowWidth = 657;
+
     CustomLNF customLNF;
     QuasarEQAudioProcessor& audioProcessor;
     VisualizerComponent visualizerComponent;
-    juce::Label pluginInfoLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
     static auto getMasterGainIDs() -> const std::array<juce::String, 2>& {
@@ -169,7 +154,6 @@ private:
         };
         return ids;
     }
-    static inline const std::array<juce::String, 2> masterGainLabels {"M", "S"};
     std::array<CustomSlider, 2> masterGainSliders;
     std::array<std::unique_ptr<juce::Label>, 2> masterGainLabelsComponents;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;

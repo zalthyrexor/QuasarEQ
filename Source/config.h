@@ -37,9 +37,6 @@ namespace config
     inline constexpr float FFT_MIN_DB = -90.0f;
     inline constexpr float FFT_MAX_DB = 30.0f;
 
-    inline constexpr std::string_view UNIT_HZ {"Hz"};
-    inline constexpr std::string_view UNIT_DB {"dB"};
-
     inline const juce::Colour theme {0xff4284ff};
     inline const juce::Colour groove {0xff101010};
     inline const juce::Colour buttonDisabled {0xff555555};
@@ -63,6 +60,32 @@ namespace config
     inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
     inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
     inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
+
+    inline const std::array<juce::String, 3> modeNames {"ST", "M", "S"};
+    inline const std::array<juce::String, 2> masterGainLabels {"M", "S"};
+    inline const std::array<juce::String, 3> bandUnits {"Hz", "dB", "Q"};
+
+    inline constexpr int iconCount = 8;
+    inline const std::array<const char*, iconCount> iconData {
+        BinaryData::hp_svg,
+        BinaryData::lp_svg,
+        BinaryData::hs_svg,
+        BinaryData::ls_svg,
+        BinaryData::tilt_svg,
+        BinaryData::peak_svg,
+        BinaryData::notch_svg,
+        BinaryData::bp_svg,
+    };
+    inline const std::array<const int, iconCount> iconSize {
+        BinaryData::hp_svgSize,
+        BinaryData::lp_svgSize,
+        BinaryData::hs_svgSize,
+        BinaryData::ls_svgSize,
+        BinaryData::tilt_svgSize,
+        BinaryData::peak_svgSize,
+        BinaryData::notch_svgSize,
+        BinaryData::bp_svgSize
+    };
 
     inline juce::String getID(const juce::String& prefix, int bandIdx) {
         return prefix + juce::String(bandIdx + 1);

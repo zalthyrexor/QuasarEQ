@@ -8,8 +8,8 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
         bandControls.push_back(std::make_unique<FilterBandControl>(audioProcessor.apvts, i));
         addAndMakeVisible(*bandControls.back());
     }
-    for (int i = 0; i < icons.size(); ++i) {
-        auto btn = std::make_unique<CustomIconButton>(icons[i].data, icons[i].size);
+    for (int i = 0; i < config::iconCount; ++i) {
+        auto btn = std::make_unique<CustomIconButton>(config::iconData[i], config::iconSize[i]);
         btn->setRadioGroupId(1001);
         btn->setClickingTogglesState(true);
         btn->onClick = [this, i] {
@@ -22,8 +22,8 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
     }
     paletteButtons[selectedFilterType]->setToggleState(true, juce::dontSendNotification);
 
-    for (int i = 0; i < modeNames.size(); ++i) {
-        auto btn = std::make_unique<CustomButton>(modeNames[i]);
+    for (int i = 0; i < config::modeNames.size(); ++i) {
+        auto btn = std::make_unique<CustomButton>(config::modeNames[i]);
         btn->setRadioGroupId(1002);
         btn->setClickingTogglesState(true);
 
@@ -40,11 +40,7 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
     visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
     visualizerComponent.getMSTypeCallback = [this] { return selectedMode; };
 
-    pluginInfoLabel.setText(juce::String("Zalthyrexor - " + juce::String(JucePlugin_Name)).toUpperCase(), juce::dontSendNotification);
-    pluginInfoLabel.setJustificationType(juce::Justification::horizontallyCentred);
-    pluginInfoLabel.setFont(16.0f);
     addAndMakeVisible(visualizerComponent);
-    addAndMakeVisible(pluginInfoLabel);
 
     for (int i = 0; i < masterGainSliders.size(); ++i) {
         auto& slider = masterGainSliders[i];
@@ -52,7 +48,7 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
         slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 15);
         addAndMakeVisible(slider);
 
-        auto label = std::make_unique<juce::Label>("", masterGainLabels[i]);
+        auto label = std::make_unique<juce::Label>("", config::masterGainLabels[i]);
         label->setJustificationType(juce::Justification::horizontallyCentred);
         label->setFont(12.0f);
         addAndMakeVisible(*label);

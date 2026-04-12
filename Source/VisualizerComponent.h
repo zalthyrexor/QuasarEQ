@@ -382,7 +382,7 @@ private:
     static constexpr int HALF_FONT_HEIGHT = 5;
     static constexpr int FONT_HEIGHT = HALF_FONT_HEIGHT * 2;
     static constexpr int margin = 10;
-    static constexpr int THREAD_SLEEP_TIME = 25;
+    static constexpr int THREAD_SLEEP_TIME = 20;
     static constexpr int labelBorderSize = 48;
 
     static constexpr float EDITOR_MIN_HZ = 20.0f;
