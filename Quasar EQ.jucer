@@ -3,7 +3,7 @@
 <JUCERPROJECT id="A71OhK" name="qsr EQ 6" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" companyName="Zalthyrexor"
               pluginVST3Category="EQ" pluginManufacturerCode="Zlth" companyCopyright="Copyright (c) 2026 Zalthyrexor"
-              cppLanguageStandard="20" pluginCode="K1wg" version="6.0.0" pluginFormats="buildVST3">
+              cppLanguageStandard="20" pluginCode="K1wg" version="6.0.0" pluginFormats="buildStandalone">
   <MAINGROUP id="HFHuMF" name="qsr EQ 6">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
       <FILE id="I9ek7m" name="cpp.hint" compile="0" resource="1" file="Source/cpp.hint"/>

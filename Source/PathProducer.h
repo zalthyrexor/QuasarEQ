@@ -16,7 +16,7 @@ struct SpectrumRenderData
 class PathProducer
 {
 public:
-    PathProducer(SampleFifo& leftScsf, SampleFifo& rightScsf): fifoL(leftScsf), fifoR(rightScsf) {
+    PathProducer(std::array<SampleFifo, 2>& leftScsf): fifo(leftScsf) {
         decibelsPeak.fill(-100.0f);
         decibelsCurrent.fill(0.0f);
         fill_blackman_harris(windowTable_mul_fftNormalize);
@@ -31,8 +31,8 @@ public:
     }
     void process(double sampleRate) {
         std::vector<float> bufferL, bufferR;
-        while (fifoL.getNumAvailable() > 0 && fifoR.getNumAvailable() > 0) {
-            if (fifoL.pull(bufferL) && fifoR.pull(bufferR)) {
+        while (fifo[0].getNumAvailable() > 0 && fifo[1].getNumAvailable() > 0) {
+            if (fifo[0].pull(bufferL) && fifo[1].pull(bufferR)) {
                 std::span<const float> spanL {bufferL};
                 std::span<const float> spanR {bufferR};
                 const int originalIncomingSize = spanL.size();
@@ -114,8 +114,7 @@ private:
     std::span<float, FFT_SIZE_HALF> fftRealHalf {fftReal.data(), FFT_SIZE_HALF};
     std::span<float, FFT_SIZE_HALF> fftImagHalf {fftImag.data(), FFT_SIZE_HALF};
     zlth::dsp::fft::Radix4<FFT_ORDER> fft;
-    SampleFifo& fifoL;
-    SampleFifo& fifoR;
+    std::array<SampleFifo, 2>& fifo;
     std::array<float, FFT_SIZE_HALF> decibelsCurrent;
     std::array<float, FFT_SIZE_HALF> decibelsPeak;
     float decibelLCurrent = 0.0f;

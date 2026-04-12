@@ -9,24 +9,22 @@
 class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener
 {
 public:
-    VisualizerComponent(QuasarEQAudioProcessor& p):
-        audioProcessor(p),
-        pathProducer(audioProcessor.channelFifo[0], audioProcessor.channelFifo[1]),
-        analyzerThread(pathProducer, *this) {
+    VisualizerComponent(QuasarEQAudioProcessor& p): audioProcessor(p), pathProducer(audioProcessor.channelFifo), analyzerThread(pathProducer, *this) {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            const juce::String index = juce::String(i + 1);
             for (const auto& prefix : bandParamPrefixes) {
-                audioProcessor.apvts.addParameterListener(prefix + index, this);
+                audioProcessor.apvts.addParameterListener(prefix + juce::String(IndexToID(i)), this);
             }
         }
     }
     ~VisualizerComponent() {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            const juce::String index = juce::String(i + 1);
             for (const auto& prefix : bandParamPrefixes) {
-                audioProcessor.apvts.removeParameterListener(prefix + index, this);
+                audioProcessor.apvts.removeParameterListener(prefix + juce::String(IndexToID(i)), this);
             }
         }
+    }
+    int IndexToID(int bandIdx) const{
+        return bandIdx + 1;
     }
     void parameterChanged(const juce::String& parameterID, float newValue) {
         parametersNeedUpdate = true;
@@ -117,7 +115,7 @@ public:
         const float maxDb = config::PARAM_BAND_GAIN_MAX;
         const float bandCount = config::BAND_COUNT;
         for (int i = 0; i < bandCount; ++i) {
-            juce::String index = juce::String(i + 1);
+            juce::String index = juce::String(IndexToID(i));
             auto getParam = [&](const juce::String& prefix) {
                 return apvts.getRawParameterValue(prefix + index)->load();
             };
@@ -141,8 +139,9 @@ public:
 
     int findNextAvailableBand() const {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            juce::String index = juce::String(i + 1);
-            if (audioProcessor.apvts.getRawParameterValue(ID_BAND_BYPASS + index)->load() > 0.5f) return i;
+            if (audioProcessor.apvts.getRawParameterValue(ID_BAND_BYPASS + juce::String(IndexToID(i)))->load() > 0.5f) {
+                return i;
+            }
         }
         return -1;
     }
@@ -157,7 +156,7 @@ public:
         int availableIdx = findNextAvailableBand();
         if (availableIdx == -1) return;
 
-        juce::String index = juce::String(availableIdx + 1);
+        juce::String index = juce::String(IndexToID(availableIdx));
         draggingBand = availableIdx;
         auto& apvts = audioProcessor.apvts;
         auto setParam = [&](const juce::String& paramID, float value) {
@@ -199,7 +198,7 @@ public:
         float freqHz = juce::jlimit(MIN_HZ, MAX_HZ, juce::mapToLog10(juce::jlimit(0.0f, 1.0f, (mousePos.getX() - bounds.getX()) / bounds.getWidth()), MIN_HZ, MAX_HZ));
         float gainDb = juce::jlimit(MIN_DB, MAX_DB, juce::jmap(mousePos.getY(), bounds.getBottom(), bounds.getY(), MIN_DB, MAX_DB));
         auto setParam = [&](const juce::String& paramID, float plainValue) {
-            juce::String index = juce::String(draggingBand + 1);
+            juce::String index = juce::String(IndexToID(draggingBand));
             if (auto* p = audioProcessor.apvts.getParameter(paramID + index)) {
                 p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(paramID + index).convertTo0to1(plainValue));
             }
@@ -213,7 +212,7 @@ public:
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override {
         const int bandIdx = getClosestBand(e.position);
         if (bandIdx == -1) return;
-        const juce::String paramID = ID_BAND_QUAL + juce::String(bandIdx + 1);
+        const juce::String paramID = ID_BAND_QUAL + juce::String(IndexToID(bandIdx));
         if (auto* qParam = audioProcessor.apvts.getParameter(paramID)) {
             float currentRealValue = audioProcessor.apvts.getRawParameterValue(paramID)->load();
             float currentNormalized = qParam->getValue();
@@ -264,9 +263,8 @@ private:
         const float thresholdSq = toleranceRadius * toleranceRadius;
         auto& apvts = audioProcessor.apvts;
         for (int i = 0; i < config::BAND_COUNT; ++i) {
-            juce::String index = juce::String(i + 1);
             auto getParam = [&](const juce::String& prefix) {
-                return apvts.getRawParameterValue(prefix + index)->load();
+                return apvts.getRawParameterValue(prefix + juce::String(IndexToID(i)))->load();
             };
             if (getParam(ID_BAND_BYPASS) > 0.5f) continue;
             float freqHz = getParam(ID_BAND_FREQ);
