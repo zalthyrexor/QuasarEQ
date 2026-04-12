@@ -29,7 +29,7 @@ namespace config
     inline constexpr float PARAM_OUT_GAIN_MIN = -24.0f;
     inline constexpr float PARAM_OUT_GAIN_MAX = 24.0f;
     inline constexpr float PARAM_OUT_GAIN_CENTER = 0.0f;
-    inline constexpr float PARAM_OUT_GAIN_INTERVAL = 1.0f;
+    inline constexpr float PARAM_OUT_GAIN_INTERVAL = 0.1f;
 
     inline constexpr float METER_MIN = -36.0f;
     inline constexpr float METER_MAX = 12.0f;
@@ -61,7 +61,7 @@ namespace config
     inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
 
     inline const std::array<juce::String, 3> modeNames {"ST", "M", "S"};
-    inline const std::array<juce::String, 2> masterGainLabels {"M", "S"};
+    inline const std::array<juce::String, 2> masterGainLabels {"MID", "SIDE"};
     inline const std::array<juce::String, 3> bandUnits {"Hz", "dB", "Q"};
 
     inline constexpr int iconCount = 8;

@@ -92,7 +92,7 @@ void QuasarEQAudioProcessorEditor::resized() {
 
     juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
 
-    auto sectionD1 = sectionD.removeFromRight(70);
+    auto sectionD1 = sectionD.removeFromRight(86);
 
     int knowbWidth = sectionD1.getWidth() / masterGainSliders.size();
     for (int i = 0; i < masterGainSliders.size(); ++i) {

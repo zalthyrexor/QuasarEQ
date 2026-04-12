@@ -138,7 +138,7 @@ private:
     static constexpr int sectionCHeight = 300;
     static constexpr int sectionDHeight = 330;
     static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
-    static constexpr int windowWidth = 662;
+    static constexpr int windowWidth = 678;
     CustomLNF customLNF;
     QuasarEQAudioProcessor& audioProcessor;
     VisualizerComponent visualizerComponent;
