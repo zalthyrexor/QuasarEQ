@@ -131,10 +131,7 @@ public:
     void resized() override;
 private:
     std::vector<std::unique_ptr<CustomButton>> modeButtons;
-    int selectedMode = 0;
-
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
-
     static constexpr int margin = 5;
     static constexpr int sectionAHeight = 34;
     static constexpr int sectionBHeight = 34;
@@ -142,12 +139,10 @@ private:
     static constexpr int sectionDHeight = 330;
     static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
     static constexpr int windowWidth = 657;
-
     CustomLNF customLNF;
     QuasarEQAudioProcessor& audioProcessor;
     VisualizerComponent visualizerComponent;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
-
     static auto getMasterGainIDs() -> const std::array<juce::String, 2>& {
         static const std::array<juce::String, 2> ids
         {
@@ -158,7 +153,7 @@ private:
     std::array<CustomSlider, 2> masterGainSliders;
     std::array<std::unique_ptr<juce::Label>, 2> masterGainLabelsComponents;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
-
     std::vector<std::unique_ptr<FilterBandControl>> bandControls;
+    int selectedMode = 0;
     int selectedFilterType = 5;
 };
