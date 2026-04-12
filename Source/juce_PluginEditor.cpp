@@ -70,28 +70,21 @@ void QuasarEQAudioProcessorEditor::paint(juce::Graphics& g) {
 
 void QuasarEQAudioProcessorEditor::resized() {
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
+    juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
     juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
     juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight).reduced(margin);
     juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight).reduced(margin);
-
-    sectionB.reduce(margin, margin);
-    sectionB.removeFromRight(60);
-    sectionB.removeFromLeft(34);
-    sectionB.removeFromRight(34);
-
     int btnW = 44;
-
-    for (auto& btn : paletteButtons) {
-        if (btn) btn->setBounds(sectionB.removeFromLeft(btnW).reduced(1));
-    }
-
-    for (auto it = modeButtons.rbegin(); it != modeButtons.rend(); ++it) {
-        auto& btn = *it;
+    for (auto& btn : modeButtons) {
         if (btn) {
-            btn->setBounds(sectionB.removeFromRight(btnW).reduced(1));
+            btn->setBounds(sectionA.removeFromLeft(btnW).reduced(1));
         }
     }
-
+    for (auto& btn : paletteButtons) {
+        if (btn) {
+            btn->setBounds(sectionB.removeFromLeft(btnW).reduced(1));
+        }
+    }
     visualizerComponent.setBounds(sectionC);
 
     auto masterSectionArea = sectionD.removeFromRight(60).reduced(margin);

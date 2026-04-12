@@ -32,14 +32,12 @@ public:
         std::array< std::vector<float>, 2> buffer {};
         while (fifo[0].getNumAvailable() > 0 && fifo[1].getNumAvailable() > 0) {
             if (fifo[0].pull(buffer[0]) && fifo[1].pull(buffer[1])) {
-                std::span<const float> spanL {buffer[0]};
-                std::span<const float> spanR {buffer[1]};
-                const int originalIncomingSize = spanL.size();
+                const int originalIncomingSize = buffer[0].size();
                 const float deltaTime = originalIncomingSize / sampleRate;
                 const float powersReleaseFactor = 1.0f - std::exp(-deltaTime * 50.0f);
                 const float peaksReleaseFactor = 15.0f * deltaTime;
-                decibelLCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(spanL));
-                decibelRCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(spanR));
+                decibelLCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(buffer[0]));
+                decibelRCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(buffer[1]));
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
                 const int sourceOffset = originalIncomingSize - useSize;
                 const int copySize = FFT_SIZE - useSize;

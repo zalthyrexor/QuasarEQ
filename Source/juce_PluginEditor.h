@@ -136,10 +136,11 @@ private:
     std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
 
     static constexpr int margin = 5;
-    static constexpr int sectionBHeight = 44;
+    static constexpr int sectionAHeight = 34;
+    static constexpr int sectionBHeight = 34;
     static constexpr int sectionCHeight = 300;
     static constexpr int sectionDHeight = 330;
-    static constexpr int windowHeight = sectionBHeight + sectionCHeight + sectionDHeight;
+    static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
     static constexpr int windowWidth = 657;
 
     CustomLNF customLNF;
