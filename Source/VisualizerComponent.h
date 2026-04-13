@@ -205,16 +205,11 @@ public:
         const int bandIdx = getClosestBand(e.position);
         if (bandIdx == NoBandSelected) return;
         const juce::String paramID = config::getID(config::ID_BAND_QUAL, bandIdx);
-        if (auto* qParam = audioProcessor.apvts.getParameter(paramID)) {
-            float currentRealValue = audioProcessor.apvts.getRawParameterValue(paramID)->load();
-            float currentNormalized = qParam->getValue();
-            float newNormalized = juce::jlimit(0.0f, 1.0f, currentNormalized + (wheel.deltaY * 0.1f));
-            auto range = audioProcessor.apvts.getParameterRange(paramID);
-            float newRealValue = range.snapToLegalValue(range.convertFrom0to1(newNormalized));
-            if (newRealValue == currentRealValue && wheel.deltaY != 0) {
-                newRealValue += (wheel.deltaY > 0) ? range.interval : -range.interval;
-            }
-            qParam->setValueNotifyingHost(range.convertTo0to1(juce::jlimit(range.start, range.end, newRealValue)));
+        if (auto* param = audioProcessor.apvts.getParameter(paramID)) {
+            float currentNormalized = param->getValue();
+            float step = wheel.deltaY * 0.125f;
+            float newNormalized = juce::jlimit(0.0f, 1.0f, currentNormalized + step);
+            param->setValueNotifyingHost(newNormalized);
         }
     }
     std::function<int()> getSelectedTypeCallback;
