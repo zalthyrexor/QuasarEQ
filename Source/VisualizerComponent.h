@@ -46,9 +46,8 @@ public:
         auto meterAreaB = meterArea.getBottom();
         auto meterHeightM = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.db[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         auto meterHeightS = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.db[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.00, meterHeightS, meterAreaX + meterAreaW * 0.25, meterAreaB));
-        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.25, meterHeightM, meterAreaX + meterAreaW * 0.75, meterAreaB));
-        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.75, meterHeightS, meterAreaX + meterAreaW * 1.00, meterAreaB));
+        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.00, meterHeightM, meterAreaX + meterAreaW * 0.50, meterAreaB));
+        g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.50, meterHeightS, meterAreaX + meterAreaW * 1.00, meterAreaB));
 
         auto spectrumArea = getCurveArea().toFloat();
         auto spectrumAreaX = spectrumArea.getX();
@@ -202,9 +201,8 @@ public:
         draggingBand = NoBandSelected;
     }
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override {
-        const int bandIdx = getClosestBand(e.position);
-        if (bandIdx == NoBandSelected) return;
-        const juce::String paramID = config::getID(config::ID_BAND_QUAL, bandIdx);
+        if (draggingBand == NoBandSelected) return;
+        const juce::String paramID = config::getID(config::ID_BAND_QUAL, draggingBand);
         if (auto* param = audioProcessor.apvts.getParameter(paramID)) {
             float currentNormalized = param->getValue();
             float step = wheel.deltaY * 0.125f;
@@ -321,7 +319,7 @@ private:
             drawLabel(formatDb(db), (int)meterArea.getX() - margin, y);
         }
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
-        for (float ratio : { 0.0f, 0.25f, 0.75f, 1.0f }) {
+        for (float ratio : { 0.0f, 0.5f, 1.0f }) {
             g.drawVerticalLine((int)(meterArea.getX() + meterArea.getWidth() * ratio), meterArea.getY(), meterArea.getBottom());
         }
     }
@@ -376,7 +374,7 @@ private:
 
     static constexpr int margin = 10;
     static constexpr int THREAD_SLEEP_TIME = 20;
-    static constexpr int labelBorderSize = 10*2;
+    static constexpr int labelBorderSize = 10 * 2;
 
     int draggingBand = NoBandSelected;
     bool parametersNeedUpdate = true;
