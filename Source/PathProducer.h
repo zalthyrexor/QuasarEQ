@@ -37,9 +37,6 @@ public:
                 const float deltaTime = originalIncomingSize / sampleRate;
                 const float powersReleaseFactor = 1.0f - std::exp(-deltaTime * 50.0f);
                 const float peaksReleaseFactor = 15.0f * deltaTime;
-                const float meterFall = 50.0f * deltaTime;
-                decibelLCurrent = zlth::unit::magToDB(zlth::simd::get_abs_max(buffer[0]));
-                decibelRCurrent = zlth::unit::magToDB(zlth::simd::get_abs_max(buffer[1]));
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
                 const int sourceOffset = originalIncomingSize - useSize;
                 const int copySize = FFT_SIZE - useSize;
@@ -58,15 +55,21 @@ public:
                 zlth::simd::mag_sq_to_db(decibelsCurrent, powersBuffer);
                 zlth::simd::sub_inplace(decibelsPeak, peaksReleaseFactor);
                 zlth::simd::max_inplace(decibelsPeak, decibelsCurrent);
-                decibelLSmoothed = juce::jmax(decibelLCurrent, decibelLSmoothed - meterFall);
-                decibelRSmoothed = juce::jmax(decibelRCurrent, decibelRSmoothed - meterFall);
+
+                const float meterFall = 1.0f - std::exp(-deltaTime * 10.0f);
+                for (int i = 0; i < 2; ++i) {
+                    decibelCurrent[i] = zlth::simd::get_abs_max(buffer[i]);
+                    decibelSmoothed[i] += meterFall * (decibelCurrent[i] - decibelSmoothed[i]);
+                    decibelSmoothed[i] = juce::jmax(decibelCurrent[i], decibelSmoothed[i]);
+                }
             }
         }
         if (auto* renderData = pathFifo.getWriteBuffer()) {
             std::copy(decibelsCurrent.begin(), decibelsCurrent.end(), renderData->spectrumPath.begin());
             std::copy(decibelsPeak.begin(), decibelsPeak.end(), renderData->peakHoldPath.begin());
-            renderData->db[0] = decibelLSmoothed;
-            renderData->db[1] = decibelRSmoothed;
+            for (int i = 0; i < 2; ++i) {
+                renderData->db[i] = zlth::unit::magToDB(decibelSmoothed[i]);
+            }
             pathFifo.finishedWrite();
         }
     }
@@ -114,9 +117,7 @@ private:
     std::array<SampleFifo, 2>& fifo;
     std::array<float, FFT_SIZE_HALF> decibelsCurrent;
     std::array<float, FFT_SIZE_HALF> decibelsPeak;
-    float decibelLCurrent = 0.0f;
-    float decibelRCurrent = 0.0f;
-    float decibelLSmoothed = -100.0f;
-    float decibelRSmoothed = -100.0f;
+    std::array<float, 2> decibelCurrent {0.0f, 0.0f};
+    std::array<float, 2> decibelSmoothed {-100.0f, -100.0f};
     Fifo<SpectrumRenderData> pathFifo;
 };
