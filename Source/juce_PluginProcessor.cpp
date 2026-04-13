@@ -1,5 +1,6 @@
 #include "juce_PluginProcessor.h"
 #include "juce_PluginEditor.h"
+#include "unit.h"
 
 QuasarEQAudioProcessor::QuasarEQAudioProcessor():
     AudioProcessor(BusesProperties().
@@ -23,12 +24,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
         return std::log(v / start) / std::log(end / start);
     };
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    juce::NormalisableRange<float> outGainRange {config::PARAM_OUT_GAIN_MIN, config::PARAM_OUT_GAIN_MAX};
+    juce::NormalisableRange<float> outGainRange {config::PARAM_BAND_GAIN_MIN, config::PARAM_BAND_GAIN_MAX};
     juce::NormalisableRange<float> bandGainRange {config::PARAM_BAND_GAIN_MIN, config::PARAM_BAND_GAIN_MAX};
     juce::NormalisableRange<float> bandFreqRange {config::PARAM_BAND_FREQ_MIN, config::PARAM_BAND_FREQ_MAX, logFrom0To1, logTo0To1};
     juce::NormalisableRange<float> bandQualRange {config::PARAM_BAND_QUAL_MIN, config::PARAM_BAND_QUAL_MAX, logFrom0To1, logTo0To1};
-    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_0, outGainRange, config::PARAM_OUT_GAIN_CENTER, config::bandUnits[0]));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, outGainRange, config::PARAM_OUT_GAIN_CENTER, config::bandUnits[0]));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_0, outGainRange, config::PARAM_BAND_GAIN_CENTER, config::bandUnits[0]));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, outGainRange, config::PARAM_BAND_GAIN_CENTER, config::bandUnits[0]));
     for (int i = 0; i < config::BAND_COUNT; ++i) {
         const auto id = [i](auto prefix) { return config::getID(prefix, i); };
         layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_GAIN), id(config::ID_BAND_GAIN), bandGainRange, config::PARAM_BAND_GAIN_CENTER, config::bandUnits[0]));
@@ -105,7 +106,7 @@ void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
     }
     if (flags & PARAMS_MASK_OUT) {
         auto loadGlobal = [this](const juce::String& id) {
-            return std::pow(10.0f, apvts.getRawParameterValue(id)->load() / 20.0f) * 0.5f;
+            return zlth::unit::dbToMag(apvts.getRawParameterValue(id)->load()) * 0.5f;
         };
         processors[0].globalGain = loadGlobal(config::ID_OUT_GAIN_0);
         processors[1].globalGain = loadGlobal(config::ID_OUT_GAIN_1);

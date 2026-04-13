@@ -5,6 +5,7 @@
 #include <complex>
 #include <numbers>
 #include <span>
+#include "unit.h"
 
 #if defined(_MSC_VER)
 #define ZLTH_FORCEINLINE [[msvc::forceinline]]
@@ -25,7 +26,7 @@ namespace zlth::dsp
         void set_coefficients(FilterType filterType, float freqHz, float qual, float gainDb, float sampleRate) noexcept {
             float preK = 1.0f / std::max(qual, qualMin);
             float preG = calculate_g(freqHz, sampleRate);
-            float sqrtA = std::exp(ln10_div_40 * gainDb);
+            float sqrtA = zlth::unit::dbToMagSqrt(gainDb);
             float A = sqrtA * sqrtA;
             switch (filterType) {
             case FilterType::LowPass:
@@ -113,7 +114,6 @@ namespace zlth::dsp
         static constexpr float freqMin {0.0001f};
         static constexpr float freqMax {0.4999f};
         static constexpr float pi {std::numbers::pi_v<float>};
-        static constexpr float ln10_div_40 {std::numbers::ln10_v<float> / 40.0f};
     };
 }
 

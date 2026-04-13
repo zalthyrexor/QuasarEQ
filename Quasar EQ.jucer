@@ -6,6 +6,7 @@
               cppLanguageStandard="20" pluginCode="K1wg" version="6.0.0" pluginFormats="buildStandalone">
   <MAINGROUP id="HFHuMF" name="qsr EQ 6">
     <GROUP id="{EF11FC96-4343-A7EF-67DB-40B1108E4FEC}" name="Source">
+      <FILE id="y7O5Tx" name="unit.h" compile="0" resource="0" file="Source/unit.h"/>
       <FILE id="I9ek7m" name="cpp.hint" compile="0" resource="1" file="Source/cpp.hint"/>
       <FILE id="R5UEik" name="EQProcessor.h" compile="0" resource="0" file="Source/EQProcessor.h"/>
       <FILE id="RlPMqQ" name="zlth_dsp_filter.h" compile="0" resource="0"

@@ -4,6 +4,7 @@
 #include "zlth_fifo.h"
 #include "zlth_dsp_fft_radix4.h"
 #include "zlth_simd.h"
+#include "unit.h"
 
 struct SpectrumRenderData
 {
@@ -36,8 +37,9 @@ public:
                 const float deltaTime = originalIncomingSize / sampleRate;
                 const float powersReleaseFactor = 1.0f - std::exp(-deltaTime * 50.0f);
                 const float peaksReleaseFactor = 15.0f * deltaTime;
-                decibelLCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(buffer[0]));
-                decibelRCurrent = juce::Decibels::gainToDecibels(zlth::simd::get_abs_max(buffer[1]));
+                const float meterFall = 50.0f * deltaTime;
+                decibelLCurrent = zlth::unit::magToDB(zlth::simd::get_abs_max(buffer[0]));
+                decibelRCurrent = zlth::unit::magToDB(zlth::simd::get_abs_max(buffer[1]));
                 const int useSize = std::min(originalIncomingSize, FFT_SIZE);
                 const int sourceOffset = originalIncomingSize - useSize;
                 const int copySize = FFT_SIZE - useSize;
@@ -53,11 +55,9 @@ public:
                 zlth::simd::lerp_inplace(powersBuffer, powersBufferCurrent, powersReleaseFactor);
                 zlth::simd::max_inplace(powersBuffer, powersBufferCurrent);
                 zlth::simd::max_inplace(powersBuffer, 1e-10f);
-                zlth::simd::log10(decibelsCurrent, powersBuffer);
-                zlth::simd::mul_inplace(decibelsCurrent, 10.0f);
+                zlth::simd::mag_sq_to_db(decibelsCurrent, powersBuffer);
                 zlth::simd::sub_inplace(decibelsPeak, peaksReleaseFactor);
                 zlth::simd::max_inplace(decibelsPeak, decibelsCurrent);
-                const float meterFall = 50.0f * deltaTime;
                 decibelLSmoothed = juce::jmax(decibelLCurrent, decibelLSmoothed - meterFall);
                 decibelRSmoothed = juce::jmax(decibelRCurrent, decibelRSmoothed - meterFall);
             }
