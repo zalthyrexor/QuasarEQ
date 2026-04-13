@@ -112,7 +112,7 @@ private:
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>, comboBoxCount> comboBoxAttachments;
     static constexpr int sliderCount {3};
     std::array<juce::Slider, sliderCount> bandSliders;
-    std::array<juce::String, sliderCount> bandIDs {config::ID_BAND_FREQ, config::ID_BAND_GAIN, config::ID_BAND_QUAL};
+    std::array<juce::String, sliderCount> bandIDs {config::ID_BAND_GAIN, config::ID_BAND_FREQ, config::ID_BAND_QUAL};
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, sliderCount> bandAttachments;
 };
 
