@@ -101,14 +101,12 @@ namespace zlth::dsp
             return m0 + (m1 * s + m2) / (1.0f + s * (s + k));
         }
     private:
-        ZLTH_FORCEINLINE static float calculate_g(float freqHz, float sampleRate) {
+        ZLTH_FORCEINLINE static float calculate_g(float freqHz, float sampleRate) noexcept {
             return std::tan(pi * std::clamp(freqHz, sampleRate * freqMin, sampleRate * freqMax) / sampleRate);
         }
-        float k {};
-        float g {};
-        float a1 {};
         float ic1eq {0.0f};
         float ic2eq {0.0f};
+        float k {}, g {}, a1 {};
         float m0 {}, m1 {}, m2 {};
         static constexpr float qualMin {0.0001f};
         static constexpr float freqMin {0.0001f};
