@@ -30,16 +30,16 @@ namespace config
     inline constexpr float FFT_MIN_DB {-90.0f};
     inline constexpr float FFT_MAX_DB {30.0f};
 
-    inline const juce::Colour theme {0xff4284ff};
-    inline const juce::Colour groove {0xff101010};
-    inline const juce::Colour buttonDisabled {0xff555555};
+    inline const juce::Colour side {0xffff3d67};
     inline const juce::Colour text {0xffffffff};
-    inline const juce::Colour textBackground {0xff000000};
-    inline const juce::Colour pluginBackground {0xff202020};
+    inline const juce::Colour theme {0xff4284ff};
     inline const juce::Colour slider {0xff181818};
+    inline const juce::Colour groove {0xff101010};
     inline const juce::Colour sliderRim {0xff505050};
     inline const juce::Colour sliderPointer {0xffffffff};
-    inline const juce::Colour side {0xffff3d67};
+    inline const juce::Colour buttonDisabled {0xff555555};
+    inline const juce::Colour textBackground {0xff000000};
+    inline const juce::Colour pluginBackground {0xff202020};
 
     inline const juce::String ID_PARAMETERS {"PARAMETERS"};
     inline const juce::String ID_OUT_GAIN_0 {"OUT_GAIN_MID"};
