@@ -64,9 +64,8 @@ public:
         label.setJustificationType(juce::Justification::centred);
     }
     void drawLinearSlider(juce::Graphics& g, int x, int y, int w, int h, float pos, float min, float max, const juce::Slider::SliderStyle style, juce::Slider& slider) override {
-        auto bounds = juce::Rectangle<float>(x, y, w, h).reduced(10.0f, 5.0f);
-        float trackWidth = 6.0f;
-        auto track = bounds.withSizeKeepingCentre(trackWidth, bounds.getHeight());
+        auto bounds {juce::Rectangle<float>(x, y, w, h).reduced(10.0f, 5.0f)};
+        auto track = bounds.withSizeKeepingCentre(6.0f, h);
         g.setColour(config::groove);
         g.fillRect(track);
         float zeroPos = (min + max) * 0.5f;
@@ -75,15 +74,13 @@ public:
         auto valueRect = track.withTop(top).withBottom(bottom);
         g.setColour(config::theme);
         g.fillRect(valueRect);
-        auto thumbHeight = 12.0f;
-        auto thumbWidth = 20.0f;
-        auto thumbRect = juce::Rectangle<float>(thumbWidth, thumbHeight);
+        auto thumbRect {juce::Rectangle<float>(w, 12.0f)};
         thumbRect.setCentre(track.getCentreX(), pos);
         g.setColour(config::slider);
         g.fillRect(thumbRect);
         g.setColour(config::sliderRim);
         g.drawRect(thumbRect, 2.0f);
         g.setColour(config::sliderPointer);
-        g.fillRect(thumbRect.withSizeKeepingCentre(8.0f, 2.0f));
+        g.fillRect(thumbRect.withSizeKeepingCentre(w / 4.0f, 2.0f));
     }
 };

@@ -325,12 +325,12 @@ private:
     }
 
     juce::Rectangle<int> getLevelMeterArea() {
-        auto a = getLocalBounds().removeFromRight(86);
+        auto a = getLocalBounds().removeFromRight(98);
         return a.reduced(margin * 2).reduced(4);
     }
     juce::Rectangle<int> getCurveArea() {
         auto a = getLocalBounds();
-        a.removeFromRight(86);
+        a.removeFromRight(98);
         return a.reduced(margin * 2).reduced(4);
     }
 
@@ -378,7 +378,6 @@ private:
 
     int draggingBand = NoBandSelected;
     bool parametersNeedUpdate = true;
-
 
     QuasarEQAudioProcessor& audioProcessor;
     PathProducer pathProducer;
