@@ -57,39 +57,6 @@ public:
 
         g.saveState();
         g.reduceClipRegion(getCurveArea());
-        auto updatePath = [&](const auto& sourcePath, std::vector<juce::Point<float>>& targetPoints, juce::Path& targetPath, bool shouldClosePath) {
-            targetPoints.clear();
-            targetPath.clear();
-            if (sourcePath.size() != 2048) return;
-            targetPoints.reserve(sourcePath.size());
-            auto resampled = resampler.resample(sourcePath.data(), audioProcessor.getSampleRate());
-            for (int i = 1; i < resampled.size(); ++i) {
-                float x = freqToX(resampled[i].first, spectrumAreaX, spectrumAreaW);
-                float y = juce::jmap(resampled[i].second, config::FFT_MIN_DB, config::FFT_MAX_DB, spectrumAreaB, spectrumAreaY);
-                targetPoints.emplace_back(x, y);
-            }
-            targetPath.startNewSubPath(targetPoints[0]);
-            targetPath.lineTo(targetPoints[1]);
-            static constexpr float BEZIER_SCALE = 1.0f / 6.0f;
-            for (size_t i = 1; i < 254; ++i) {
-                const auto& p0 = targetPoints[i - 1];
-                const auto& p1 = targetPoints[i];
-                const auto& p2 = targetPoints[i + 1];
-                const auto& p3 = targetPoints[i + 2];
-                const juce::Point<float> cp1 = p1 + (p2 - p0) * BEZIER_SCALE;
-                const juce::Point<float> cp2 = p2 - (p3 - p1) * BEZIER_SCALE;
-                targetPath.cubicTo(cp1, cp2, p2);
-            }
-            for (size_t i = 255; i < targetPoints.size(); ++i) {
-                targetPath.lineTo(targetPoints[i]);
-            }
-            if (!shouldClosePath) return;
-            targetPath.lineTo(targetPoints.back().x, spectrumAreaB);
-            targetPath.lineTo(targetPoints.front().x, spectrumAreaB);
-            targetPath.closeSubPath();
-        };
-        updatePath(localPath.spectrumPath, spectrumPoints, spectrumPath, true);
-        updatePath(localPath.peakHoldPath, peakHoldPoints, peakHoldPath, false);
 
         g.setColour(config::theme.withAlpha(0.45f));
         g.fillPath(spectrumPath);
@@ -229,10 +196,10 @@ private:
     }
 
     void handleAsyncUpdate() override {
-        SpectrumRenderData path;
+        SpectrumRenderData pathData;
         bool newPathAvailable = false;
         while (pathProducer.getNumPathsAvailable() > 0) {
-            if (pathProducer.getPath(path)) {
+            if (pathProducer.getPath(pathData)) {
                 newPathAvailable = true;
             }
         }
@@ -243,8 +210,10 @@ private:
         if (newPathAvailable) {
             {
                 juce::ScopedLock lock(pathLock);
-                channelPathToDraw = path;
+                channelPathToDraw = pathData;
             }
+            updateSpectrumPath(pathData.spectrumPath, spectrumPoints, spectrumPath, true);
+            updateSpectrumPath(pathData.peakHoldPath, peakHoldPoints, peakHoldPath, false);
             repaint();
         }
     }
@@ -335,7 +304,42 @@ private:
             }
         }
     }
-
+    void updateSpectrumPath(const auto& sourcePath, std::vector<juce::Point<float>>& targetPoints, juce::Path& targetPath, bool shouldClosePath) {
+        auto spectrumArea = getCurveArea().toFloat();
+        auto spectrumAreaX = spectrumArea.getX();
+        auto spectrumAreaY = spectrumArea.getY();
+        auto spectrumAreaW = spectrumArea.getWidth();
+        auto spectrumAreaB = spectrumArea.getBottom();
+        targetPoints.clear();
+        targetPath.clear();
+        if (sourcePath.size() != 2048) return;
+        targetPoints.reserve(sourcePath.size());
+        auto resampled = resampler.resample(sourcePath.data(), audioProcessor.getSampleRate());
+        for (int i = 1; i < resampled.size(); ++i) {
+            float x = freqToX(resampled[i].first, spectrumAreaX, spectrumAreaW);
+            float y = juce::jmap(resampled[i].second, config::FFT_MIN_DB, config::FFT_MAX_DB, spectrumAreaB, spectrumAreaY);
+            targetPoints.emplace_back(x, y);
+        }
+        targetPath.startNewSubPath(targetPoints[0]);
+        targetPath.lineTo(targetPoints[1]);
+        static constexpr float BEZIER_SCALE = 1.0f / 6.0f;
+        for (size_t i = 1; i < 254; ++i) {
+            const auto& p0 = targetPoints[i - 1];
+            const auto& p1 = targetPoints[i];
+            const auto& p2 = targetPoints[i + 1];
+            const auto& p3 = targetPoints[i + 2];
+            const juce::Point<float> cp1 = p1 + (p2 - p0) * BEZIER_SCALE;
+            const juce::Point<float> cp2 = p2 - (p3 - p1) * BEZIER_SCALE;
+            targetPath.cubicTo(cp1, cp2, p2);
+        }
+        for (size_t i = 255; i < targetPoints.size(); ++i) {
+            targetPath.lineTo(targetPoints[i]);
+        }
+        if (!shouldClosePath) return;
+        targetPath.lineTo(targetPoints.back().x, spectrumAreaB);
+        targetPath.lineTo(targetPoints.front().x, spectrumAreaB);
+        targetPath.closeSubPath();
+    }
     float getBandParamValue(const juce::String& prefix, int bandIdx) const {
         return audioProcessor.apvts.getRawParameterValue(config::getID(prefix, bandIdx))->load();
     }
