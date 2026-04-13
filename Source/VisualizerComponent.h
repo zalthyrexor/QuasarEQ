@@ -38,7 +38,6 @@ public:
             localPath = channelPathToDraw;
         }
 
-        g.setColour(config::theme.withAlpha(0.55f));
         auto meterArea = getLevelMeterArea().toFloat();
         auto meterAreaX = meterArea.getX();
         auto meterAreaY = meterArea.getY();
@@ -46,15 +45,17 @@ public:
         auto meterAreaB = meterArea.getBottom();
         auto meterHeightM = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         auto meterHeightS = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        g.setColour(config::theme.withAlpha(0.55f));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.0f, meterHeightM, meterAreaX + meterAreaW * 0.5f, meterAreaB));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.5f, meterHeightS, meterAreaX + meterAreaW * 1.0f, meterAreaB));
 
         auto peakY_M = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         auto peakY_S = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         const float peakLineThickness = 1.5f;
-        g.setColour(config::theme);
+        g.setColour(localPath.meterLevelsPeakDb[0] > 0.0f ? config::red : config::theme);
         g.fillRect(meterAreaX + meterAreaW * 0.0f, peakY_M - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
-        g.fillRect(meterAreaX + meterAreaW * 0.5f, peakY_S - peakLineThickness * 0.5f, meterAreaW * 1.0f, peakLineThickness);
+        g.setColour(localPath.meterLevelsPeakDb[1] > 0.0f ? config::red : config::theme);
+        g.fillRect(meterAreaX + meterAreaW * 0.5f, peakY_S - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
 
         auto spectrumArea = getCurveArea().toFloat();
         auto spectrumAreaX = spectrumArea.getX();
@@ -242,23 +243,28 @@ private:
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
             g.setColour(config::text);
-            g.setFont(textHeight);
-            drawLabel(g, formatFreq(f), x, (int)curveArea.getBottom() + textHeight);
-            drawLabel(g, formatFreq(f), x, (int)curveArea.getY() - textHeight);
+            g.setFont(textSize);
+            drawLabel(g, formatFreq(f), x, (int)curveArea.getBottom() + textSize);
+            drawLabel(g, formatFreq(f), x, (int)curveArea.getY() - textSize);
         }
         for (auto db : config::editorDBs) {
             int y = gainToY(db, curveArea.getY(), curveArea.getBottom());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
             g.setColour(config::text);
-            drawLabel(g, formatDb(db), (int)curveArea.getX() - textHeight, y);
+            drawLabel(g, formatDb(db), (int)curveArea.getX() - textSize, y);
+        }
+        g.setColour(config::text);
+        for (auto db : config::fftDBs) {
+            int y = juce::jmap(db, config::FFT_MIN_DB, config::FFT_MAX_DB, curveArea.getBottom(), curveArea.getY());
+            drawLabel(g, formatDb(db), (int)curveArea.getRight() + textSize, y);
         }
         for (auto db : config::meterDBs) {
             int y = juce::jmap(db, config::METER_MAX, config::METER_MIN, meterArea.getY(), meterArea.getBottom());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, meterArea.getX(), meterArea.getRight());
             g.setColour(config::text);
-            drawLabel(g, formatDb(db), (int)meterArea.getX() - textHeight, y);
+            drawLabel(g, formatDb(db), (int)meterArea.getX() - textSize, y);
         }
         g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
         for (float ratio : { 0.0f, 0.5f, 1.0f }) {
@@ -364,9 +370,9 @@ private:
         return juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, juce::jmap(value, b, y, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
     }
 
-    static constexpr int textHeight = 10;
+    static constexpr int textSize = 10;
     static constexpr int THREAD_SLEEP_TIME = 20;
-    static constexpr int marginSize = textHeight * 2;
+    static constexpr int marginSize = textSize * 2;
 
     int draggingBand = NoBandSelected;
     bool parametersNeedUpdate = true;
