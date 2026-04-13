@@ -23,18 +23,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
     auto logTo0To1 = [](float start, float end, float v) {
         return std::log(v / start) / std::log(end / start);
     };
+    auto makeAttrs = [](int decimals, const juce::String& label) {
+        return juce::AudioParameterFloatAttributes()
+            .withStringFromValueFunction([decimals](float v, int) { return juce::String(v, decimals); })
+            .withValueFromStringFunction([](const juce::String& s) { return s.getFloatValue(); })
+            .withLabel(label);
+    };
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    juce::NormalisableRange<float> outGainRange {config::PARAM_BAND_GAIN_MIN, config::PARAM_BAND_GAIN_MAX};
-    juce::NormalisableRange<float> bandGainRange {config::PARAM_BAND_GAIN_MIN, config::PARAM_BAND_GAIN_MAX};
-    juce::NormalisableRange<float> bandFreqRange {config::PARAM_BAND_FREQ_MIN, config::PARAM_BAND_FREQ_MAX, logFrom0To1, logTo0To1};
-    juce::NormalisableRange<float> bandQualRange {config::PARAM_BAND_QUAL_MIN, config::PARAM_BAND_QUAL_MAX, logFrom0To1, logTo0To1};
-    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_0, outGainRange, config::PARAM_BAND_GAIN_CENTER, config::bandUnits[0]));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, outGainRange, config::PARAM_BAND_GAIN_CENTER, config::bandUnits[0]));
+    juce::NormalisableRange<float> gainRange {config::PARAM_BAND_GAIN_MIN, config::PARAM_BAND_GAIN_MAX};
+    juce::NormalisableRange<float> freqRange {config::PARAM_BAND_FREQ_MIN, config::PARAM_BAND_FREQ_MAX, logFrom0To1, logTo0To1};
+    juce::NormalisableRange<float> qualRange {config::PARAM_BAND_QUAL_MIN, config::PARAM_BAND_QUAL_MAX, logFrom0To1, logTo0To1};
+    auto gainAttrs = makeAttrs(2, config::bandUnits[0]);
+    auto freqAttrs = makeAttrs(2, config::bandUnits[1]);
+    auto qualAttrs = makeAttrs(2, config::bandUnits[2]);
+    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_0, gainRange, config::PARAM_BAND_GAIN_CENTER, gainAttrs));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, gainRange, config::PARAM_BAND_GAIN_CENTER, gainAttrs));
     for (int i = 0; i < config::BAND_COUNT; ++i) {
         const auto id = [i](auto prefix) { return config::getID(prefix, i); };
-        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_GAIN), id(config::ID_BAND_GAIN), bandGainRange, config::PARAM_BAND_GAIN_CENTER, config::bandUnits[0]));
-        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_FREQ), id(config::ID_BAND_FREQ), bandFreqRange, config::PARAM_BAND_FREQ_CENTER, config::bandUnits[1]));
-        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_QUAL), id(config::ID_BAND_QUAL), bandQualRange, config::PARAM_BAND_QUAL_CENTER, config::bandUnits[2]));
+        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_GAIN), id(config::ID_BAND_GAIN), gainRange, config::PARAM_BAND_GAIN_CENTER, gainAttrs));
+        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_FREQ), id(config::ID_BAND_FREQ), freqRange, config::PARAM_BAND_FREQ_CENTER, freqAttrs));
+        layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_QUAL), id(config::ID_BAND_QUAL), qualRange, config::PARAM_BAND_QUAL_CENTER, qualAttrs));
         layout.add(std::make_unique<juce::AudioParameterChoice>(id(config::ID_BAND_FILTER), id(config::ID_BAND_FILTER), config::filterModes, config::PARAM_BAND_FILTER_DEFAULT));
         layout.add(std::make_unique<juce::AudioParameterChoice>(id(config::ID_BAND_CHANNEL), id(config::ID_BAND_CHANNEL), config::channelModes, config::PARAM_BAND_CHANNEL_DEFAULT));
         layout.add(std::make_unique<juce::AudioParameterBool>(id(config::ID_BAND_BYPASS), id(config::ID_BAND_BYPASS), config::PARAM_BAND_BYPASS_DEFAULT));
