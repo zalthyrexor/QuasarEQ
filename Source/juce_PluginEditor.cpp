@@ -37,8 +37,8 @@ QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcesso
     }
     modeButtons[selectedMode]->setToggleState(true, juce::dontSendNotification);
 
-    visualizerComponent.getSelectedTypeCallback = [this] { return selectedFilterType; };
-    visualizerComponent.getMSTypeCallback = [this] { return selectedMode; };
+    visualizerComponent.getFilterModeCallback = [this] { return selectedFilterType; };
+    visualizerComponent.getChannelModeCallback = [this] { return selectedMode; };
 
     addAndMakeVisible(visualizerComponent);
 
