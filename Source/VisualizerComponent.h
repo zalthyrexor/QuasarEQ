@@ -252,12 +252,12 @@ private:
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
             g.setColour(config::text);
-            drawLabel(g, formatDb(db), (int)curveArea.getX() - textSize, y);
+            drawLabel(g, formatDb(db), (int)curveArea.getRight() + textSize, y);
         }
         g.setColour(config::text);
         for (auto db : config::fftDBs) {
             int y = juce::jmap(db, config::FFT_MIN_DB, config::FFT_MAX_DB, curveArea.getBottom(), curveArea.getY());
-            drawLabel(g, formatDb(db), (int)curveArea.getRight() + textSize, y);
+            drawLabel(g, formatDb(db), (int)curveArea.getX() - textSize, y);
         }
         for (auto db : config::meterDBs) {
             int y = juce::jmap(db, config::METER_MAX, config::METER_MIN, meterArea.getY(), meterArea.getBottom());

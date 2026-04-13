@@ -68,10 +68,10 @@ namespace zlth::dsp
                 m2 = 1.0f - A;
                 break;
             case FilterType::Tilt:
-                preG *= sqrtA;
-                m0 = A;
-                m1 = preK * (1.0f - A);
-                m2 = 1.0f / A - A;
+                preG *= std::sqrt(sqrtA);
+                m0 = sqrtA;
+                m1 = preK * (1.0f - sqrtA);
+                m2 = (1.0f - A) / sqrtA;
                 break;
             default:
                 m0 = 1.0f;
