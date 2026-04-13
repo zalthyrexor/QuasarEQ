@@ -55,7 +55,6 @@ public:
                 zlth::simd::mag_sq_to_db(decibelsCurrent, powersBuffer);
                 zlth::simd::sub_inplace(decibelsPeak, peaksReleaseFactor);
                 zlth::simd::max_inplace(decibelsPeak, decibelsCurrent);
-
                 const float meterFall = 1.0f - std::exp(-deltaTime * 10.0f);
                 for (int i = 0; i < 2; ++i) {
                     decibelCurrent[i] = zlth::simd::get_abs_max(buffer[i]);
@@ -80,9 +79,9 @@ public:
         if (auto* renderData = pathFifo.getReadBuffer()) {
             path.spectrumPath = renderData->spectrumPath;
             path.peakHoldPath = renderData->peakHoldPath;
-            path.db[0] = renderData->db[0];
-            path.db[1] = renderData->db[1];
-
+            for (int i = 0; i < 2; ++i) {
+                path.db[i] = renderData->db[i];
+            }
             pathFifo.finishedRead();
             return true;
         }
@@ -94,16 +93,12 @@ private:
         float invSize = std::numbers::pi_v<float> *2.0f / static_cast<float>(size);
         for (std::size_t i = 0; i < size; ++i) {
             float phi = static_cast<float>(i) * invSize;
-            target[i] =
-                0.35875f -
-                0.48829f * std::cos(phi) +
-                0.14128f * std::cos(2.0f * phi) -
-                0.01168f * std::cos(3.0f * phi);
+            target[i] = 0.35875f - 0.48829f * std::cos(phi) + 0.14128f * std::cos(2.0f * phi) - 0.01168f * std::cos(3.0f * phi);
         }
     }
-    static constexpr int FFT_ORDER = 12;
-    static constexpr int FFT_SIZE = 1 << FFT_ORDER;
-    static constexpr int FFT_SIZE_HALF = FFT_SIZE >> 1;
+    static constexpr int FFT_ORDER {12};
+    static constexpr int FFT_SIZE {1 << FFT_ORDER};
+    static constexpr int FFT_SIZE_HALF {FFT_SIZE >> 1};
     std::array<float, FFT_SIZE> fftReal {};
     std::array<float, FFT_SIZE> fftImag {};
     std::array<float, FFT_SIZE> audioBuffer {};
@@ -112,9 +107,9 @@ private:
     std::array<float, FFT_SIZE_HALF> powersBufferCurrent {};
     std::array<float, FFT_SIZE_HALF> decibelsCurrent;
     std::array<float, FFT_SIZE_HALF> decibelsPeak;
-    zlth::dsp::fft::Radix4<FFT_ORDER> fft;
-    std::array<SampleFifo, 2>& fifo;
     std::array<float, 2> decibelCurrent {0.0f, 0.0f};
     std::array<float, 2> decibelSmoothed {-100.0f, -100.0f};
+    std::array<SampleFifo, 2>& fifo;
+    zlth::dsp::fft::Radix4<FFT_ORDER> fft;
     Fifo<SpectrumRenderData> pathFifo;
 };
