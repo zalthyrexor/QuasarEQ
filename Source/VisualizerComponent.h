@@ -76,8 +76,8 @@ public:
       auto spectrumAreaB = spectrumArea.getBottom();
       for (int i = 0; i < config::BAND_COUNT; ++i) {
          if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) continue;
-         float x = mapFromLog(getBandParamValue(config::ID_BAND_FREQ, i), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, spectrumAreaX, spectrumAreaW);
-         float y = remap(getBandParamValue(config::ID_BAND_GAIN, i), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, spectrumAreaB, spectrumAreaY);
+         float x = editorFreqToCurveArea(getBandParamValue(config::ID_BAND_FREQ, i));
+         float y = editorGainToCurveArea(getBandParamValue(config::ID_BAND_GAIN, i));
          const int pointSize = 14;
          g.setColour(config::textBackground);
          g.fillEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize);
@@ -117,7 +117,7 @@ public:
 
       auto [mouseX, mouseY] = e.position;
       auto bounds = getCurveArea().toFloat();
-      float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, mapToLog(mouseX, bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
+      float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, curveAreaToEditorFreq(mouseX));
       float gainDb = juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
       float filterMode = getFilterModeCallback ? (float)getFilterModeCallback() : config::PARAM_FILTER_DEFAULT;
       float channelMode = getChannelModeCallback ? (float)getChannelModeCallback() : config::PARAM_CHANNEL_DEFAULT;
@@ -135,7 +135,7 @@ public:
       }
       auto [mouseX, mouseY] = e.position;
       auto bounds = getCurveArea().toFloat();
-      float freqHz = mapToLog(mouseX, bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+      float freqHz = curveAreaToEditorFreq(mouseX);
       float gainDb = remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
       setParamToDraggingBand(config::ID_BAND_FREQ, freqHz);
       setParamToDraggingBand(config::ID_BAND_GAIN, gainDb);
@@ -182,8 +182,8 @@ private:
       const float thresholdSq = toleranceRadius * toleranceRadius;
       for (int i = 0; i < config::BAND_COUNT; ++i) {
          if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) continue;
-         float x = mapFromLog(getBandParamValue(config::ID_BAND_FREQ, i), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, area.getX(), area.getWidth());
-         float y = remap(getBandParamValue(config::ID_BAND_GAIN, i), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, area.getBottom(), area.getY());
+         float x = editorFreqToCurveArea(getBandParamValue(config::ID_BAND_FREQ, i));
+         float y = editorGainToCurveArea(getBandParamValue(config::ID_BAND_GAIN, i));
          if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq) return i;
       }
       return NoBandSelected;
@@ -225,7 +225,7 @@ private:
       auto formatFreq = [](float f) { return (f < 1000.0f) ? juce::String((int)f) : juce::String((int)(f / 1000.0f)) + "k"; };
       auto formatDb = [](float db) { return (db > 0 ? "+" : "") + juce::String((int)db); };
       for (auto f : config::frequencies) {
-         int x = mapFromLog(f, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, curveArea.getX(), curveArea.getWidth());
+         int x = editorFreqToCurveArea(f);
          g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
          g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
          g.setColour(config::text);
@@ -234,7 +234,7 @@ private:
          drawLabel(g, formatFreq(f), x, (int)curveArea.getY() - textSize);
       }
       for (auto db : config::editorDBs) {
-         int y = remap(db, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, curveArea.getBottom(), curveArea.getY());
+         int y = editorGainToCurveArea(db);
          g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
          g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
          g.setColour(config::text);
@@ -289,10 +289,9 @@ private:
             }
          }
          auto getMagY = [&](float value) {
-            return remap(zlth::unit::magSqToDB(value), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, bounds.getBottom(), bounds.getY());
+            return editorGainToCurveArea(zlth::unit::magSqToDB(value));
          };
-         float normalizedX = (float)i / (float)(curveSize - 1);
-         float x = bounds.getX() + bounds.getWidth() * normalizedX;
+         float x = remap(i, 0, curveSize - 1, bounds.getX(), bounds.getRight());
          if (i == 0) {
             responseCurvePath[0].startNewSubPath(x, getMagY(magSqMid));
             responseCurvePath[1].startNewSubPath(x, getMagY(magSqSide));
@@ -315,7 +314,7 @@ private:
       targetPoints.reserve(sourcePath.size());
       auto resampled = resampler.resample(sourcePath.data(), audioProcessor.getSampleRate());
       for (int i = 1; i < resampled.size(); ++i) {
-         float x = mapFromLog(resampled[i].first, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, spectrumAreaX, spectrumAreaW);
+         float x = editorFreqToCurveArea(resampled[i].first);
          float y = remap(resampled[i].second, config::FFT_MIN_DB, config::FFT_MAX_DB, spectrumAreaB, spectrumAreaY);
          targetPoints.emplace_back(x, y);
       }
@@ -355,7 +354,18 @@ private:
    static float mapToLog(float v, float sMin, float sWidth, float tMin, float tMax) {
       return std::exp(remap(v, sMin, sMin + sWidth, std::log(tMin), std::log(tMax)));
    }
-
+   float curveAreaToEditorFreq(float v) {
+      const auto curveArea = getCurveArea().toFloat();
+      return mapToLog(v, curveArea.getX(), curveArea.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+   }
+   float editorFreqToCurveArea(float v) {
+      const auto curveArea = getCurveArea().toFloat();
+      return mapFromLog(v, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, curveArea.getX(), curveArea.getWidth());
+   }
+   float editorGainToCurveArea(float v) {
+      const auto curveArea = getCurveArea().toFloat();
+      return remap(v, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, curveArea.getBottom(), curveArea.getY());
+   }
    static constexpr int textSize = 10;
    static constexpr int THREAD_SLEEP_TIME = 20;
    static constexpr int marginSize = textSize * 2;
