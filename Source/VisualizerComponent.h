@@ -22,9 +22,6 @@ public:
          }
       }
    }
-   int IndexToID(int bandIdx) const {
-      return bandIdx + 1;
-   }
    void parameterChanged(const juce::String& parameterID, float newValue) {
       parametersNeedUpdate = true;
    }
@@ -87,7 +84,7 @@ public:
          g.setColour(config::text);
          g.drawEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize, 1.5f);
          g.setFont(12.0f);
-         drawLabel(g, juce::String(IndexToID(i)), x, y);
+         drawLabel(g, config::IndexToID(i), x, y);
       }
    }
 
@@ -100,9 +97,11 @@ public:
       return NoBandSelected;
    }
 
-   void setParam(const juce::String& paramID, float plainValue, float min, float max) {
-      if (auto* p = audioProcessor.apvts.getParameter(paramID)) {
-         p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(paramID).convertTo0to1(juce::jlimit(min, max, plainValue)));
+   void setParamToDraggingBand(const juce::String& paramID, float plainValue) {
+      auto id = config::getID(paramID, draggingBand);
+      if (auto* p = audioProcessor.apvts.getParameter(id)) {
+         auto range = audioProcessor.apvts.getParameterRange(id);
+         p->setValueNotifyingHost(range.convertTo0to1(juce::jlimit(range.start, range.end, plainValue)));
       }
    }
    void mouseDown(const juce::MouseEvent& e) override {
@@ -116,52 +115,40 @@ public:
       if (availableIdx == NoBandSelected) return;
       draggingBand = availableIdx;
 
-      auto& apvts = audioProcessor.apvts;
-      auto asetParam = [&](const juce::String& paramID, float value) {
-         if (auto* p = apvts.getParameter(config::getID(paramID, availableIdx))) {
-            p->setValueNotifyingHost(value);
-         }
-      };
-
-      float filterMode = getFilterModeCallback ?
-         apvts.getParameterRange(config::getID(config::ID_BAND_FILTER, availableIdx)).convertTo0to1((float)getFilterModeCallback()) :
-         apvts.getParameter(config::getID(config::ID_BAND_FILTER, availableIdx))->getDefaultValue();
-      float channelMode = getChannelModeCallback ?
-         apvts.getParameterRange(config::getID(config::ID_BAND_CHANNEL, availableIdx)).convertTo0to1((float)getChannelModeCallback()) :
-         apvts.getParameter(config::getID(config::ID_BAND_CHANNEL, availableIdx))->getDefaultValue();
-
+      auto [mouseX, mouseY] = e.position;
       auto bounds = getCurveArea().toFloat();
-      float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, mapToLog(e.position.getX(), bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
-      float gainDb = juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, remap(e.position.getY(), bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
+      float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, mapToLog(mouseX, bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
+      float gainDb = juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
+      float filterMode = getFilterModeCallback ? (float)getFilterModeCallback() : config::PARAM_FILTER_DEFAULT;
+      float channelMode = getChannelModeCallback ? (float)getChannelModeCallback() : config::PARAM_CHANNEL_DEFAULT;
 
-      asetParam(config::ID_BAND_BYPASS, 0.0f);
-      setParam(config::getID(config::ID_BAND_FREQ, draggingBand), freqHz, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
-      setParam(config::getID(config::ID_BAND_GAIN, draggingBand), gainDb, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
-      asetParam(config::ID_BAND_QUAL, apvts.getParameter(config::getID(config::ID_BAND_QUAL, availableIdx))->getDefaultValue());
-      asetParam(config::ID_BAND_FILTER, filterMode);
-      asetParam(config::ID_BAND_CHANNEL, channelMode);
+      setParamToDraggingBand(config::ID_BAND_BYPASS, 0.0f);
+      setParamToDraggingBand(config::ID_BAND_FREQ, freqHz);
+      setParamToDraggingBand(config::ID_BAND_GAIN, gainDb);
+      setParamToDraggingBand(config::ID_BAND_FILTER, filterMode);
+      setParamToDraggingBand(config::ID_BAND_CHANNEL, channelMode);
+      setParamToDraggingBand(config::ID_BAND_QUAL, config::PARAM_QUAL_DEF);
    }
    void mouseDrag(const juce::MouseEvent& e) override {
-      if (draggingBand == NoBandSelected) return;
-      auto mousePos = e.position;
+      if (draggingBand == NoBandSelected) {
+         return;
+      }
+      auto [mouseX, mouseY] = e.position;
       auto bounds = getCurveArea().toFloat();
-      float freqHz = mapToLog(mousePos.getX(), bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
-      float gainDb = remap(mousePos.getY(), bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
-
-      setParam(config::getID(config::ID_BAND_FREQ, draggingBand), freqHz, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
-      setParam(config::getID(config::ID_BAND_GAIN, draggingBand), gainDb, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
+      float freqHz = mapToLog(mouseX, bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+      float gainDb = remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
+      setParamToDraggingBand(config::ID_BAND_FREQ, freqHz);
+      setParamToDraggingBand(config::ID_BAND_GAIN, gainDb);
    }
    void mouseUp(const juce::MouseEvent& e) override {
       draggingBand = NoBandSelected;
    }
    void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override {
-      if (draggingBand == NoBandSelected) return;
-      const juce::String paramID = config::getID(config::ID_BAND_QUAL, draggingBand);
-      if (auto* param = audioProcessor.apvts.getParameter(paramID)) {
-         float currentNormalized = param->getValue();
-         float step = wheel.deltaY * 0.125f;
-         float newNormalized = juce::jlimit(0.0f, 1.0f, currentNormalized + step);
-         param->setValueNotifyingHost(newNormalized);
+      if (draggingBand == NoBandSelected) {
+         return;
+      }
+      if (auto* param = audioProcessor.apvts.getParameter(config::getID(config::ID_BAND_QUAL, draggingBand))) {
+         param->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, param->getValue() + wheel.deltaY * 0.125f));
       }
    }
    std::function<int()> getFilterModeCallback;

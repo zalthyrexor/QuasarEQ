@@ -84,6 +84,9 @@ namespace config {
    inline juce::String getID(const juce::String& prefix, int bandIdx) {
       return prefix + juce::String(bandIdx + 1);
    }
+   inline juce::String IndexToID(int bandIdx) {
+      return juce::String(bandIdx + 1);
+   }
    inline int getBandIndex(const juce::String& parameterID) {
       return parameterID.getTrailingIntValue() - 1;
    }
