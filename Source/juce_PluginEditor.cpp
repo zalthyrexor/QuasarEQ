@@ -4,59 +4,65 @@
 
 QuasarEQAudioProcessorEditor::QuasarEQAudioProcessorEditor(QuasarEQAudioProcessor& p): AudioProcessorEditor(&p), audioProcessor(p), visualizerComponent(p) {
   setLookAndFeel(&customLNF);
-  for (int i = 0; i < config::BAND_COUNT; ++i) {
-    bandControls.push_back(std::make_unique<FilterBandControl>(audioProcessor.apvts, i));
-    addAndMakeVisible(*bandControls.back());
-  }
+ 
   for (int i = 0; i < config::iconCount; ++i) {
     auto btn = std::make_unique<CustomIconButton>(config::iconData[i], config::iconSize[i]);
     btn->setRadioGroupId(1001);
     btn->setClickingTogglesState(true);
     btn->onClick = [this, i] {
-      if (paletteButtons[i]->getToggleState()) {
-        selectedFilterType = i;
+      if (filterModeButtons[i]->getToggleState()) {
+        selectedFilter = i;
       }
     };
     addAndMakeVisible(*btn);
-    paletteButtons.push_back(std::move(btn));
+    filterModeButtons.push_back(std::move(btn));
   }
-  paletteButtons[selectedFilterType]->setToggleState(true, juce::dontSendNotification);
+  filterModeButtons[selectedFilter]->setToggleState(true, juce::dontSendNotification);
+  visualizerComponent.getFilterModeCallback = [this] { return selectedFilter; };
 
   for (int i = 0; i < config::modeNames.size(); ++i) {
     auto btn = std::make_unique<CustomButton>(config::modeNames[i]);
     btn->setRadioGroupId(1002);
     btn->setClickingTogglesState(true);
-
     btn->onClick = [this, i] {
-      if (modeButtons[i]->getToggleState()) {
-        selectedMode = i;
+      if (channelModeButtons[i]->getToggleState()) {
+        selectedChannnel = i;
       }
     };
     addAndMakeVisible(*btn);
-    modeButtons.push_back(std::move(btn));
+    channelModeButtons.push_back(std::move(btn));
   }
-  modeButtons[selectedMode]->setToggleState(true, juce::dontSendNotification);
-
-  visualizerComponent.getFilterModeCallback = [this] { return selectedFilterType; };
-  visualizerComponent.getChannelModeCallback = [this] { return selectedMode; };
+  channelModeButtons[selectedChannnel]->setToggleState(true, juce::dontSendNotification);
+  visualizerComponent.getChannelModeCallback = [this] { return selectedChannnel; };
 
   addAndMakeVisible(visualizerComponent);
 
-  for (int i = 0; i < masterGainSliders.size(); ++i) {
-    auto& slider = masterGainSliders[i];
-    slider.setSliderStyle(juce::Slider::LinearVertical);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
-    addAndMakeVisible(slider);
+  for (int i = 0; i < config::BAND_COUNT; ++i) {
+    bandControls.push_back(std::make_unique<FilterBandControl>(audioProcessor.apvts, i));
+    addAndMakeVisible(*bandControls.back());
+
+    auto text = config::toID(juce::String("BAND"), i);
+    auto label = std::make_unique<juce::Label>("", text);
+    label->setJustificationType(juce::Justification::horizontallyCentred);
+    label->setFont(12.0f);
+    addAndMakeVisible(*label);
+    bandControlLabels.push_back(std::move(label));
+  }
+
+  for (int i = 0; i < getMasterGainIDs().size(); ++i) {
+    auto slider = std::make_unique<CustomSlider>();
+    slider->setSliderStyle(juce::Slider::LinearVertical);
+    slider->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
+    addAndMakeVisible(*slider);
+    masterGainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, getMasterGainIDs()[i], *slider));
+    masterGainSliders.push_back(std::move(slider));
 
     auto label = std::make_unique<juce::Label>("", config::masterGainLabels[i]);
     label->setJustificationType(juce::Justification::horizontallyCentred);
     label->setFont(12.0f);
     addAndMakeVisible(*label);
-    masterGainLabelsComponents[i] = std::move(label);
-
-    masterGainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, getMasterGainIDs()[i], slider));
+    masterGainSliderLabels.push_back(std::move(label));
   }
-
   setSize(windowWidth, windowHeight);
 }
 
@@ -71,42 +77,35 @@ void QuasarEQAudioProcessorEditor::paint(juce::Graphics& g) {
 void QuasarEQAudioProcessorEditor::resized() {
 
   juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
-  int btnW = 45;
 
   juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
-  for (auto& btn : modeButtons) {
-    if (btn) {
-      btn->setBounds(sectionA.removeFromLeft(btnW * 2).reduced(1));
-    }
-  }
-
   juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
-  for (auto& btn : paletteButtons) {
-    if (btn) {
-      btn->setBounds(sectionB.removeFromLeft(btnW).reduced(1));
-    }
+  juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight);
+  juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
+  juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(98);
+
+  for (auto& btn : channelModeButtons) {
+    btn->setBounds(sectionA.removeFromLeft(channelBtnW).reduced(1));
   }
 
-  juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight);
+  for (auto& btn : filterModeButtons) {
+    btn->setBounds(sectionB.removeFromLeft(filterBtnW).reduced(1));
+  }
+
   visualizerComponent.setBounds(sectionC);
 
-  juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
 
-  auto sectionD1 = sectionD.removeFromRight(98);
-
-  int knowbWidth = sectionD1.getWidth() / masterGainSliders.size();
+  const int masterGainWidth = sectionD2.getWidth() / masterGainSliders.size();
   for (int i = 0; i < masterGainSliders.size(); ++i) {
-    auto area = sectionD1.removeFromLeft(knowbWidth).reduced(margin);
-    if (masterGainLabelsComponents[i]) {
-      masterGainLabelsComponents[i]->setBounds(area.removeFromTop(12));
-    }
-    masterGainSliders[i].setBounds(area);
+    auto area = sectionD2.removeFromLeft(masterGainWidth);
+    masterGainSliderLabels[i]->setBounds(area.removeFromTop(20).reduced(margin));
+    masterGainSliders[i]->setBounds(area.reduced(margin));
   }
 
   const int bandWidth = sectionD.getWidth() / config::BAND_COUNT;
   for (int i = 0; i < config::BAND_COUNT; ++i) {
-    if (bandControls[i]) {
-      bandControls[i]->setBounds(sectionD.removeFromLeft(bandWidth));
-    }
+    auto area = sectionD.removeFromLeft(bandWidth);
+    bandControlLabels[i]->setBounds(area.removeFromTop(20).reduced(margin));
+    bandControls[i]->setBounds(area);
   }
 }

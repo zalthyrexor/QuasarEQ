@@ -12,21 +12,25 @@ namespace config {
   inline constexpr int BAND_COUNT {8};
 
   inline constexpr bool PARAM_BYPASS_DEFAULT {true};
+
   inline constexpr int PARAM_CHANNEL_DEFAULT {0};
-  inline constexpr int PARAM_FILTER_DEFAULT {4};
+  inline constexpr int PARAM_FILTER_DEFAULT {5};
 
   inline constexpr float PARAM_FREQ_MIN {20.0f};
   inline constexpr float PARAM_FREQ_MAX {20000.0f};
   inline constexpr float PARAM_FREQ_DEF {500.0f};
+
   inline constexpr float PARAM_QUAL_MIN {1.0f / 16.0f};
   inline constexpr float PARAM_QUAL_MAX {16.0f};
   inline constexpr float PARAM_QUAL_DEF {1.0f / std::numbers::sqrt2_v<float>};
+
   inline constexpr float PARAM_GAIN_MIN {-24.0f};
   inline constexpr float PARAM_GAIN_MAX {24.0f};
   inline constexpr float PARAM_GAIN_DEF {0.0f};
 
   inline constexpr float METER_MIN {-36.0f};
   inline constexpr float METER_MAX {12.0f};
+
   inline constexpr float FFT_MIN_DB {-90.0f};
   inline constexpr float FFT_MAX_DB {30.0f};
 
@@ -81,13 +85,14 @@ namespace config {
     BinaryData::bp_svgSize
   };
 
-  inline juce::String getID(const juce::String& prefix, int bandIdx) {
-    return prefix + juce::String(bandIdx + 1);
+  inline juce::String IndexToID(int index) {
+    return juce::String(index + 1);
   }
-  inline juce::String IndexToID(int bandIdx) {
-    return juce::String(bandIdx + 1);
+
+  inline juce::String toID(const juce::String& prefix, int index) {
+    return prefix + juce::String(index + 1);
   }
-  inline int getBandIndex(const juce::String& parameterID) {
+  inline int toIndex(const juce::String& parameterID) {
     return parameterID.getTrailingIntValue() - 1;
   }
 }

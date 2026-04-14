@@ -59,21 +59,21 @@ class FilterBandControl: public juce::Component {
 public:
   FilterBandControl(juce::AudioProcessorValueTreeState& apvts, int bandIndex) {
     bypassButton.setClickingTogglesState(true);
-    bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, config::getID(config::ID_BAND_BYPASS, bandIndex), bypassButton);
+    bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, config::toID(config::ID_BAND_BYPASS, bandIndex), bypassButton);
     addAndMakeVisible(bypassButton);
     for (int i = 0; i < comboBoxCount; ++i) {
       auto& b = comboBoxes[i];
       b.setJustificationType(juce::Justification::centred);
       addAndMakeVisible(b);
       b.addItemList(comboArrays[i], 1);
-      comboBoxAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, config::getID(comboBoxIDs[i], bandIndex), b);
+      comboBoxAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, config::toID(comboBoxIDs[i], bandIndex), b);
     }
     for (int i = 0; i < sliderCount; ++i) {
       auto& s = bandSliders[i];
       s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
       s.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
       addAndMakeVisible(s);
-      bandAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, config::getID(bandIDs[i], bandIndex), s);
+      bandAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, config::toID(bandIDs[i], bandIndex), s);
     }
   }
   ~FilterBandControl() override {
@@ -126,20 +126,34 @@ public:
   ~QuasarEQAudioProcessorEditor();
   void paint(juce::Graphics& g) override;
   void resized() override;
+
 private:
-  std::vector<std::unique_ptr<CustomButton>> modeButtons;
-  std::vector<std::unique_ptr<CustomIconButton>> paletteButtons;
   static constexpr int margin = 4;
   static constexpr int sectionAHeight = 32;
   static constexpr int sectionBHeight = 32;
   static constexpr int sectionCHeight = 300;
-  static constexpr int sectionDHeight = 330;
-  static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
+  static constexpr int sectionDHeight = 350;
   static constexpr int windowWidth = 690;
+  static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
+
+  static constexpr int channelBtnW = 90;
+  static constexpr int filterBtnW = 45;
+
+  int selectedChannnel {config::PARAM_CHANNEL_DEFAULT};
+  int selectedFilter {config::PARAM_FILTER_DEFAULT};
+
   CustomLNF customLNF;
   QuasarEQAudioProcessor& audioProcessor;
   VisualizerComponent visualizerComponent;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
+
+  std::vector<std::unique_ptr<CustomSlider>> masterGainSliders;
+  std::vector<std::unique_ptr<juce::Label>> masterGainSliderLabels;
+  std::vector<std::unique_ptr<CustomButton>> channelModeButtons;
+  std::vector<std::unique_ptr<CustomIconButton>> filterModeButtons;
+  std::vector<std::unique_ptr<FilterBandControl>> bandControls;
+  std::vector<std::unique_ptr<juce::Label>> bandControlLabels;
+  std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
+
   static auto getMasterGainIDs() -> const std::array<juce::String, 2>& {
     static const std::array<juce::String, 2> ids
     {
@@ -147,10 +161,4 @@ private:
     };
     return ids;
   }
-  std::array<CustomSlider, 2> masterGainSliders;
-  std::array<std::unique_ptr<juce::Label>, 2> masterGainLabelsComponents;
-  std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
-  std::vector<std::unique_ptr<FilterBandControl>> bandControls;
-  int selectedMode = 0;
-  int selectedFilterType = 5;
 };
