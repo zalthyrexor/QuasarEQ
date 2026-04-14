@@ -1,4 +1,4 @@
-![Screenshot](./screenshots/screenshot20260407222418.png)
+![Screenshot](./screenshots/screenshot20260414202648.png)
 
 # Quasar EQ
 **Developed by Zalthyrexor**
@@ -16,8 +16,3 @@
 ### Acknowledgements
 - **Andrew Simper (Cytomic)**: For his research on SVF and TPT filter structures.
 - **JUCE Framework**: For providing the foundation for audio plugin development.
-
----
-*Experimental binary releases may be available later this year.*
-
-![Screenshot](./screenshots/screenshot20260403033423.png)
