@@ -37,33 +37,38 @@ public:
             localPath = channelPathToDraw;
         }
 
+        g.saveState();
+        g.reduceClipRegion(getLevelMeterArea());
+
         auto meterArea = getLevelMeterArea().toFloat();
         auto meterAreaX = meterArea.getX();
         auto meterAreaY = meterArea.getY();
         auto meterAreaW = meterArea.getWidth();
         auto meterAreaB = meterArea.getBottom();
-        auto meterHeightM = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-        auto meterHeightS = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto meterHeightM = remap(localPath.meterLevelsDb[0], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto meterHeightS = remap(localPath.meterLevelsDb[1], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         g.setColour(config::theme.withAlpha(0.55f));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.0f, meterHeightM, meterAreaX + meterAreaW * 0.5f, meterAreaB));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.5f, meterHeightS, meterAreaX + meterAreaW * 1.0f, meterAreaB));
 
-        auto peakY_M = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-        auto peakY_S = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto peakY_M = remap(localPath.meterLevelsPeakDb[0], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto peakY_S = remap(localPath.meterLevelsPeakDb[1], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         const float peakLineThickness = 1.5f;
         g.setColour(localPath.meterLevelsPeakDb[0] > 0.0f ? config::red : config::theme);
         g.fillRect(meterAreaX + meterAreaW * 0.0f, peakY_M - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
         g.setColour(localPath.meterLevelsPeakDb[1] > 0.0f ? config::red : config::theme);
         g.fillRect(meterAreaX + meterAreaW * 0.5f, peakY_S - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
 
+        g.restoreState();
+
+        g.saveState();
+        g.reduceClipRegion(getCurveArea());
+
         auto spectrumArea = getCurveArea().toFloat();
         auto spectrumAreaX = spectrumArea.getX();
         auto spectrumAreaY = spectrumArea.getY();
         auto spectrumAreaW = spectrumArea.getWidth();
         auto spectrumAreaB = spectrumArea.getBottom();
-
-        g.saveState();
-        g.reduceClipRegion(getCurveArea());
 
         g.setColour(config::theme.withAlpha(0.45f));
         g.fillPath(spectrumDb);
