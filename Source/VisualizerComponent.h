@@ -103,6 +103,11 @@ public:
         return NoBandSelected;
     }
 
+    void setParam(const juce::String& paramID, float plainValue, float min, float max) {
+        if (auto* p = audioProcessor.apvts.getParameter(paramID)) {
+            p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(paramID).convertTo0to1(juce::jlimit(min, max, plainValue)));
+        }
+    }
     void mouseDown(const juce::MouseEvent& e) override {
         if (!getCurveArea().contains(e.getPosition())) {
             draggingBand = NoBandSelected;
@@ -115,7 +120,7 @@ public:
         draggingBand = availableIdx;
 
         auto& apvts = audioProcessor.apvts;
-        auto setParam = [&](const juce::String& paramID, float value) {
+        auto asetParam = [&](const juce::String& paramID, float value) {
             if (auto* p = apvts.getParameter(config::getID(paramID, availableIdx))) {
                 p->setValueNotifyingHost(value);
             }
@@ -132,28 +137,22 @@ public:
         float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, mapToLog(e.position.getX(), bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
         float gainDb = juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, remap(e.position.getY(), bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
 
-        setParam(config::ID_BAND_BYPASS, 0.0f);
-        setParam(config::ID_BAND_FREQ, apvts.getParameterRange(config::getID(config::ID_BAND_FREQ, availableIdx)).convertTo0to1(freqHz));
-        setParam(config::ID_BAND_GAIN, apvts.getParameterRange(config::getID(config::ID_BAND_GAIN, availableIdx)).convertTo0to1(gainDb));
-        setParam(config::ID_BAND_QUAL, apvts.getParameter(config::getID(config::ID_BAND_QUAL, availableIdx))->getDefaultValue());
-        setParam(config::ID_BAND_FILTER, filterMode);
-        setParam(config::ID_BAND_CHANNEL, channelMode);
+        asetParam(config::ID_BAND_BYPASS, 0.0f);
+        setParam(config::getID(config::ID_BAND_FREQ, draggingBand), freqHz, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+        setParam(config::getID(config::ID_BAND_GAIN, draggingBand), gainDb, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
+        asetParam(config::ID_BAND_QUAL, apvts.getParameter(config::getID(config::ID_BAND_QUAL, availableIdx))->getDefaultValue());
+        asetParam(config::ID_BAND_FILTER, filterMode);
+        asetParam(config::ID_BAND_CHANNEL, channelMode);
     }
-
     void mouseDrag(const juce::MouseEvent& e) override {
         if (draggingBand == NoBandSelected) return;
         auto mousePos = e.position;
         auto bounds = getCurveArea().toFloat();
-        float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, mapToLog(mousePos.getX(), bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
-        float gainDb = juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, remap(mousePos.getY(), bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
-        auto setParam = [&](const juce::String& paramID, float plainValue) {
-            juce::String index = config::getID(paramID, draggingBand);
-            if (auto* p = audioProcessor.apvts.getParameter(index)) {
-                p->setValueNotifyingHost(audioProcessor.apvts.getParameterRange(index).convertTo0to1(plainValue));
-            }
-        };
-        setParam(config::ID_BAND_FREQ, freqHz);
-        setParam(config::ID_BAND_GAIN, gainDb);
+        float freqHz = mapToLog(mousePos.getX(), bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+        float gainDb = remap(mousePos.getY(), bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
+      
+        setParam(config::getID(config::ID_BAND_FREQ, draggingBand), freqHz, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+        setParam(config::getID(config::ID_BAND_GAIN, draggingBand), gainDb, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
     }
     void mouseUp(const juce::MouseEvent& e) override {
         draggingBand = NoBandSelected;
