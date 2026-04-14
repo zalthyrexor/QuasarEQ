@@ -47,28 +47,19 @@ public:
       auto meterAreaB = meterArea.getBottom();
       auto meterHeightM = remap(localPath.meterLevelsDb[0], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
       auto meterHeightS = remap(localPath.meterLevelsDb[1], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-      g.setColour(config::theme.withAlpha(0.55f));
-      g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.0f, meterHeightM, meterAreaX + meterAreaW * 0.5f, meterAreaB));
-      g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.5f, meterHeightS, meterAreaX + meterAreaW * 1.0f, meterAreaB));
-
       auto peakY_M = remap(localPath.meterLevelsPeakDb[0], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
       auto peakY_S = remap(localPath.meterLevelsPeakDb[1], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
       const float peakLineThickness = 1.5f;
-      g.setColour(localPath.meterLevelsPeakDb[0] > 0.0f ? config::red : config::theme);
+      g.setColour(config::theme.withAlpha(0.55f));
+      g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.0f, meterHeightM, meterAreaX + meterAreaW * 0.5f, meterAreaB));
+      g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.5f, meterHeightS, meterAreaX + meterAreaW * 1.0f, meterAreaB));
+      g.setColour(config::theme);
       g.fillRect(meterAreaX + meterAreaW * 0.0f, peakY_M - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
-      g.setColour(localPath.meterLevelsPeakDb[1] > 0.0f ? config::red : config::theme);
       g.fillRect(meterAreaX + meterAreaW * 0.5f, peakY_S - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
 
       g.restoreState();
-
       g.saveState();
       g.reduceClipRegion(getCurveArea());
-
-      auto spectrumArea = getCurveArea().toFloat();
-      auto spectrumAreaX = spectrumArea.getX();
-      auto spectrumAreaY = spectrumArea.getY();
-      auto spectrumAreaW = spectrumArea.getWidth();
-      auto spectrumAreaB = spectrumArea.getBottom();
 
       g.setColour(config::theme.withAlpha(0.45f));
       g.fillPath(spectrumDb);
@@ -78,8 +69,14 @@ public:
       g.strokePath(responseCurvePath[1], juce::PathStrokeType(2.5f));
       g.setColour(config::theme);
       g.strokePath(responseCurvePath[0], juce::PathStrokeType(2.5f));
+
       g.restoreState();
 
+      auto spectrumArea = getCurveArea().toFloat();
+      auto spectrumAreaX = spectrumArea.getX();
+      auto spectrumAreaY = spectrumArea.getY();
+      auto spectrumAreaW = spectrumArea.getWidth();
+      auto spectrumAreaB = spectrumArea.getBottom();
       for (int i = 0; i < config::BAND_COUNT; ++i) {
          if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) continue;
          float x = mapFromLog(getBandParamValue(config::ID_BAND_FREQ, i), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, spectrumAreaX, spectrumAreaW);
