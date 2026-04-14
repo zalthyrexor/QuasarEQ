@@ -6,8 +6,7 @@
 #include "PathProducer.h"
 #include "zlth_dsp_fft_resampler510.h"
 
-class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener
-{
+class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener {
 public:
     VisualizerComponent(QuasarEQAudioProcessor& p): audioProcessor(p), pathProducer(audioProcessor.channelFifo), analyzerThread(pathProducer, *this) {
         for (int i = 0; i < config::BAND_COUNT; ++i) {
@@ -43,14 +42,14 @@ public:
         auto meterAreaY = meterArea.getY();
         auto meterAreaW = meterArea.getWidth();
         auto meterAreaB = meterArea.getBottom();
-        auto meterHeightM = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-        auto meterHeightS = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto meterHeightM = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto meterHeightS = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         g.setColour(config::theme.withAlpha(0.55f));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.0f, meterHeightM, meterAreaX + meterAreaW * 0.5f, meterAreaB));
         g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.5f, meterHeightS, meterAreaX + meterAreaW * 1.0f, meterAreaB));
 
-        auto peakY_M = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-        auto peakY_S = juce::jmap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto peakY_M = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[0]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
+        auto peakY_S = remap(juce::jlimit(config::METER_MIN, config::METER_MAX, localPath.meterLevelsPeakDb[1]), config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
         const float peakLineThickness = 1.5f;
         g.setColour(localPath.meterLevelsPeakDb[0] > 0.0f ? config::red : config::theme);
         g.fillRect(meterAreaX + meterAreaW * 0.0f, peakY_M - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
@@ -78,8 +77,8 @@ public:
 
         for (int i = 0; i < config::BAND_COUNT; ++i) {
             if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) continue;
-            float x = freqToX(getBandParamValue(config::ID_BAND_FREQ, i), spectrumAreaX, spectrumAreaW);
-            float y = gainToY(getBandParamValue(config::ID_BAND_GAIN, i), spectrumAreaY, spectrumAreaB);
+            float x = mapFromLog(getBandParamValue(config::ID_BAND_FREQ, i), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, spectrumAreaX, spectrumAreaW);
+            float y = remap(getBandParamValue(config::ID_BAND_GAIN, i), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, spectrumAreaB, spectrumAreaY);
             const int pointSize = 14;
             g.setColour(config::textBackground);
             g.fillEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize);
@@ -125,8 +124,8 @@ public:
             apvts.getParameter(config::getID(config::ID_BAND_CHANNEL, availableIdx))->getDefaultValue();
 
         auto bounds = getCurveArea().toFloat();
-        float freqHz = xToFreq(e.position.getX(), bounds.getX(), bounds.getWidth());
-        float gainDb = yToGain(e.position.getY(), bounds.getY(), bounds.getBottom());
+        float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, mapToLog(e.position.getX(), bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
+        float gainDb = juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, remap(e.position.getY(), bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
 
         setParam(config::ID_BAND_BYPASS, 0.0f);
         setParam(config::ID_BAND_FREQ, apvts.getParameterRange(config::getID(config::ID_BAND_FREQ, availableIdx)).convertTo0to1(freqHz));
@@ -140,8 +139,8 @@ public:
         if (draggingBand == NoBandSelected) return;
         auto mousePos = e.position;
         auto bounds = getCurveArea().toFloat();
-        float freqHz = xToFreq(mousePos.getX(), bounds.getX(), bounds.getWidth());
-        float gainDb = yToGain(mousePos.getY(), bounds.getY(), bounds.getBottom());
+        float freqHz = juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, mapToLog(mousePos.getX(), bounds.getX(), bounds.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
+        float gainDb = juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, remap(mousePos.getY(), bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
         auto setParam = [&](const juce::String& paramID, float plainValue) {
             juce::String index = config::getID(paramID, draggingBand);
             if (auto* p = audioProcessor.apvts.getParameter(index)) {
@@ -167,8 +166,7 @@ public:
     std::function<int()> getFilterModeCallback;
     std::function<int()> getChannelModeCallback;
 private:
-    class AnalyzerThread: public juce::Thread
-    {
+    class AnalyzerThread: public juce::Thread {
     public:
         AnalyzerThread(PathProducer& producer, VisualizerComponent& comp): juce::Thread("FFT Analyzer Thread"), producer(producer), responseCurveComponent(comp) {
             startThread();
@@ -196,8 +194,8 @@ private:
         const float thresholdSq = toleranceRadius * toleranceRadius;
         for (int i = 0; i < config::BAND_COUNT; ++i) {
             if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) continue;
-            float x = freqToX(getBandParamValue(config::ID_BAND_FREQ, i), area.getX(), area.getWidth());
-            float y = gainToY(getBandParamValue(config::ID_BAND_GAIN, i), area.getY(), area.getBottom());
+            float x = mapFromLog(getBandParamValue(config::ID_BAND_FREQ, i), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, area.getX(), area.getWidth());
+            float y = remap(getBandParamValue(config::ID_BAND_GAIN, i), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, area.getBottom(), area.getY());
             if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq) return i;
         }
         return NoBandSelected;
@@ -239,7 +237,7 @@ private:
         auto formatFreq = [](float f) { return (f < 1000.0f) ? juce::String((int)f) : juce::String((int)(f / 1000.0f)) + "k"; };
         auto formatDb = [](float db) { return (db > 0 ? "+" : "") + juce::String((int)db); };
         for (auto f : config::frequencies) {
-            int x = freqToX(f, curveArea.getX(), curveArea.getWidth());
+            int x = mapFromLog(f, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, curveArea.getX(), curveArea.getWidth());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
             g.setColour(config::text);
@@ -248,7 +246,7 @@ private:
             drawLabel(g, formatFreq(f), x, (int)curveArea.getY() - textSize);
         }
         for (auto db : config::editorDBs) {
-            int y = gainToY(db, curveArea.getY(), curveArea.getBottom());
+            int y = remap(db, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, curveArea.getBottom(), curveArea.getY());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
             g.setColour(config::text);
@@ -256,11 +254,11 @@ private:
         }
         g.setColour(config::text);
         for (auto db : config::fftDBs) {
-            int y = juce::jmap(db, config::FFT_MIN_DB, config::FFT_MAX_DB, curveArea.getBottom(), curveArea.getY());
+            int y = remap(db, config::FFT_MIN_DB, config::FFT_MAX_DB, curveArea.getBottom(), curveArea.getY());
             drawLabel(g, formatDb(db), (int)curveArea.getX() - textSize, y);
         }
         for (auto db : config::meterDBs) {
-            int y = juce::jmap(db, config::METER_MAX, config::METER_MIN, meterArea.getY(), meterArea.getBottom());
+            int y = remap(db, config::METER_MAX, config::METER_MIN, meterArea.getY(), meterArea.getBottom());
             g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
             g.drawHorizontalLine(y, meterArea.getX(), meterArea.getRight());
             g.setColour(config::text);
@@ -290,8 +288,7 @@ private:
         responseCurvePath[0].clear();
         responseCurvePath[1].clear();
         for (int i = 0; i < curveSize; ++i) {
-            float normalizedX = (float)i / (float)(curveSize - 1);
-            float freqHz = juce::mapToLog10(normalizedX, (float)config::PARAM_FREQ_MIN, (float)config::PARAM_FREQ_MAX);
+            float freqHz = mapToLog(i, 0, curveSize, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
             float magSqMid = 1.0f;
             float magSqSide = 1.0f;
             for (const auto& s : snapshots) {
@@ -304,8 +301,9 @@ private:
                 }
             }
             auto getMagY = [&](float value) {
-                return gainToY(zlth::unit::magSqToDB(value), bounds.getY(), bounds.getBottom());
+                return remap(zlth::unit::magSqToDB(value), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, bounds.getBottom(), bounds.getY());
             };
+            float normalizedX = (float)i / (float)(curveSize - 1);
             float x = bounds.getX() + bounds.getWidth() * normalizedX;
             if (i == 0) {
                 responseCurvePath[0].startNewSubPath(x, getMagY(magSqMid));
@@ -329,8 +327,8 @@ private:
         targetPoints.reserve(sourcePath.size());
         auto resampled = resampler.resample(sourcePath.data(), audioProcessor.getSampleRate());
         for (int i = 1; i < resampled.size(); ++i) {
-            float x = freqToX(resampled[i].first, spectrumAreaX, spectrumAreaW);
-            float y = juce::jmap(resampled[i].second, config::FFT_MIN_DB, config::FFT_MAX_DB, spectrumAreaB, spectrumAreaY);
+            float x = mapFromLog(resampled[i].first, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, spectrumAreaX, spectrumAreaW);
+            float y = remap(resampled[i].second, config::FFT_MIN_DB, config::FFT_MAX_DB, spectrumAreaB, spectrumAreaY);
             targetPoints.emplace_back(x, y);
         }
         targetPath.startNewSubPath(targetPoints[0]);
@@ -357,17 +355,17 @@ private:
         return audioProcessor.apvts.getRawParameterValue(config::getID(prefix, bandIdx))->load();
     }
 
-    float freqToX(float value, float x, float w) const {
-        return x + w * juce::mapFromLog10(value, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+    static float norm(float v, float min, float max) {
+        return (v - min) / (max - min);
     }
-    float xToFreq(float value, float x, float w) const {
-        return juce::jlimit(config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, juce::mapToLog10(juce::jlimit(0.0f, 1.0f, (value - x) / w), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX));
+    static float remap(float v, float sMin, float sMax, float tMin, float tMax) {
+        return tMin + (tMax - tMin) * norm(v, sMin, sMax);
     }
-    float gainToY(float value, float y, float b) const {
-        return juce::jmap(value, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, b, y);
+    static float mapFromLog(float v, float sMin, float sMax, float tMin, float tWidth) {
+        return tMin + tWidth * norm(std::log(v), std::log(sMin), std::log(sMax));
     }
-    float yToGain(float value, float y, float b) const {
-        return juce::jlimit(config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, juce::jmap(value, b, y, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX));
+    static float mapToLog(float v, float sMin, float sWidth, float tMin, float tMax) {
+        return std::exp(remap(v, sMin, sMin + sWidth, std::log(tMin), std::log(tMax)));
     }
 
     static constexpr int textSize = 10;
