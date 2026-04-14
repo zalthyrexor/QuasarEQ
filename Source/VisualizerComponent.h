@@ -367,7 +367,7 @@ private:
       return remap(v, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, curveArea.getBottom(), curveArea.getY());
    }
    static constexpr int textSize = 10;
-   static constexpr int THREAD_SLEEP_TIME = 20;
+   static constexpr int THREAD_SLEEP_TIME = 25;
    static constexpr int marginSize = textSize * 2;
 
    int draggingBand = NoBandSelected;

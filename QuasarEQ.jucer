@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="LqgQR1" name="qsr EQ 6" projectType="audioplug" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" version="6.0.0"
+              companyName="Zalthyrexor" companyCopyright="Copyright (c) 2026 Zalthyrexor"
+              pluginFormats="buildVST3" pluginCode="K1wg" pluginManufacturerCode="Zlth"
+              pluginVST3Category="EQ" cppLanguageStandard="20">
+  <MAINGROUP id="utedqW" name="qsr EQ 6">
+    <GROUP id="{0EDF45D0-BD2D-4D51-8384-7B4FC15CAE2F}" name="Resources">
+      <FILE id="cJv9Nd" name="bp.svg" compile="0" resource="1" file="Resources/bp.svg"/>
+      <FILE id="Tis66v" name="hp.svg" compile="0" resource="1" file="Resources/hp.svg"/>
+      <FILE id="shCvnr" name="hs.svg" compile="0" resource="1" file="Resources/hs.svg"/>
+      <FILE id="JF1xsR" name="lp.svg" compile="0" resource="1" file="Resources/lp.svg"/>
+      <FILE id="cMiOMZ" name="ls.svg" compile="0" resource="1" file="Resources/ls.svg"/>
+      <FILE id="bMRqwn" name="notch.svg" compile="0" resource="1" file="Resources/notch.svg"/>
+      <FILE id="Lp6i9Z" name="peak.svg" compile="0" resource="1" file="Resources/peak.svg"/>
+      <FILE id="hSkXzu" name="tilt.svg" compile="0" resource="1" file="Resources/tilt.svg"/>
+    </GROUP>
+    <FILE id="mSIDA4" name="config.h" compile="0" resource="0" file="Source/config.h"/>
+    <FILE id="mmbi0V" name="cpp.hint" compile="0" resource="1" file="Source/cpp.hint"/>
+    <FILE id="tuv5Mm" name="EQProcessor.h" compile="0" resource="0" file="Source/EQProcessor.h"/>
+    <FILE id="bez3IH" name="juce_LookAndFeel.h" compile="0" resource="0"
+          file="Source/juce_LookAndFeel.h"/>
+    <FILE id="Zg9p95" name="juce_PluginEditor.cpp" compile="1" resource="0"
+          file="Source/juce_PluginEditor.cpp"/>
+    <FILE id="zeQbzd" name="juce_PluginEditor.h" compile="0" resource="0"
+          file="Source/juce_PluginEditor.h"/>
+    <FILE id="x8AgTO" name="juce_PluginProcessor.cpp" compile="1" resource="0"
+          file="Source/juce_PluginProcessor.cpp"/>
+    <FILE id="m1OdBU" name="juce_PluginProcessor.h" compile="0" resource="0"
+          file="Source/juce_PluginProcessor.h"/>
+    <FILE id="aJLXRo" name="PathProducer.h" compile="0" resource="0" file="Source/PathProducer.h"/>
+    <FILE id="FBhctM" name="unit.h" compile="0" resource="0" file="Source/unit.h"/>
+    <FILE id="PTzuqy" name="VisualizerComponent.h" compile="0" resource="0"
+          file="Source/VisualizerComponent.h"/>
+    <FILE id="UfOJVe" name="zlth_dsp_fft_resampler510.h" compile="0" resource="0"
+          file="Source/zlth_dsp_fft_resampler510.h"/>
+    <FILE id="N8gLG7" name="zlth_dsp_filter.h" compile="0" resource="0"
+          file="Source/zlth_dsp_filter.h"/>
+    <FILE id="CBcLCp" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
+    <FILE id="k0U6oj" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
+  <EXPORTFORMATS>
+    <VS2022 targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar_EQ_6"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar_EQ_6"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../../juce-8.0.12-windows/JUCE/modules"/>
+      </MODULEPATHS>
+    </VS2022>
+  </EXPORTFORMATS>
+</JUCERPROJECT>

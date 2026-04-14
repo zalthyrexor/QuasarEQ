@@ -47,10 +47,10 @@ namespace config {
    inline const juce::String ID_OUT_GAIN_1 {"OUT_GAIN_SIDE"};
    inline const juce::String ID_BAND_FREQ {"FREQ"};
    inline const juce::String ID_BAND_GAIN {"GAIN"};
-   inline const juce::String ID_BAND_QUAL {"QUAL"};
-   inline const juce::String ID_BAND_FILTER {"TYPE"};
+   inline const juce::String ID_BAND_QUAL {"Q"};
    inline const juce::String ID_BAND_BYPASS {"BYPASS"};
-   inline const juce::String ID_BAND_CHANNEL {"MODE"};
+   inline const juce::String ID_BAND_FILTER {"FILTER_MODE"};
+   inline const juce::String ID_BAND_CHANNEL {"CHANNEL_MODE"};
    inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
    inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
    inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
