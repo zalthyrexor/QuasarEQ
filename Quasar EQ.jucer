@@ -13,8 +13,6 @@
             file="Source/zlth_dsp_filter.h"/>
       <FILE id="ZAWpcs" name="zlth_dsp_fft_resampler510.h" compile="0" resource="0"
             file="Source/zlth_dsp_fft_resampler510.h"/>
-      <FILE id="o96eJW" name="zlth_dsp_fft_radix4.h" compile="0" resource="0"
-            file="Source/zlth_dsp_fft_radix4.h"/>
       <FILE id="KLtBHD" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
       <FILE id="uKejzG" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
       <FILE id="BykYah" name="config.h" compile="0" resource="0" file="Source/config.h"/>
