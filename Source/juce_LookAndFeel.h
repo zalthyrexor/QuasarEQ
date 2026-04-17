@@ -7,7 +7,12 @@ class CustomLNF: public juce::LookAndFeel_V4 {
 public:
   CustomLNF() {
     setColour(juce::Label::textColourId, config::text);
-    setColour(juce::Label::backgroundWhenEditingColourId, juce::Colours::black);
+    setColour(juce::Label::backgroundWhenEditingColourId, config::pluginBackground);
+
+    setColour(juce::PopupMenu::backgroundColourId, config::textBackground);
+    setColour(juce::PopupMenu::textColourId, config::text);
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, config::theme);
+    setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
   }
   void drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider) override {
     auto center = juce::Rectangle<float>(x, y, w, h).getCentre();

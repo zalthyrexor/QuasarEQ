@@ -90,9 +90,9 @@ public:
   }
   void resized() override {
     auto bounds = getLocalBounds();
-    bypassButton.setBounds(bounds.removeFromTop(30).reduced(margin));
+    bypassButton.setBounds(bounds.removeFromTop(28).reduced(margin));
     for (int i = 0; i < comboBoxCount; ++i) {
-      comboBoxes[i].setBounds(bounds.removeFromTop(30).reduced(margin));
+      comboBoxes[i].setBounds(bounds.removeFromTop(28).reduced(margin));
     }
     int controlHeight = bounds.getHeight() / sliderCount;
     for (int i = 0; i < sliderCount; ++i) {
@@ -100,7 +100,7 @@ public:
     }
   }
 private:
-  static constexpr int margin = 4;
+  static constexpr int margin = 2;
   CustomButton bypassButton {config::ID_BAND_BYPASS};
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
   static constexpr int comboBoxCount {2};
@@ -128,12 +128,12 @@ public:
   void resized() override;
 
 private:
-  static constexpr int margin = 4;
-  static constexpr int sectionAHeight = 32;
-  static constexpr int sectionBHeight = 32;
+  static constexpr int margin = 2;
+  static constexpr int sectionAHeight = 28;
+  static constexpr int sectionBHeight = 28;
   static constexpr int sectionCHeight = 300;
-  static constexpr int sectionDHeight = 350;
-  static constexpr int windowWidth = 690;
+  static constexpr int sectionDHeight = 340;
+  static constexpr int windowWidth = 684;
   static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
 
   static constexpr int channelBtnW = 90;

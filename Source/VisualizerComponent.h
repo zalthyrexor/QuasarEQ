@@ -212,7 +212,7 @@ private:
     }
   }
   void drawLabel(juce::Graphics& g, const juce::String& text, int x, int y) const {
-    g.drawText(text, juce::Rectangle<int>(marginSize, marginSize).withCentre({x, y}), juce::Justification::centred, false);
+    g.drawText(text, juce::Rectangle<int>(labelMargin, labelMargin).withCentre({x, y}), juce::Justification::centred, false);
   }
   void resized() override {
     const auto meterArea = getLevelMeterArea().toFloat();
@@ -259,13 +259,13 @@ private:
   }
 
   juce::Rectangle<int> getLevelMeterArea() {
-    auto a = getLocalBounds().removeFromRight(98);
-    return a.reduced(marginSize).reduced(4);
+    auto a = getLocalBounds().removeFromRight(96);
+    return a.reduced(labelMargin).reduced(margin);
   }
   juce::Rectangle<int> getCurveArea() {
     auto a = getLocalBounds();
-    a.removeFromRight(98);
-    return a.reduced(marginSize).reduced(4);
+    a.removeFromRight(96);
+    return a.reduced(labelMargin).reduced(margin);
   }
 
   void calculateResponseCurve() {
@@ -368,7 +368,8 @@ private:
   }
   static constexpr int textSize = 10;
   static constexpr int THREAD_SLEEP_TIME = 25;
-  static constexpr int marginSize = textSize * 2;
+  static constexpr int labelMargin = textSize * 2;
+  static constexpr int margin = 2;
 
   int draggingBand = NoBandSelected;
   bool parametersNeedUpdate = true;

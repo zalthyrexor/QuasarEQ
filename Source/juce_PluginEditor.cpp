@@ -82,7 +82,7 @@ void QuasarEQAudioProcessorEditor::resized() {
   juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
   juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight);
   juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
-  juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(98);
+  juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(96);
 
   for (auto& btn : channelModeButtons) {
     btn->setBounds(sectionA.removeFromLeft(channelBtnW).reduced(1));
@@ -94,18 +94,17 @@ void QuasarEQAudioProcessorEditor::resized() {
 
   visualizerComponent.setBounds(sectionC);
 
-
   const int masterGainWidth = sectionD2.getWidth() / masterGainSliders.size();
   for (int i = 0; i < masterGainSliders.size(); ++i) {
     auto area = sectionD2.removeFromLeft(masterGainWidth);
-    masterGainSliderLabels[i]->setBounds(area.removeFromTop(20).reduced(margin));
+    masterGainSliderLabels[i]->setBounds(area.removeFromTop(18).reduced(margin));
     masterGainSliders[i]->setBounds(area.reduced(margin));
   }
 
   const int bandWidth = sectionD.getWidth() / config::BAND_COUNT;
   for (int i = 0; i < config::BAND_COUNT; ++i) {
     auto area = sectionD.removeFromLeft(bandWidth);
-    bandControlLabels[i]->setBounds(area.removeFromTop(20).reduced(margin));
+    bandControlLabels[i]->setBounds(area.removeFromTop(18).reduced(margin));
     bandControls[i]->setBounds(area);
   }
 }
