@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="LqgQR1" name="qsr EQ 7" projectType="audioplug" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" version="7.0.0"
+<JUCERPROJECT id="LqgQR1" name="qsr EQ 6" projectType="audioplug" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" version="6.0.1"
               companyName="Zalthyrexor" companyCopyright="Copyright (c) 2026 Zalthyrexor"
-              pluginCode="Kxps" pluginManufacturerCode="Zlth" pluginVST3Category="EQ"
-              cppLanguageStandard="20" pluginFormats="buildStandalone">
-  <MAINGROUP id="utedqW" name="qsr EQ 7">
+              pluginCode="K1wg" pluginManufacturerCode="Zlth" pluginVST3Category="EQ"
+              cppLanguageStandard="20" pluginFormats="buildVST3">
+  <MAINGROUP id="utedqW" name="qsr EQ 6">
     <GROUP id="{0EDF45D0-BD2D-4D51-8384-7B4FC15CAE2F}" name="Resources">
       <FILE id="cJv9Nd" name="bp.svg" compile="0" resource="1" file="Resources/bp.svg"/>
       <FILE id="Tis66v" name="hp.svg" compile="0" resource="1" file="Resources/hp.svg"/>
@@ -63,8 +63,8 @@
   <EXPORTFORMATS>
     <VS2022 targetFolder="Builds/VisualStudio2022">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar_EQ_7"/>
-        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar_EQ_7"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Quasar_EQ_6"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Quasar_EQ_6"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../../../juce-8.0.12-windows/JUCE/modules"/>
