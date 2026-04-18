@@ -6,14 +6,7 @@
 #include <numbers>
 #include <span>
 #include "unit.h"
-
-#if defined(_MSC_VER)
-#define ZLTH_FORCEINLINE [[msvc::forceinline]]
-#elif defined(__GNUC__) || defined(__clang__)
-#define ZLTH_FORCEINLINE __attribute__((always_inline)) inline
-#else
-#define ZLTH_FORCEINLINE inline
-#endif
+#include "forceinline.h"
 
 namespace zlth::dsp {
   class Filter {
@@ -83,11 +76,11 @@ namespace zlth::dsp {
       g = preG;
       a1 = 1.0f / (1.0f + preG * (preG + preK));
     }
-    ZLTH_FORCEINLINE void reset() noexcept {
+    FI void reset() noexcept {
       ic1eq = 0.0f;
       ic2eq = 0.0f;
     }
-    ZLTH_FORCEINLINE void process_span(std::span<float> data) noexcept {
+    FI void process_span(std::span<float> data) noexcept {
       for (auto& v0 : data) {
         float v1 = a1 * (ic1eq + g * (v0 - ic2eq));
         float v2 = ic2eq + g * v1;
@@ -96,12 +89,12 @@ namespace zlth::dsp {
         v0 = m0 * v0 + m1 * v1 + m2 * v2;
       }
     }
-    ZLTH_FORCEINLINE std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept {
+    FI std::complex<float> get_response(const float freqHz, const float sampleRate) const noexcept {
       std::complex<float> s {0.0f, calculate_g(freqHz, sampleRate) / g};
       return m0 + (m1 * s + m2) / (1.0f + s * (s + k));
     }
   private:
-    ZLTH_FORCEINLINE static float calculate_g(float freqHz, float sampleRate) noexcept {
+    FI static float calculate_g(float freqHz, float sampleRate) noexcept {
       return std::tan(pi * std::clamp(freqHz, sampleRate * freqMin, sampleRate * freqMax) / sampleRate);
     }
     float ic1eq {0.0f};
