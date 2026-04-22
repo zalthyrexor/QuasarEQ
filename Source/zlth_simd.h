@@ -6,6 +6,7 @@
 #include <immintrin.h>
 #include <initializer_list>
 #include <span>
+#include "unit.h"
 
 namespace zlth::simd {
   using T = float;
@@ -14,7 +15,7 @@ namespace zlth::simd {
   using ConstSpan = std::span<const T>;
   static constexpr int step = sizeof(Reg) / sizeof(T);
   template<typename Op>
-  FI static void apply(Span io, T value, Op simd_op, auto scalar_op) {
+  FORCEINLINE static void apply(Span io, T value, Op simd_op, auto scalar_op) {
     Reg v_val = _mm256_set1_ps(value);
     size_t n = io.size();
     size_t i = 0;
@@ -26,7 +27,7 @@ namespace zlth::simd {
     }
   }
   template<typename Op>
-  FI static void apply(Span io, ConstSpan in, Op simd_op, auto scalar_op) {
+  FORCEINLINE static void apply(Span io, ConstSpan in, Op simd_op, auto scalar_op) {
     size_t n = std::min(io.size(), in.size());
     size_t i = 0;
     for (; i + step <= n; i += step) {
@@ -36,19 +37,19 @@ namespace zlth::simd {
       scalar_op(io[i], in[i]);
     }
   }
-  FI static void add_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_add_ps(a, b); }, [](T& a, T b) { a += b; }); }
-  FI static void sub_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_sub_ps(a, b); }, [](T& a, T b) { a -= b; }); }
-  FI static void mul_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_mul_ps(a, b); }, [](T& a, T b) { a *= b; }); }
-  FI static void div_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_div_ps(a, b); }, [](T& a, T b) { a /= b; }); }
-  FI static void min_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_min_ps(a, b); }, [](T& a, T b) { a = std::min(a, b); }); }
-  FI static void max_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_max_ps(a, b); }, [](T& a, T b) { a = std::max(a, b); }); }
-  FI static void add_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_add_ps(a, b); }, [](T& a, T b) { a += b; }); }
-  FI static void sub_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_sub_ps(a, b); }, [](T& a, T b) { a -= b; }); }
-  FI static void mul_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_mul_ps(a, b); }, [](T& a, T b) { a *= b; }); }
-  FI static void div_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_div_ps(a, b); }, [](T& a, T b) { a /= b; }); }
-  FI static void min_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_min_ps(a, b); }, [](T& a, T b) { a = std::min(a, b); }); }
-  FI static void max_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_max_ps(a, b); }, [](T& a, T b) { a = std::max(a, b); }); }
-  FI static void magnitude_sqr(std::span<T> out, std::span<const T> in0, std::span<const T> in1) {
+  FORCEINLINE static void add_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_add_ps(a, b); }, [](T& a, T b) { a += b; }); }
+  FORCEINLINE static void sub_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_sub_ps(a, b); }, [](T& a, T b) { a -= b; }); }
+  FORCEINLINE static void mul_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_mul_ps(a, b); }, [](T& a, T b) { a *= b; }); }
+  FORCEINLINE static void div_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_div_ps(a, b); }, [](T& a, T b) { a /= b; }); }
+  FORCEINLINE static void min_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_min_ps(a, b); }, [](T& a, T b) { a = std::min(a, b); }); }
+  FORCEINLINE static void max_inplace(Span io, T v) { apply(io, v, [](Reg a, Reg b) { return _mm256_max_ps(a, b); }, [](T& a, T b) { a = std::max(a, b); }); }
+  FORCEINLINE static void add_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_add_ps(a, b); }, [](T& a, T b) { a += b; }); }
+  FORCEINLINE static void sub_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_sub_ps(a, b); }, [](T& a, T b) { a -= b; }); }
+  FORCEINLINE static void mul_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_mul_ps(a, b); }, [](T& a, T b) { a *= b; }); }
+  FORCEINLINE static void div_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_div_ps(a, b); }, [](T& a, T b) { a /= b; }); }
+  FORCEINLINE static void min_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_min_ps(a, b); }, [](T& a, T b) { a = std::min(a, b); }); }
+  FORCEINLINE static void max_inplace(Span io, ConstSpan in) { apply(io, in, [](Reg a, Reg b) { return _mm256_max_ps(a, b); }, [](T& a, T b) { a = std::max(a, b); }); }
+  FORCEINLINE static void magnitude_sqr(std::span<T> out, std::span<const T> in0, std::span<const T> in1) {
     size_t n = std::min({out.size(), in0.size(), in1.size()});
     size_t i = 0;
     for (; i + step <= n; i += step) {
@@ -60,7 +61,7 @@ namespace zlth::simd {
       out[i] = in0[i] * in0[i] + in1[i] * in1[i];
     }
   }
-  FI static void lerp_inplace(std::span<T> io, std::span<const T> in, T value) {
+  FORCEINLINE static void lerp_inplace(std::span<T> io, std::span<const T> in, T value) {
     Reg v_val = _mm256_set1_ps(value);
     size_t n = std::min(io.size(), in.size());
     size_t i = 0;
@@ -72,7 +73,7 @@ namespace zlth::simd {
       io[i] += value * (in[i] - io[i]);
     }
   }
-  FI static void hadamard_butterfly(std::span<T> io0, std::span<T> io1) {
+  FORCEINLINE static void hadamard_butterfly(std::span<T> io0, std::span<T> io1) {
     size_t n = std::min(io0.size(), io1.size());
     size_t i = 0;
     for (; i + step <= n; i += step) {
@@ -88,13 +89,13 @@ namespace zlth::simd {
       io1[i] = s0 - s1;
     }
   }
-  FI static T get_max(Reg v) {
+  FORCEINLINE static T get_max(Reg v) {
     __m128 x128 = _mm_max_ps(_mm256_extractf128_ps(v, 1), _mm256_castps256_ps128(v));
     __m128 x64 = _mm_max_ps(x128, _mm_movehl_ps(x128, x128));
     __m128 x32 = _mm_max_ps(x64, _mm_shuffle_ps(x64, x64, _MM_SHUFFLE(1, 1, 1, 1)));
     return _mm_cvtss_f32(x32);
   }
-  FI static T get_abs_max(std::span<const T> in) {
+  FORCEINLINE static T get_abs_max(std::span<const T> in) {
     Reg absMask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
     Reg maxVals = _mm256_setzero_ps();
     size_t n = in.size();
@@ -110,7 +111,7 @@ namespace zlth::simd {
     }
     return finalMax;
   }
-  FI static void mag_to_db(std::span<T> out, std::span<const T> in) {
+  FORCEINLINE static void mag_to_db(std::span<T> out, std::span<const T> in) {
     size_t n = std::min(out.size(), in.size());
     for (size_t i = 0; i < n; ++i) {
       out[i] = zlth::unit::magToDB(in[i]);

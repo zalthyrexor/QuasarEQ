@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="LqgQR1" name="qsr EQ 6" projectType="audioplug" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" version="6.0.1"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" version="6.0.2"
               companyName="Zalthyrexor" companyCopyright="Copyright (c) 2026 Zalthyrexor"
               pluginCode="K1wg" pluginManufacturerCode="Zlth" pluginVST3Category="EQ"
               cppLanguageStandard="20" pluginFormats="buildVST3">
@@ -18,12 +18,9 @@
     </GROUP>
     <FILE id="mSIDA4" name="config.h" compile="0" resource="0" file="Source/config.h"/>
     <FILE id="mmbi0V" name="cpp.hint" compile="0" resource="1" file="Source/cpp.hint"/>
-    <FILE id="tuv5Mm" name="EQProcessor.h" compile="0" resource="0" file="Source/EQProcessor.h"/>
     <FILE id="ZqFuNu" name="forceinline.h" compile="0" resource="0" file="Source/forceinline.h"/>
     <FILE id="bez3IH" name="juce_LookAndFeel.h" compile="0" resource="0"
           file="Source/juce_LookAndFeel.h"/>
-    <FILE id="Zg9p95" name="juce_PluginEditor.cpp" compile="1" resource="0"
-          file="Source/juce_PluginEditor.cpp"/>
     <FILE id="zeQbzd" name="juce_PluginEditor.h" compile="0" resource="0"
           file="Source/juce_PluginEditor.h"/>
     <FILE id="x8AgTO" name="juce_PluginProcessor.cpp" compile="1" resource="0"
@@ -38,6 +35,7 @@
           file="Source/zlth_dsp_fft_resampler510.h"/>
     <FILE id="N8gLG7" name="zlth_dsp_filter.h" compile="0" resource="0"
           file="Source/zlth_dsp_filter.h"/>
+    <FILE id="YmQPWR" name="zlth_dsp_gain.h" compile="0" resource="0" file="Source/zlth_dsp_gain.h"/>
     <FILE id="CBcLCp" name="zlth_fifo.h" compile="0" resource="0" file="Source/zlth_fifo.h"/>
     <FILE id="k0U6oj" name="zlth_simd.h" compile="0" resource="0" file="Source/zlth_simd.h"/>
   </MAINGROUP>

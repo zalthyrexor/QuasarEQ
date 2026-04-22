@@ -3,8 +3,8 @@
 #include <JuceHeader.h>
 #include "zlth_fifo.h"
 #include "zlth_dsp_filter.h"
+#include "zlth_dsp_gain.h"
 #include "config.h"
-#include "EQProcessor.h"
 
 struct FilterSnapshot {
   zlth::dsp::Filter filter {};
@@ -32,18 +32,17 @@ public:
   double getTailLengthSeconds() const override;
   const juce::String getName() const override;
   const juce::String getProgramName(int index);
-  void coefsSetter(zlth::dsp::Filter& filter, int i, float sampleRate);
   juce::AudioProcessorEditor* createEditor() override;
   juce::AudioProcessorValueTreeState apvts;
   juce::UndoManager undoManager;
   std::array<SampleFifo, 2> channelFifo {};
-  std::vector<FilterSnapshot> getFilterSnapshots();
-private:
-  juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
   void updateBands(uint32_t flags);
   static constexpr uint32_t PARAMS_MASK_BAND = (1u << config::BAND_COUNT) - 1;
-  static constexpr uint32_t PARAMS_MASK_OUT = (1u << config::BAND_COUNT + 1) - 1;
-  static constexpr uint32_t PARAMS_MASK_ALL = PARAMS_MASK_BAND | PARAMS_MASK_OUT;
-  std::atomic<uint32_t> updateFlags {PARAMS_MASK_ALL};
-  std::array<ProcessChain<config::BAND_COUNT>, 2> processors {};
+private:
+  juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
+  void update_global();
+  std::atomic<uint32_t> updateFlags {PARAMS_MASK_BAND};
+  std::atomic<bool> updateGlobalFlag {};
+  std::array<std::array<zlth::dsp::Filter, config::BAND_COUNT>, 2> filters {};
+  std::array<zlth::dsp::Gain, 2> gains {};
 };

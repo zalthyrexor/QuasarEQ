@@ -40,8 +40,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
   layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, gainRange, config::PARAM_GAIN_DEF, gainAttrs));
   for (int i = 0; i < config::BAND_COUNT; ++i) {
     const auto id = [i](auto prefix) { return config::toID(prefix, i); };
+    float proportion = static_cast<float>(i + 1) / static_cast<float>(config::BAND_COUNT + 1);
+    float initialFreq = config::PARAM_FREQ_MIN * std::pow(config::PARAM_FREQ_MAX / config::PARAM_FREQ_MIN, proportion);
     layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_GAIN), id(config::ID_BAND_GAIN), gainRange, config::PARAM_GAIN_DEF, gainAttrs));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_FREQ), id(config::ID_BAND_FREQ), freqRange, config::PARAM_FREQ_DEF, freqAttrs));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_FREQ), id(config::ID_BAND_FREQ), freqRange, initialFreq, freqAttrs));
     layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_QUAL), id(config::ID_BAND_QUAL), qualRange, config::PARAM_QUAL_DEF, qualAttrs));
     layout.add(std::make_unique<juce::AudioParameterChoice>(id(config::ID_BAND_FILTER), id(config::ID_BAND_FILTER), config::filterModes, config::PARAM_FILTER_DEFAULT));
     layout.add(std::make_unique<juce::AudioParameterChoice>(id(config::ID_BAND_CHANNEL), id(config::ID_BAND_CHANNEL), config::channelModes, config::PARAM_CHANNEL_DEFAULT));
@@ -53,7 +55,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
 void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   channelFifo[0].prepare(samplesPerBlock);
   channelFifo[1].prepare(samplesPerBlock);
-  updateBands(PARAMS_MASK_ALL);
+  updateBands(PARAMS_MASK_BAND);
+  update_global();
 }
 
 void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
@@ -66,12 +69,19 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
   if (auto flags = updateFlags.exchange(0)) {
     updateBands(flags);
   }
+  if(updateGlobalFlag.exchange(false)){
+    update_global();
+  }
   const auto numSamples = static_cast<size_t>(buffer.getNumSamples());
   std::span<float> span0 {buffer.getWritePointer(0), numSamples};
   std::span<float> span1 {buffer.getWritePointer(1), numSamples};
   zlth::simd::hadamard_butterfly(span0, span1);
-  processors[0].process(span0);
-  processors[1].process(span1);
+  for (int i = 0; i < config::BAND_COUNT; ++i) {
+    filters[0][i].process(span0);
+    filters[1][i].process(span1);
+  }
+  gains[0].process(span0);
+  gains[1].process(span1);
   channelFifo[0].update(span0);
   channelFifo[1].update(span1);
   zlth::simd::hadamard_butterfly(span0, span1);
@@ -79,63 +89,42 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
 void QuasarEQAudioProcessor::parameterChanged(const juce::String& parameterID, float) {
   if (parameterID == config::ID_OUT_GAIN_0 || parameterID == config::ID_OUT_GAIN_1) {
-    updateFlags.fetch_or(PARAMS_MASK_OUT);
+    updateGlobalFlag.store(true);
   }
   else {
     updateFlags.fetch_or(1u << config::toIndex(parameterID));
   }
 }
 
-void QuasarEQAudioProcessor::coefsSetter(zlth::dsp::Filter& filter, int i, float sampleRate) {
-  auto loadBandParam = [this, i](const juce::String& prefix) {
-    return apvts.getRawParameterValue(config::toID(prefix, i))->load();
-  };
-  auto qual = loadBandParam(config::ID_BAND_QUAL);
-  auto freq = loadBandParam(config::ID_BAND_FREQ);
-  auto gain = loadBandParam(config::ID_BAND_GAIN);
-  auto type = static_cast<zlth::dsp::Filter::FilterType>((int)loadBandParam(config::ID_BAND_FILTER));
-  filter.set_coefficients(type, freq, qual, gain, sampleRate);
-}
-
 void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
-  const auto sampleRate = getSampleRate();
+  const float sr = getSampleRate();
   for (int i = 0; i < config::BAND_COUNT; ++i) {
-    if (flags & 1u << i) {
-      coefsSetter(processors[0].bands[i], i, sampleRate);
-      coefsSetter(processors[1].bands[i], i, sampleRate);
-      auto loadBandParam = [this, i](const juce::String& prefix) {
+    if (flags & (1u << i)) {
+      auto load = [this, i](const juce::String& prefix) {
         return apvts.getRawParameterValue(config::toID(prefix, i))->load();
       };
-      auto mode = (int)loadBandParam(config::ID_BAND_CHANNEL);
-      bool isActive = loadBandParam(config::ID_BAND_BYPASS) < 0.5f;
-      processors[0].isBandActive[i] = isActive && (mode == 0 || mode == 1);
-      processors[1].isBandActive[i] = isActive && (mode == 0 || mode == 2);
+      auto p0 = std::tan(std::numbers::pi_v<float> *std::min(load(config::ID_BAND_FREQ) / sr, 0.4999f));
+      auto p1 = 1.0f / std::max(load(config::ID_BAND_QUAL), 0.0001f);
+      auto p2 = zlth::unit::dbToMagFourthRoot(load(config::ID_BAND_GAIN));
+      filters[0][i].set_coefficients(p0, p1, p2);
+      filters[1][i].set_coefficients(p0, p1, p2);
+      bool isActive = load(config::ID_BAND_BYPASS) < 0.5f;
+      auto mode = static_cast<int>(load(config::ID_BAND_CHANNEL));
+      auto type = static_cast<zlth::dsp::Filter::FilterType>((int)load(config::ID_BAND_FILTER));
+      auto b0 = (isActive && (mode == 0 || mode == 1)) ? type : zlth::dsp::Filter::FilterType::PassThrough;
+      auto b1 = (isActive && (mode == 0 || mode == 2)) ? type : zlth::dsp::Filter::FilterType::PassThrough;
+      filters[0][i].set_filter_type(b0);
+      filters[1][i].set_filter_type(b1);
     }
-  }
-  if (flags & PARAMS_MASK_OUT) {
-    auto loadGlobal = [this](const juce::String& id) {
-      return zlth::unit::dbToMag(apvts.getRawParameterValue(id)->load()) * 0.5f;
-    };
-    processors[0].globalGain = loadGlobal(config::ID_OUT_GAIN_0);
-    processors[1].globalGain = loadGlobal(config::ID_OUT_GAIN_1);
   }
 }
 
-std::vector<FilterSnapshot> QuasarEQAudioProcessor::getFilterSnapshots() {
-  std::vector<FilterSnapshot> snapshots {};
-  snapshots.reserve(config::BAND_COUNT);
-  float sampleRate = static_cast<float>(getSampleRate());
-  for (int i = 0; i < config::BAND_COUNT; ++i) {
-    auto load = [this, i](const juce::String& prefix) {
-      return apvts.getRawParameterValue(config::toID(prefix, i))->load();
-    };
-    if (load(config::ID_BAND_BYPASS) > 0.5f) continue;
-    FilterSnapshot snapshot {};
-    coefsSetter(snapshot.filter, i, sampleRate);
-    snapshot.channelMode = (int)load(config::ID_BAND_CHANNEL);
-    snapshots.push_back(snapshot);
-  }
-  return snapshots;
+void QuasarEQAudioProcessor::update_global() {
+  auto loadGlobal = [this](const juce::String& id) {
+    return zlth::unit::dbToMag(apvts.getRawParameterValue(id)->load()) * 0.5f;
+  };
+  gains[0].set_gain(loadGlobal(config::ID_OUT_GAIN_0));
+  gains[1].set_gain(loadGlobal(config::ID_OUT_GAIN_1));
 }
 
 void QuasarEQAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {

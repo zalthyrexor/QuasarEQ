@@ -268,40 +268,51 @@ private:
     return a.reduced(labelMargin).reduced(margin);
   }
 
+  std::array<std::vector<float>, 2> curvePoints {};
+
   void calculateResponseCurve() {
-    int curveSize = getCurveArea().getWidth();
-    auto sampleRate = static_cast<float>(audioProcessor.getSampleRate());
-    auto bounds = getCurveArea().toFloat();
-    auto snapshots = audioProcessor.getFilterSnapshots();
+    auto sr = static_cast<float>(audioProcessor.getSampleRate());
     responseCurvePath[0].clear();
     responseCurvePath[1].clear();
-    for (int i = 0; i < curveSize; ++i) {
-      float freqHz = mapToLog(i, 0, curveSize, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
-      float magSqMid = 1.0f;
-      float magSqSide = 1.0f;
-      for (const auto& s : snapshots) {
-        float m = std::norm(s.filter.get_response(freqHz, sampleRate));
-        if (s.channelMode == 0 || s.channelMode == 1) {
-          magSqMid *= m;
-        }
-        if (s.channelMode == 0 || s.channelMode == 2) {
-          magSqSide *= m;
-        }
-      }
-      auto getMagY = [&](float value) {
-        return editorGainToCurveArea(zlth::unit::magSqToDB(value));
+    auto size = getCurveArea().getWidth();
+    auto bounds = getCurveArea().toFloat();
+    auto& apvts = audioProcessor.apvts;
+    curvePoints[0].assign(size, 1.0f);
+    curvePoints[1].assign(size, 1.0f);
+    for (int b = 0; b < config::BAND_COUNT; ++b) {
+      auto load = [&](const juce::String& prefix) {
+        return apvts.getRawParameterValue(config::toID(prefix, b))->load();
       };
-      float x = remap(i, 0, curveSize - 1, bounds.getX(), bounds.getRight());
-      if (i == 0) {
-        responseCurvePath[0].startNewSubPath(x, getMagY(magSqMid));
-        responseCurvePath[1].startNewSubPath(x, getMagY(magSqSide));
-      }
-      else {
-        responseCurvePath[0].lineTo(x, getMagY(magSqMid));
-        responseCurvePath[1].lineTo(x, getMagY(magSqSide));
+      auto p0 = std::tan(std::numbers::pi_v<float> *load(config::ID_BAND_FREQ) / sr);
+      auto p1 = 1.0f / std::max(load(config::ID_BAND_QUAL), 0.0001f);
+      auto p2 = zlth::unit::dbToMagFourthRoot(load(config::ID_BAND_GAIN));
+      bool isActive = load(config::ID_BAND_BYPASS) < 0.5f;
+      auto mode = static_cast<int>(load(config::ID_BAND_CHANNEL));
+      auto type = static_cast<zlth::dsp::Filter::FilterType>((int)load(config::ID_BAND_FILTER));
+      auto b0 = (isActive && (mode == 0 || mode == 1)) ? type : zlth::dsp::Filter::FilterType::PassThrough;
+      auto b1 = (isActive && (mode == 0 || mode == 2)) ? type : zlth::dsp::Filter::FilterType::PassThrough;
+      for (int i = 0; i < size; ++i) {
+        float f_ = std::tan(std::numbers::pi_v<float> *std::min(mapToLog(i, 0, size, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX) / sr, 0.4999f));
+        curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b0, p0, p1, p2));
+        curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b1, p0, p1, p2));
       }
     }
+    for (int i = 0; i < size; ++i) {
+      float x = remap(i, 0, size - 1, bounds.getX(), bounds.getRight());
+      auto draw = [&](int j) {
+        auto pos = editorGainToCurveArea(zlth::unit::magSqToDB(curvePoints[j][i]));
+        if (i == 0) {
+          responseCurvePath[j].startNewSubPath(x, pos);
+        }
+        else {
+          responseCurvePath[j].lineTo(x, pos);
+        }
+      };
+      draw(0);
+      draw(1);
+    }
   }
+
   void updateSpectrumPath(const auto& sourcePath, std::vector<juce::Point<float>>& targetPoints, juce::Path& targetPath, bool shouldClosePath) {
     auto spectrumArea = getCurveArea().toFloat();
     auto spectrumAreaX = spectrumArea.getX();
