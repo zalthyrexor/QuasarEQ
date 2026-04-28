@@ -27,6 +27,87 @@ private:
   juce::String displayText;
 };
 
+class LongPressButton: public juce::Button, private juce::Timer {
+public:
+  LongPressButton(const juce::String& text, juce::Colour colour) : juce::Button(text), displayText(text), mainColour(colour) {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  }
+  void mouseDown(const juce::MouseEvent& e) override {
+    juce::Button::mouseDown(e);
+    pressStartTime = juce::Time::getMillisecondCounter();
+    startTimer(20);
+  }
+  void mouseUp(const juce::MouseEvent& e) override {
+    juce::Button::mouseUp(e);
+    stopTimer();
+    progress = 0.0f;
+    repaint();
+  }
+  std::function<void()> onLongPress;
+  void timerCallback() override {
+    float elapsed = (float)juce::Time::getMillisecondCounter() - pressStartTime;
+    float holdTime = 650.0f;
+    progress = juce::jlimit(0.0f, 1.0f,elapsed / holdTime);
+    if (progress >= 1.0f) {
+      stopTimer();
+      progress = 0.0f;
+      if (onLongPress) {
+        onLongPress();
+      }
+    }
+    repaint();
+  }
+  void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override {
+    auto bounds = getLocalBounds().toFloat();
+    g.setColour(juce::Colours::black);
+    g.fillRect(bounds);
+    if (progress > 0.0f) {
+      g.setColour(mainColour.withAlpha(0.5f));
+      g.fillRect(bounds.removeFromBottom(bounds.getHeight() * progress));
+    }
+    if (isButtonDown || getToggleState()) {
+      g.setColour(mainColour);
+      g.drawRect(getLocalBounds().toFloat(), 2.0f);
+    }
+    else {
+      g.setColour(config::buttonDisabled);
+      g.drawRect(getLocalBounds().toFloat(), 1.0f);
+    }
+    g.setFont(13.0f);
+    g.drawText(displayText, getLocalBounds(), juce::Justification::centred);
+  }
+private:
+  juce::String displayText;
+  juce::Colour mainColour;
+  float pressStartTime = 0;
+  float progress = 0.0f;
+};
+
+class SortButton: public juce::Button {
+public:
+  SortButton(const juce::String& buttonText, juce::Colour baseColour): juce::Button(buttonText), displayText(buttonText), mainColour(baseColour) {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  }
+  void paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown) override {
+    auto bounds = getLocalBounds().toFloat();
+    g.setColour(juce::Colours::black);
+    g.fillRect(bounds);
+    if (getToggleState() || isButtonDown) {
+      g.setColour(mainColour);
+      g.drawRect(bounds, 2.0f);
+    }
+    else {
+      g.setColour(config::buttonDisabled);
+      g.drawRect(bounds, 1.0f);
+    }
+    g.setFont(13.0f);
+    g.drawText(displayText, getLocalBounds(), juce::Justification::centred);
+  }
+private:
+  juce::String displayText;
+  juce::Colour mainColour;
+};
+
 class CustomIconButton: public juce::Button {
 public:
   CustomIconButton(const char* svgData, int svgSize): juce::Button("IconButton") {
@@ -155,6 +236,12 @@ public:
     channelModeButtons[selectedChannnel]->setToggleState(true, juce::dontSendNotification);
     visualizerComponent.getChannelModeCallback = [this] { return selectedChannnel; };
     addAndMakeVisible(visualizerComponent);
+
+    initializeButton.onLongPress = [this] {
+      audioProcessor.initializeAllParameters();
+    };
+    addAndMakeVisible(initializeButton);
+
     for (int i = 0; i < config::BAND_COUNT; ++i) {
       bandControls.push_back(std::make_unique<FilterBandControl>(audioProcessor.apvts, i));
       addAndMakeVisible(*bandControls.back());
@@ -191,14 +278,19 @@ public:
 
   void resized() override {
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
+    juce::Rectangle<int> sectionX = mainArea.removeFromTop(sectionXHeight).reduced(margin);
     juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
     juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
     juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight);
     juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
-    juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(96);
+    juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(110);
+
+    initializeButton.setBounds(sectionX.removeFromLeft(channelBtnW).reduced(1));
+
     for (auto& btn : channelModeButtons) {
       btn->setBounds(sectionA.removeFromLeft(channelBtnW).reduced(1));
     }
+
     for (auto& btn : filterModeButtons) {
       btn->setBounds(sectionB.removeFromLeft(filterBtnW).reduced(1));
     }
@@ -219,12 +311,13 @@ public:
 
 private:
   static constexpr int margin = 2;
+  static constexpr int sectionXHeight = 28;
   static constexpr int sectionAHeight = 28;
   static constexpr int sectionBHeight = 28;
   static constexpr int sectionCHeight = 300;
   static constexpr int sectionDHeight = 340;
-  static constexpr int windowWidth = 684;
-  static constexpr int windowHeight = margin * 2 + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
+  static constexpr int windowWidth = 698;
+  static constexpr int windowHeight = margin * 2 + sectionXHeight + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
 
   static constexpr int channelBtnW = 90;
   static constexpr int filterBtnW = 45;
@@ -243,6 +336,8 @@ private:
   std::vector<std::unique_ptr<FilterBandControl>> bandControls;
   std::vector<std::unique_ptr<juce::Label>> bandControlLabels;
   std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
+
+  LongPressButton initializeButton {"RESET",config::initialize};
 
   static auto getMasterGainIDs() -> const std::array<juce::String, 2>& {
     static const std::array<juce::String, 2> ids

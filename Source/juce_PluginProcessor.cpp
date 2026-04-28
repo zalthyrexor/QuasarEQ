@@ -52,6 +52,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
   return layout;
 }
 
+void QuasarEQAudioProcessor::initializeAllParameters() const {
+  auto reset = [&](auto id) {
+    if (auto* p = apvts.getParameter(id)) {
+      p->setValueNotifyingHost(p->getDefaultValue());
+    }
+  };
+  reset(config::ID_OUT_GAIN_0);
+  reset(config::ID_OUT_GAIN_1);
+  for (int i = 0; i < config::BAND_COUNT; ++i) {
+    for (const auto& prefix : config::bandParamPrefixes) {
+      reset(config::toID(prefix, i));
+    }
+  }
+}
+
 void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   channelFifo[0].prepare(samplesPerBlock);
   channelFifo[1].prepare(samplesPerBlock);

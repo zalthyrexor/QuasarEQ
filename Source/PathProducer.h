@@ -8,8 +8,8 @@
 struct SpectrumRenderData {
   std::vector<float> spectrumDb;
   std::vector<float> spectrumPeakDb;
-  std::array<float, 2> meterLevelsDb {-100.0f, -100.0f};
-  std::array<float, 2> meterLevelsPeakDb {-100.0f, -100.0f};
+  std::array<float, 4> meterLevelsDb {-100.0f, -100.0f};
+  std::array<float, 4> meterLevelsPeakDb {-100.0f, -100.0f};
 };
 
 class PathProducer {
@@ -43,14 +43,9 @@ public:
       std::copy(audioBuffer.begin(), audioBuffer.end(), fftReal.begin());
       std::fill(fftReal.begin() + FFT_SIZE, fftReal.end(), 0.0f);
 
-      // 実際に使われるのは FFT_SIZE までだから計算コスト削減（juce::dsp::FFT が FFT_SIZE * 2 を要求する）
       std::span FFTNormalizingSpan {fftReal.data(), FFT_SIZE};
-
-      // fft よりも前にやらないとダメ
       zlth::simd::mul_inplace(FFTNormalizingSpan, FFT_SIZE_HALF_INVERSE);
       windowing.multiplyWithWindowingTable(fftReal.data(), FFT_SIZE);
-
-      // 最後の引数を true にすると後半の不要な部分を計算しないらしい
       fftJuce.performFrequencyOnlyForwardTransform(fftReal.data(), true);
 
       zlth::simd::lerp_inplace(smoothedMagnitudes, fftReal, spectrumSmoothing);
@@ -63,8 +58,17 @@ public:
 
       const float meterFall = 1.0f - std::exp(-deltaTime * 10.0f);
       const float meterFallRate = 6.0f * deltaTime;
+
       for (int i = 0; i < 2; ++i) {
         float temp = zlth::simd::get_abs_max(buffer[i]);
+        smoothedPeakLinear[i] += meterFall * (temp - smoothedPeakLinear[i]);
+        smoothedPeakLinear[i] = juce::jmax(temp, smoothedPeakLinear[i]);
+        meterLevelsPeakDb[i] -= meterFallRate;
+        meterLevelsPeakDb[i] = std::max(meterLevelsPeakDb[i], zlth::unit::magToDB(smoothedPeakLinear[i]));
+      }
+      zlth::simd::hadamard_butterfly(buffer[0], buffer[1]);
+      for (int i = 2; i < 4; ++i) {
+        float temp = zlth::simd::get_abs_max(buffer[i - 2]);
         smoothedPeakLinear[i] += meterFall * (temp - smoothedPeakLinear[i]);
         smoothedPeakLinear[i] = juce::jmax(temp, smoothedPeakLinear[i]);
         meterLevelsPeakDb[i] -= meterFallRate;
@@ -74,7 +78,7 @@ public:
     if (auto* renderData = pathFifo.getWriteBuffer()) {
       std::copy(decibelsCurrent.begin(), decibelsCurrent.end(), renderData->spectrumDb.begin());
       std::copy(decibelsPeak.begin(), decibelsPeak.end(), renderData->spectrumPeakDb.begin());
-      for (int i = 0; i < 2; ++i) {
+      for (int i = 0; i < 4; ++i) {
         renderData->meterLevelsDb[i] = zlth::unit::magToDB(smoothedPeakLinear[i]);
         renderData->meterLevelsPeakDb[i] = meterLevelsPeakDb[i];
       }
@@ -91,7 +95,7 @@ public:
     }
     path.spectrumDb = renderData->spectrumDb;
     path.spectrumPeakDb = renderData->spectrumPeakDb;
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 4; ++i) {
       path.meterLevelsDb[i] = renderData->meterLevelsDb[i];
       path.meterLevelsPeakDb[i] = renderData->meterLevelsPeakDb[i];
     }
@@ -99,48 +103,19 @@ public:
     return true;
   }
 private:
-  // 2026 04 14 現在、外部のクラスが 12 Order 以外を受け付けてないから変更しないで
-  static constexpr int FFT_ORDER {12};
-
-  // 変数初期化の際に便利
+  static constexpr int FFT_ORDER {12}; // 2026 04 14 現在、外部のクラスが 12 Order 以外を受け付けてないから変更しないで
   static constexpr int FFT_SIZE {1 << FFT_ORDER};
-
-  // 実際に描画に用いられる数
   static constexpr int FFT_SIZE_HALF {FFT_SIZE / 2};
-
-  // fft に入るデータを正規化する用（FFT は結果を増幅させる）
   static constexpr float FFT_SIZE_HALF_INVERSE {1.0f / static_cast<float>(FFT_SIZE_HALF)};
-
-  // juce::dsp::FFT が FFT_SIZE * 2 を要求する (FFT_SIZE だと嬉しいんだけどね)
-  std::array<float, FFT_SIZE * 2> fftReal {};
-
-  // リングバッファのようなもの
   std::array<float, FFT_SIZE> audioBuffer {};
-
-  // 最後の true で１に正規化
-  juce::dsp::WindowingFunction<float> windowing {FFT_SIZE, juce::dsp::WindowingFunction<float>::blackmanHarris, true};
-
-  // FFT の結果を線形補完する用のバッファ
+  std::array<float, FFT_SIZE * 2> fftReal {};
+  std::array<float, FFT_SIZE_HALF> decibelsPeak {};
+  std::array<float, FFT_SIZE_HALF> decibelsCurrent {};
   std::array<float, FFT_SIZE_HALF> smoothedMagnitudes {};
-
-  // 受け取る FIFO
+  std::array<float, 4> smoothedPeakLinear {0.0f, 0.0f, 0.0f, 0.0f};
+  std::array<float, 4> meterLevelsPeakDb {-100.0f, -100.0f,-100.0f, -100.0f};
   std::array<SampleFifo, 2>& fifo;
-
-  // 外に渡す FIFO
   Fifo<SpectrumRenderData> pathFifo;
-
-  // FFT ですよ！
+  juce::dsp::WindowingFunction<float> windowing {FFT_SIZE, juce::dsp::WindowingFunction<float>::blackmanHarris, true};
   juce::dsp::FFT fftJuce {FFT_ORDER};
-
-  // ↓ --------- 実際にFIFOを介して外に行くデータたち --------- ↓
-
-  // 上書きされるだけの不憫なバッファ
-  std::array<float, FFT_SIZE_HALF> decibelsCurrent;
-
-  // レベルメーター用に振幅を線形補完させてる
-  std::array<float, 2> smoothedPeakLinear {0.0f, 0.0f};
-
-  // 線形に減衰していく
-  std::array<float, FFT_SIZE_HALF> decibelsPeak;
-  std::array<float, 2> meterLevelsPeakDb {-100.0f, -100.0f};
 };

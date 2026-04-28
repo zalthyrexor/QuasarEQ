@@ -38,22 +38,19 @@ public:
     g.reduceClipRegion(getLevelMeterArea());
 
     auto meterArea = getLevelMeterArea().toFloat();
-    auto meterAreaX = meterArea.getX();
-    auto meterAreaY = meterArea.getY();
-    auto meterAreaW = meterArea.getWidth();
-    auto meterAreaB = meterArea.getBottom();
-    auto meterHeightM = remap(localPath.meterLevelsDb[0], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-    auto meterHeightS = remap(localPath.meterLevelsDb[1], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-    auto peakY_M = remap(localPath.meterLevelsPeakDb[0], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
-    auto peakY_S = remap(localPath.meterLevelsPeakDb[1], config::METER_MIN, config::METER_MAX, meterAreaB, meterAreaY);
     const float peakLineThickness = 1.5f;
-    g.setColour(config::theme.withAlpha(0.55f));
-    g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.0f, meterHeightM, meterAreaX + meterAreaW * 0.5f, meterAreaB));
-    g.fillRect(juce::Rectangle<float>::leftTopRightBottom(meterAreaX + meterAreaW * 0.5f, meterHeightS, meterAreaX + meterAreaW * 1.0f, meterAreaB));
-    g.setColour(config::theme);
-    g.fillRect(meterAreaX + meterAreaW * 0.0f, peakY_M - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
-    g.fillRect(meterAreaX + meterAreaW * 0.5f, peakY_S - peakLineThickness * 0.5f, meterAreaW * 0.5f, peakLineThickness);
+    const int numMeters = 4;
+    const float stepW = meterArea.getWidth() / numMeters;
 
+    for (int i = 0; i < numMeters; ++i) {
+      auto x = meterArea.getX() + (stepW * i);
+      auto h = remap(localPath.meterLevelsDb[i], config::METER_MIN, config::METER_MAX, meterArea.getBottom(), meterArea.getY());
+      auto p = remap(localPath.meterLevelsPeakDb[i], config::METER_MIN, config::METER_MAX, meterArea.getBottom(), meterArea.getY());
+      g.setColour(config::theme.withAlpha(0.55f));
+      g.fillRect(juce::Rectangle<float>::leftTopRightBottom(x, h, x + stepW, meterArea.getBottom()));
+      g.setColour(config::theme);
+      g.fillRect(x, p - peakLineThickness * 0.5f, stepW, peakLineThickness);
+    }
     g.restoreState();
     g.saveState();
     g.reduceClipRegion(getCurveArea());
@@ -224,9 +221,13 @@ private:
     g.fillRect(meterArea);
     auto formatFreq = [](float f) { return (f < 1000.0f) ? juce::String((int)f) : juce::String((int)(f / 1000.0f)) + "k"; };
     auto formatDb = [](float db) { return (db > 0 ? "+" : "") + juce::String((int)db); };
+
+    juce::Colour gridColour {0x70707070};
+    juce::Colour gridColour0db {0x90909090};
+
     for (auto f : config::frequencies) {
       int x = editorFreqToCurveArea(f);
-      g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+      g.setColour(gridColour);
       g.drawVerticalLine(x, curveArea.getY(), curveArea.getBottom());
       g.setColour(config::text);
       g.setFont(textSize);
@@ -235,36 +236,45 @@ private:
     }
     for (auto db : config::editorDBs) {
       int y = editorGainToCurveArea(db);
-      g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+      g.setColour(db == 0.0f ? gridColour0db : gridColour);
       g.drawHorizontalLine(y, curveArea.getX(), curveArea.getRight());
       g.setColour(config::text);
-      drawLabel(g, formatDb(db), (int)curveArea.getRight() + textSize, y);
-    }
-    g.setColour(config::text);
-    for (auto db : config::fftDBs) {
-      int y = remap(db, config::FFT_MIN_DB, config::FFT_MAX_DB, curveArea.getBottom(), curveArea.getY());
       drawLabel(g, formatDb(db), (int)curveArea.getX() - textSize, y);
     }
+
     for (auto db : config::meterDBs) {
       int y = remap(db, config::METER_MAX, config::METER_MIN, meterArea.getY(), meterArea.getBottom());
-      g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
+      g.setColour(db == 0.0f ? gridColour0db : gridColour);
       g.drawHorizontalLine(y, meterArea.getX(), meterArea.getRight());
       g.setColour(config::text);
       drawLabel(g, formatDb(db), (int)meterArea.getX() - textSize, y);
     }
-    g.setColour(juce::Colours::dimgrey.withAlpha(0.5f));
-    for (float ratio : { 0.0f, 0.5f, 1.0f }) {
-      g.drawVerticalLine((int)(meterArea.getX() + meterArea.getWidth() * ratio), meterArea.getY(), meterArea.getBottom());
+
+    g.setColour(config::text);
+    const juce::String labels[] = {"M", "S", "L", "R"};
+    const float meterWidth = meterArea.getWidth() * 0.25f;
+    for (int i = 0; i < 4; ++i) {
+      float centerX = meterArea.getX() + meterWidth * i + meterWidth / 2.0f;
+      g.setFont(textSize);
+      drawLabel(g, labels[i], centerX, meterArea.getBottom() + textSize);
+      drawLabel(g, labels[i], centerX, meterArea.getY() - textSize);
+    }
+
+    g.setColour(gridColour);
+    for (int i = 0; i < 5; ++i) {
+      float ratio = i * 0.25f;
+      int xPos = (int)(meterArea.getX() + meterArea.getWidth() * ratio);
+      g.drawVerticalLine(xPos, meterArea.getY(), meterArea.getBottom());
     }
   }
 
   juce::Rectangle<int> getLevelMeterArea() {
-    auto a = getLocalBounds().removeFromRight(96);
+    auto a = getLocalBounds().removeFromRight(110);
     return a.reduced(labelMargin).reduced(margin);
   }
   juce::Rectangle<int> getCurveArea() {
     auto a = getLocalBounds();
-    a.removeFromRight(96);
+    a.removeFromRight(110);
     return a.reduced(labelMargin).reduced(margin);
   }
 

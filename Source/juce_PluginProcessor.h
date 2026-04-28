@@ -38,6 +38,7 @@ public:
   std::array<SampleFifo, 2> channelFifo {};
   void updateBands(uint32_t flags);
   static constexpr uint32_t PARAMS_MASK_BAND = (1u << config::BAND_COUNT) - 1;
+  void initializeAllParameters() const;
 private:
   juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
   void update_global();

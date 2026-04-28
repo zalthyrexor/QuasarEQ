@@ -34,6 +34,7 @@ namespace config {
   inline constexpr float FFT_MIN_DB {-90.0f};
   inline constexpr float FFT_MAX_DB {30.0f};
 
+  inline const juce::Colour initialize {0xffff0000};
   inline const juce::Colour red {0xffff2020};
   inline const juce::Colour side {0xffff3d67};
   inline const juce::Colour text {0xffffffff};
@@ -57,7 +58,7 @@ namespace config {
   inline const juce::String ID_BAND_CHANNEL {"CHANNEL_MODE"};
   inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
   inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
-  inline const juce::StringArray bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
+  inline const std::array<juce::String, 6> bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
 
   inline const std::array<juce::String, 3> modeNames {"STEREO", "MID", "SIDE"};
   inline const std::array<juce::String, 2> masterGainLabels {"MID", "SIDE"};
