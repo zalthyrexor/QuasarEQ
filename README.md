@@ -1,18 +1,27 @@
-![Screenshot](./screenshots/screenshot20260414202648.png)
+![Screenshot](./screenshots/quasar_eq_v6_0_2.png)
 
-# Quasar EQ
-**Developed by Zalthyrexor**
+# Quasar EQ by Zalthyrexor
+**Zero noise, zero latency.**  
+**One click to create a filter.**
 
-### Features
-- **Filter Types**: HighPass, HighShelf, LowPass, LowShelf, Bell, Tilt, Notch, BandPass
-- **Processing**: Per-band Stereo / Mid / Side selection
-- **Tested on**: Ableton Live, Cubase, Cakewalk
+## Specifications
+8 Band Parametric EQ  
+8 Filter Types (High/Low/Band Pass, High/Low Shelf, Notch, Bell, Tilt)  
+Mid/Side/Stereo selection per band
 
-### Tech Stack
-- **Language**: C++20
-- **Framework**: JUCE 8
-- **IDE**: Visual Studio 2022
+## Format
+VST3 (64-bit)
 
-### Acknowledgements
-- **Andrew Simper (Cytomic)**: For his research on SVF and TPT filter structures.
-- **JUCE Framework**: For providing the foundation for audio plugin development.
+## System Requirements
+Windows 10 / 11 (64-bit)  
+AVX2 Supported CPU
+
+## Links
+Source Code  
+https://github.com/zalthyrexor/QuasarEQ  
+Distribution  
+https://zalthyrexor.itch.io/quasar-eq
+
+## Acknowledgements
+Andrew Simper (Cytomic)  
+JUCE Framework
