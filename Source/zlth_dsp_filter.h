@@ -17,48 +17,44 @@ namespace zlth::dsp {
       HighPass, LowPass, HighShelf, LowShelf, Tilt, Bell, Notch, BandPass, PassThrough
     };
 
-    FORCEINLINE static std::complex<float> get_response(float freq, FilterType filter_, float p0, float p1, float p2) noexcept {
-      if (filter_ == FilterType::PassThrough) {
+    FORCEINLINE static std::complex<float> get_response(float g_eval, FilterType f, float p0, float p1, float p2) noexcept {
+      if (f == FilterType::PassThrough) {
         return {1.0f, 0.0f};
       }
-      float lg {};
-      float lk {};
-      float lm0 {};
-      float lm1 {};
-      float lm2 {};
-      calculate_coefficients(filter_, p0, p1, p2, [&](float g_, float k_, float m0_, float m1_, float m2_) noexcept {
-        lg = g_;
-        lk = k_;
-        lm0 = m0_;
-        lm1 = m1_;
-        lm2 = m2_;
+      float g_ {};
+      float k_ {};
+      float m0_ {};
+      float m1_ {};
+      float m2_ {};
+      calculate_coefficients(f, p0, p1, p2, [&](float g__, float k__, float m0__, float m1__, float m2__) noexcept {
+        g_ = g__;
+        k_ = k__;
+        m0_ = m0__;
+        m1_ = m1__;
+        m2_ = m2__;
       });
-      std::complex<float> s {0.0f, freq / lg};
-      return lm0 + (lm1 * s + lm2) / (1.0f + s * (s + lk));
+      std::complex<float> s {0.0f, g_eval / g_};
+      return m0_ + (m1_ * s + m2_) / (1.0f + s * (s + k_));
     }
 
     FORCEINLINE void process(std::span<float> span) noexcept {
       if (std::exchange(crossfade_state, false)) {
-        if (cf == FilterType::PassThrough) {
-          ic1 = 0.0f;
-          ic2 = 0.0f;
-        }
-        process_span2(span);
+        process_impl_crossfade(span);
       }
       else if (cf != FilterType::PassThrough && std::exchange(lerp_state, false)) {
-        process_span1(span);
+        process_impl_lerp(span);
       }
       else if (cf != FilterType::PassThrough) {
-        process_span0(span);
+        process_impl(span);
       }
     }
 
-    FORCEINLINE void set_filter_type(zlth::dsp::Filter::FilterType t) {
-      if (tf == t) {
+    FORCEINLINE void set_filter_type(zlth::dsp::Filter::FilterType f) {
+      if (tf == f) {
         return;
       }
       crossfade_state = true;
-      tf = t;
+      tf = f;
     }
 
     FORCEINLINE void set_coefficients(float p0, float p1, float p2) noexcept {
@@ -71,8 +67,8 @@ namespace zlth::dsp {
   private:
 
     template <typename Setter>
-    FORCEINLINE static void calculate_coefficients(FilterType filter_, float g_, float k_, float a_, Setter&& set) noexcept {
-      switch (filter_) {
+    FORCEINLINE static void calculate_coefficients(FilterType f, float g_, float k_, float a_, Setter&& set) noexcept {
+      switch (f) {
         case FilterType::LowPass:
         {
           set(g_, k_, 0.0f, 0.0f, 1.0f);
@@ -95,29 +91,29 @@ namespace zlth::dsp {
         }
         case FilterType::Bell:
         {
-          const float a2 = a_ * a_;
-          const float a4 = a2 * a2;
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
           set(g_, k_ / a2, 1.0f, k_ * (a4 - 1.0f) / a2, 0.0f);
           break;
         }
         case FilterType::LowShelf:
         {
-          const float a2 = a_ * a_;
-          const float a4 = a2 * a2;
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
           set(g_ / a_, k_, 1.0f, k_ * (a2 - 1.0f), a4 - 1.0f);
           break;
         }
         case FilterType::HighShelf:
         {
-          const float a2 = a_ * a_;
-          const float a4 = a2 * a2;
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
           set(g_ * a_, k_, a4, k_ * (a2 - a4), 1.0f - a4);
           break;
         }
         case FilterType::Tilt:
         {
-          const float a2 = a_ * a_;
-          const float a4 = a2 * a2;
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
           set(g_ * a_, k_, a2, k_ * (1.0f - a2), (1.0f - a4) / a2);
           break;
         }
@@ -146,20 +142,20 @@ namespace zlth::dsp {
     }
 
     FORCEINLINE void process_single(float& v0) {
-      const float v1 = a1 * (ic1 + g * (v0 - ic2));
-      const float v2 = ic2 + g * v1;
+      const float v1 {a1 * (ic1 + g * (v0 - ic2))};
+      const float v2 {ic2 + g * v1};
       ic1 = 2.0f * v1 - ic1;
       ic2 = 2.0f * v2 - ic2;
       v0 = m0 * v0 + m1 * v1 + m2 * v2;
     }
 
-    FORCEINLINE void process_span0(std::span<float> span) noexcept {
+    FORCEINLINE void process_impl(std::span<float> span) noexcept {
       for (auto& v0 : span) {
         process_single(v0);
       }
     }
 
-    void process_span1(std::span<float> span) noexcept {
+    void process_impl_lerp(std::span<float> span) noexcept {
       const size_t size {span.size()};
       const float dp0 {(tp0 - cp0) / static_cast<float>(size)};
       const float dp1 {(tp1 - cp1) / static_cast<float>(size)};
@@ -177,7 +173,11 @@ namespace zlth::dsp {
       set_current_state();
     }
 
-    void process_span2(std::span<float> span) noexcept {
+    void process_impl_crossfade(std::span<float> span) noexcept {
+      if (cf == FilterType::PassThrough) {
+        ic1 = 0.0f;
+        ic2 = 0.0f;
+      }
       const size_t size {span.size()};
       const float dp0 {(tp0 - cp0) / static_cast<float>(size)};
       const float dp1 {(tp1 - cp1) / static_cast<float>(size)};

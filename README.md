@@ -1,4 +1,4 @@
-![Screenshot](./screenshots/quasar_eq_v6_0_2.png)
+![Screenshot](./screenshots/quasar_eq_v6_0_4.png)
 
 # Quasar EQ by Zalthyrexor
 **Zero noise, zero latency.**  

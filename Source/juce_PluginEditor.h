@@ -173,13 +173,19 @@ public:
   void resized() override {
     auto bounds = getLocalBounds();
     bypassButton.setBounds(bounds.removeFromTop(28).reduced(margin));
+    bypassButton.setTooltip("Enable/Disable");
     for (int i = 0; i < comboBoxCount; ++i) {
       comboBoxes[i].setBounds(bounds.removeFromTop(28).reduced(margin));
     }
+    comboBoxes[0].setTooltip("Stereo/Mid/Side");
+    comboBoxes[1].setTooltip("Filter shape");
     int controlHeight = bounds.getHeight() / sliderCount;
     for (int i = 0; i < sliderCount; ++i) {
       bandSliders[i].setBounds(bounds.removeFromTop(controlHeight).reduced(margin));
     }
+    bandSliders[0].setTooltip("Gain (dB)");
+    bandSliders[1].setTooltip("Frequency (Hz)");
+    bandSliders[2].setTooltip("Q / Bandwidth");
   }
 private:
   static constexpr int margin = 2;
@@ -202,11 +208,36 @@ public:
   };
 };
 
+class MyTooltipWindow: public juce::TooltipWindow {
+public:
+  MyTooltipWindow(Component* p): TooltipWindow(p) {
+  }
+  juce::String getTipFor(juce::Component& c) override {
+    auto tip = TooltipWindow::getTipFor(c);
+    if (onTipChanged) onTipChanged(tip);
+    return "";
+  }
+  std::function<void(const juce::String&)> onTipChanged;
+};
+
 class QuasarEQAudioProcessorEditor: public juce::AudioProcessorEditor {
 public:
 
   QuasarEQAudioProcessorEditor(QuasarEQAudioProcessor& p): AudioProcessorEditor(&p), audioProcessor(p), visualizerComponent(p) {
     setLookAndFeel(&customLNF);
+
+    addAndMakeVisible(infoLabel);
+    infoLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.6f));
+    infoLabel.setFont(14.0f);
+    infoLabel.setJustificationType(juce::Justification::centredLeft);
+    infoLabel.setText("Hover over controls for info.", juce::dontSendNotification);
+    customTooltipWindow.onTipChanged = [this](const juce::String& tip) {
+      if (tip.isNotEmpty()){
+        infoLabel.setText(tip, juce::dontSendNotification);
+      }
+    };
+    customTooltipWindow.setMillisecondsBeforeTipAppears(500);
+
     for (int i = 0; i < config::iconCount; ++i) {
       auto btn = std::make_unique<CustomIconButton>(config::iconData[i], config::iconSize[i]);
       btn->setRadioGroupId(1001);
@@ -284,29 +315,38 @@ public:
     juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight);
     juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
     juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(110);
+    juce::Rectangle<int> sectionE = mainArea.removeFromTop(sectionEHeight);
 
     initializeButton.setBounds(sectionX.removeFromLeft(channelBtnW).reduced(1));
+    initializeButton.setTooltip("Hold to reset all parameters.");
 
     for (auto& btn : channelModeButtons) {
       btn->setBounds(sectionA.removeFromLeft(channelBtnW).reduced(1));
+      btn->setTooltip("Select target channel for the next filter. Click analyzer to create (requires 1+ bypassed bands).");
     }
 
     for (auto& btn : filterModeButtons) {
       btn->setBounds(sectionB.removeFromLeft(filterBtnW).reduced(1));
+      btn->setTooltip("Select shape for the next filter. Click analyzer to create (requires 1+ bypassed bands).");
     }
+
     visualizerComponent.setBounds(sectionC);
     const int masterGainWidth = sectionD2.getWidth() / masterGainSliders.size();
     for (int i = 0; i < masterGainSliders.size(); ++i) {
       auto area = sectionD2.removeFromLeft(masterGainWidth);
       masterGainSliderLabels[i]->setBounds(area.removeFromTop(18).reduced(margin));
       masterGainSliders[i]->setBounds(area.reduced(margin));
+      masterGainSliders[i]->setTooltip("Gain (dB)");
     }
+
     const int bandWidth = sectionD.getWidth() / config::BAND_COUNT;
     for (int i = 0; i < config::BAND_COUNT; ++i) {
       auto area = sectionD.removeFromLeft(bandWidth);
       bandControlLabels[i]->setBounds(area.removeFromTop(18).reduced(margin));
       bandControls[i]->setBounds(area);
     }
+
+    infoLabel.setBounds(sectionE.reduced(margin));
   }
 
 private:
@@ -316,8 +356,9 @@ private:
   static constexpr int sectionBHeight = 28;
   static constexpr int sectionCHeight = 300;
   static constexpr int sectionDHeight = 340;
+  static constexpr int sectionEHeight = 30;
   static constexpr int windowWidth = 698;
-  static constexpr int windowHeight = margin * 2 + sectionXHeight + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight;
+  static constexpr int windowHeight = margin * 2 + sectionXHeight + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight + sectionEHeight;
 
   static constexpr int channelBtnW = 90;
   static constexpr int filterBtnW = 45;
@@ -336,6 +377,9 @@ private:
   std::vector<std::unique_ptr<FilterBandControl>> bandControls;
   std::vector<std::unique_ptr<juce::Label>> bandControlLabels;
   std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
+
+  MyTooltipWindow customTooltipWindow {this};
+  juce::Label infoLabel;
 
   LongPressButton initializeButton {"RESET",config::initialize};
 
