@@ -6,24 +6,9 @@
 #include "PathProducer.h"
 #include "zlth_dsp_fft_resampler510.h"
 
-class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener {
+class VisualizerComponent: public juce::Component, private juce::AsyncUpdater {
 public:
   VisualizerComponent(QuasarEQAudioProcessor& p): audioProcessor(p), pathProducer(audioProcessor.channelFifo), analyzerThread(pathProducer, *this) {
-    for (int i = 0; i < config::BAND_COUNT; ++i) {
-      for (const auto& prefix : config::bandParamPrefixes) {
-        audioProcessor.apvts.addParameterListener(config::toID(prefix, i), this);
-      }
-    }
-  }
-  ~VisualizerComponent() {
-    for (int i = 0; i < config::BAND_COUNT; ++i) {
-      for (const auto& prefix : config::bandParamPrefixes) {
-        audioProcessor.apvts.removeParameterListener(config::toID(prefix, i), this);
-      }
-    }
-  }
-  void parameterChanged(const juce::String& parameterID, float newValue) {
-    parametersNeedUpdate = true;
   }
   void paint(juce::Graphics& g) override {
     g.drawImageAt(gridCache, 0, 0);
@@ -71,10 +56,10 @@ public:
     auto spectrumAreaY = spectrumArea.getY();
     auto spectrumAreaW = spectrumArea.getWidth();
     auto spectrumAreaB = spectrumArea.getBottom();
-    for (int i = 0; i < config::BAND_COUNT; ++i) {
-      if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) continue;
-      float x = editorFreqToCurveArea(getBandParamValue(config::ID_BAND_FREQ, i));
-      float y = editorGainToCurveArea(getBandParamValue(config::ID_BAND_GAIN, i));
+    for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
+      if (getBandParamValue(config::ID_BYPASS, i) > 0.5f) continue;
+      float x = editorFreqToCurveArea(getBandParamValue(config::ID_FREQ, i));
+      float y = editorGainToCurveArea(getBandParamValue(config::ID_GAIN, i));
       const int pointSize = 14;
       g.setColour(config::textBackground);
       g.fillEllipse(x - pointSize * 0.5f, y - pointSize * 0.5f, pointSize, pointSize);
@@ -86,8 +71,8 @@ public:
   }
 
   int findNextAvailableBand() const {
-    for (int i = 0; i < config::BAND_COUNT; ++i) {
-      if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) {
+    for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
+      if (getBandParamValue(config::ID_BYPASS, i) > 0.5f) {
         return i;
       }
     }
@@ -95,7 +80,7 @@ public:
   }
 
   void setParamToDraggingBand(const juce::String& paramID, float plainValue) {
-    auto id = config::toID(paramID, draggingBand);
+    auto id = config::toBiquadID(paramID, draggingBand);
     if (auto* p = audioProcessor.apvts.getParameter(id)) {
       auto range = audioProcessor.apvts.getParameterRange(id);
       p->setValueNotifyingHost(range.convertTo0to1(juce::jlimit(range.start, range.end, plainValue)));
@@ -115,16 +100,16 @@ public:
     auto [mouseX, mouseY] = e.position;
     auto bounds = getCurveArea().toFloat();
     float freqHz = curveAreaToEditorFreq(mouseX);
-    float gainDb = remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
+    float gainDb = remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_DB_MIN, config::PARAM_GAIN_DB_MAX);
     float filterMode = getFilterModeCallback ? (float)getFilterModeCallback() : config::PARAM_FILTER_DEFAULT;
     float channelMode = getChannelModeCallback ? (float)getChannelModeCallback() : config::PARAM_CHANNEL_DEFAULT;
 
-    setParamToDraggingBand(config::ID_BAND_BYPASS, 0.0f);
-    setParamToDraggingBand(config::ID_BAND_FREQ, freqHz);
-    setParamToDraggingBand(config::ID_BAND_GAIN, gainDb);
-    setParamToDraggingBand(config::ID_BAND_FILTER, filterMode);
-    setParamToDraggingBand(config::ID_BAND_CHANNEL, channelMode);
-    setParamToDraggingBand(config::ID_BAND_QUAL, config::PARAM_QUAL_DEF);
+    setParamToDraggingBand(config::ID_BYPASS, 0.0f);
+    setParamToDraggingBand(config::ID_FREQ, freqHz);
+    setParamToDraggingBand(config::ID_GAIN, gainDb);
+    setParamToDraggingBand(config::ID_FILTER_SHAPE, filterMode);
+    setParamToDraggingBand(config::ID_CHANNEL_MODE, channelMode);
+    audioProcessor.resetParam(config::toBiquadID(config::ID_Q, draggingBand));
   }
   void mouseDrag(const juce::MouseEvent& e) override {
     if (draggingBand == NoBandSelected) {
@@ -133,9 +118,9 @@ public:
     auto [mouseX, mouseY] = e.position;
     auto bounds = getCurveArea().toFloat();
     float freqHz = curveAreaToEditorFreq(mouseX);
-    float gainDb = remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX);
-    setParamToDraggingBand(config::ID_BAND_FREQ, freqHz);
-    setParamToDraggingBand(config::ID_BAND_GAIN, gainDb);
+    float gainDb = remap(mouseY, bounds.getBottom(), bounds.getY(), config::PARAM_GAIN_DB_MIN, config::PARAM_GAIN_DB_MAX);
+    setParamToDraggingBand(config::ID_FREQ, freqHz);
+    setParamToDraggingBand(config::ID_GAIN, gainDb);
   }
   void mouseUp(const juce::MouseEvent& e) override {
     draggingBand = NoBandSelected;
@@ -144,7 +129,7 @@ public:
     if (draggingBand == NoBandSelected) {
       return;
     }
-    if (auto* p = audioProcessor.apvts.getParameter(config::toID(config::ID_BAND_QUAL, draggingBand))) {
+    if (auto* p = audioProcessor.apvts.getParameter(config::toBiquadID(config::ID_Q, draggingBand))) {
       p->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, p->getValue() + wheel.deltaY * 0.125f));
     }
   }
@@ -177,10 +162,10 @@ private:
     auto area = getCurveArea().toFloat();
     const float toleranceRadius = 12.0f;
     const float thresholdSq = toleranceRadius * toleranceRadius;
-    for (int i = 0; i < config::BAND_COUNT; ++i) {
-      if (getBandParamValue(config::ID_BAND_BYPASS, i) > 0.5f) continue;
-      float x = editorFreqToCurveArea(getBandParamValue(config::ID_BAND_FREQ, i));
-      float y = editorGainToCurveArea(getBandParamValue(config::ID_BAND_GAIN, i));
+    for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
+      if (getBandParamValue(config::ID_BYPASS, i) > 0.5f) continue;
+      float x = editorFreqToCurveArea(getBandParamValue(config::ID_FREQ, i));
+      float y = editorGainToCurveArea(getBandParamValue(config::ID_GAIN, i));
       if (mousePos.getDistanceSquaredFrom({x, y}) < thresholdSq) return i;
     }
     return NoBandSelected;
@@ -194,10 +179,7 @@ private:
         newPathAvailable = true;
       }
     }
-    if (parametersNeedUpdate) {
-      calculateResponseCurve();
-      parametersNeedUpdate = false;
-    }
+    calculateResponseCurve();
     if (newPathAvailable) {
       {
         juce::ScopedLock lock(pathLock);
@@ -269,44 +251,41 @@ private:
   }
 
   juce::Rectangle<int> getLevelMeterArea() {
-    auto a = getLocalBounds().removeFromRight(110);
+    auto a = getLocalBounds().removeFromRight(146);
     return a.reduced(labelMargin).reduced(margin);
   }
   juce::Rectangle<int> getCurveArea() {
     auto a = getLocalBounds();
-    a.removeFromRight(110);
+    a.removeFromRight(146);
     return a.reduced(labelMargin).reduced(margin);
   }
 
-  std::array<std::vector<float>, 2> curvePoints {};
+
+  std::array<juce::Path, 2> responseCurvePath;
+  std::vector<float> tanTable;
+  std::array<std::vector<float>, config::CHANNEL_COUNT> curvePoints {};
 
   void calculateResponseCurve() {
-    auto sr = static_cast<float>(audioProcessor.getSampleRate());
-    responseCurvePath[0].clear();
-    responseCurvePath[1].clear();
+    auto sampleRate = static_cast<float>(audioProcessor.getSampleRate());
     auto size = getCurveArea().getWidth();
-    auto bounds = getCurveArea().toFloat();
-    auto& apvts = audioProcessor.apvts;
-    curvePoints[0].assign(size, 1.0f);
-    curvePoints[1].assign(size, 1.0f);
-    for (int b = 0; b < config::BAND_COUNT; ++b) {
-      auto load = [&](const juce::String& prefix) {
-        return apvts.getRawParameterValue(config::toID(prefix, b))->load();
-      };
-      auto p0 = std::tan(std::numbers::pi_v<float> *load(config::ID_BAND_FREQ) / sr);
-      auto p1 = 1.0f / std::max(load(config::ID_BAND_QUAL), 0.0001f);
-      auto p2 = zlth::unit::dbToMagFourthRoot(load(config::ID_BAND_GAIN));
-      bool isActive = load(config::ID_BAND_BYPASS) < 0.5f;
-      auto mode = static_cast<int>(load(config::ID_BAND_CHANNEL));
-      auto type = static_cast<zlth::dsp::Filter::FilterType>((int)load(config::ID_BAND_FILTER));
-      auto b0 = (isActive && (mode == 0 || mode == 1)) ? type : zlth::dsp::Filter::FilterType::PassThrough;
-      auto b1 = (isActive && (mode == 0 || mode == 2)) ? type : zlth::dsp::Filter::FilterType::PassThrough;
-      for (int i = 0; i < size; ++i) {
-        float f_ = std::tan(std::numbers::pi_v<float> *std::min(mapToLog(i, 0, size, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX) / sr, 0.4999f));
-        curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b0, p0, p1, p2));
-        curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b1, p0, p1, p2));
+
+    tanTable.assign(size, 0.0f);
+    for (int i = 0; i < size; ++i) {
+      float freq = mapToLog(i, 0, size, config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX);
+      tanTable[i] = zlth::unit::prewarp(freq / sampleRate);
+    }
+    for (int i = 0; i < config::CHANNEL_COUNT; ++i){
+      responseCurvePath[i].clear();
+      curvePoints[i].assign(size, 1.0f);
+    }
+    for (auto& channelPair : audioProcessor.processors) {
+      for (int ch = 0; ch < config::CHANNEL_COUNT; ++ch) {
+        std::visit([&](auto& proc) {
+          proc.update_curve(curvePoints[ch], tanTable);
+        }, channelPair[ch]);
       }
     }
+    auto bounds = getCurveArea().toFloat();
     for (int i = 0; i < size; ++i) {
       float x = remap(i, 0, size - 1, bounds.getX(), bounds.getRight());
       auto draw = [&](int j) {
@@ -360,7 +339,7 @@ private:
     targetPath.closeSubPath();
   }
   float getBandParamValue(const juce::String& prefix, int bandIdx) const {
-    return audioProcessor.apvts.getRawParameterValue(config::toID(prefix, bandIdx))->load();
+    return audioProcessor.apvts.getRawParameterValue(config::toBiquadID(prefix, bandIdx))->load();
   }
 
   static float norm(float v, float min, float max) {
@@ -377,15 +356,15 @@ private:
   }
   float curveAreaToEditorFreq(float v) {
     const auto curveArea = getCurveArea().toFloat();
-    return mapToLog(v, curveArea.getX(), curveArea.getWidth(), config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX);
+    return mapToLog(v, curveArea.getX(), curveArea.getWidth(), config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX);
   }
   float editorFreqToCurveArea(float v) {
     const auto curveArea = getCurveArea().toFloat();
-    return mapFromLog(v, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX, curveArea.getX(), curveArea.getWidth());
+    return mapFromLog(v, config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX, curveArea.getX(), curveArea.getWidth());
   }
   float editorGainToCurveArea(float v) {
     const auto curveArea = getCurveArea().toFloat();
-    return remap(v, config::PARAM_GAIN_MIN, config::PARAM_GAIN_MAX, curveArea.getBottom(), curveArea.getY());
+    return remap(v, config::PARAM_GAIN_DB_MIN, config::PARAM_GAIN_DB_MAX, curveArea.getBottom(), curveArea.getY());
   }
   static constexpr int textSize = 10;
   static constexpr int THREAD_SLEEP_TIME = 25;
@@ -393,7 +372,6 @@ private:
   static constexpr int margin = 2;
 
   int draggingBand = NoBandSelected;
-  bool parametersNeedUpdate = true;
 
   QuasarEQAudioProcessor& audioProcessor;
   PathProducer pathProducer;
@@ -409,6 +387,5 @@ private:
   juce::Path spectrumDb;
   juce::Path spectrumPeakDb;
 
-  std::array<juce::Path, 2> responseCurvePath;
   static constexpr int NoBandSelected = -1;
 };

@@ -6,6 +6,8 @@
               pluginCode="K1wg" pluginManufacturerCode="Zlth" pluginVST3Category="EQ"
               cppLanguageStandard="20" pluginFormats="buildVST3">
   <MAINGROUP id="utedqW" name="qsr EQ 6">
+    <FILE id="p1jm8B" name="zlth_dsp_butterworth.h" compile="0" resource="0"
+          file="Source/zlth_dsp_butterworth.h"/>
     <GROUP id="{0EDF45D0-BD2D-4D51-8384-7B4FC15CAE2F}" name="Resources">
       <FILE id="cJv9Nd" name="bp.svg" compile="0" resource="1" file="Resources/bp.svg"/>
       <FILE id="Tis66v" name="hp.svg" compile="0" resource="1" file="Resources/hp.svg"/>
@@ -18,6 +20,8 @@
     </GROUP>
     <FILE id="mSIDA4" name="config.h" compile="0" resource="0" file="Source/config.h"/>
     <FILE id="mmbi0V" name="cpp.hint" compile="0" resource="1" file="Source/cpp.hint"/>
+    <FILE id="tNkbBB" name="zlth_dsp_filter_impl.h" compile="0" resource="0"
+          file="Source/zlth_dsp_filter_impl.h"/>
     <FILE id="ZqFuNu" name="forceinline.h" compile="0" resource="0" file="Source/forceinline.h"/>
     <FILE id="bez3IH" name="juce_LookAndFeel.h" compile="0" resource="0"
           file="Source/juce_LookAndFeel.h"/>
