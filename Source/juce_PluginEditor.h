@@ -202,12 +202,6 @@ private:
   std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, sliderCount> bandAttachments;
 };
 
-class CustomSlider: public juce::Slider {
-public:
-  void mouseDoubleClick(const juce::MouseEvent&) override {
-  };
-};
-
 class MyTooltipWindow: public juce::TooltipWindow {
 public:
   MyTooltipWindow(Component* p): TooltipWindow(p) {
@@ -284,8 +278,8 @@ public:
       bandControlLabels.push_back(std::move(label));
     }
     for (int i = 0; i < getMasterGainIDs().size(); ++i) {
-      auto slider = std::make_unique<CustomSlider>();
-      slider->setSliderStyle(juce::Slider::LinearVertical);
+      auto slider = std::make_unique<juce::Slider>();
+      slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
       slider->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
       addAndMakeVisible(*slider);
       masterGainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, getMasterGainIDs()[i], *slider));
@@ -309,12 +303,14 @@ public:
 
   void resized() override {
     juce::Rectangle<int> mainArea = getLocalBounds().reduced(margin);
-    juce::Rectangle<int> sectionX = mainArea.removeFromTop(sectionXHeight).reduced(margin);
-    juce::Rectangle<int> sectionA = mainArea.removeFromTop(sectionAHeight).reduced(margin);
-    juce::Rectangle<int> sectionB = mainArea.removeFromTop(sectionBHeight).reduced(margin);
+    juce::Rectangle<int> sectionN = mainArea.removeFromTop(sectionNHeight);
+    juce::Rectangle<int> sectionN2 = sectionN.removeFromRight(146);
+    juce::Rectangle<int> sectionX = sectionN.removeFromTop(sectionXHeight).reduced(margin);
+    juce::Rectangle<int> sectionA = sectionN.removeFromTop(sectionAHeight).reduced(margin);
+    juce::Rectangle<int> sectionB = sectionN.removeFromTop(sectionBHeight).reduced(margin);
     juce::Rectangle<int> sectionC = mainArea.removeFromTop(sectionCHeight);
     juce::Rectangle<int> sectionD = mainArea.removeFromTop(sectionDHeight);
-    juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(110);
+    juce::Rectangle<int> sectionD2 = sectionD.removeFromRight(146);
     juce::Rectangle<int> sectionE = mainArea.removeFromTop(sectionEHeight);
 
     initializeButton.setBounds(sectionX.removeFromLeft(channelBtnW).reduced(1));
@@ -331,9 +327,9 @@ public:
     }
 
     visualizerComponent.setBounds(sectionC);
-    const int masterGainWidth = sectionD2.getWidth() / masterGainSliders.size();
+    const int masterGainWidth = sectionN2.getWidth() / masterGainSliders.size();
     for (int i = 0; i < masterGainSliders.size(); ++i) {
-      auto area = sectionD2.removeFromLeft(masterGainWidth);
+      auto area = sectionN2.removeFromLeft(masterGainWidth);
       masterGainSliderLabels[i]->setBounds(area.removeFromTop(18).reduced(margin));
       masterGainSliders[i]->setBounds(area.reduced(margin));
       masterGainSliders[i]->setTooltip("Gain (dB)");
@@ -354,11 +350,12 @@ private:
   static constexpr int sectionXHeight = 28;
   static constexpr int sectionAHeight = 28;
   static constexpr int sectionBHeight = 28;
+  static constexpr int sectionNHeight = sectionXHeight + sectionAHeight + sectionBHeight;
   static constexpr int sectionCHeight = 300;
   static constexpr int sectionDHeight = 340;
   static constexpr int sectionEHeight = 30;
-  static constexpr int windowWidth = 698;
-  static constexpr int windowHeight = margin * 2 + sectionXHeight + sectionAHeight + sectionBHeight + sectionCHeight + sectionDHeight + sectionEHeight;
+  static constexpr int windowWidth = 734;
+  static constexpr int windowHeight = margin * 2 + sectionNHeight + sectionCHeight + sectionDHeight + sectionEHeight;
 
   static constexpr int channelBtnW = 90;
   static constexpr int filterBtnW = 45;
@@ -370,7 +367,7 @@ private:
   QuasarEQAudioProcessor& audioProcessor;
   VisualizerComponent visualizerComponent;
 
-  std::vector<std::unique_ptr<CustomSlider>> masterGainSliders;
+  std::vector<std::unique_ptr<juce::Slider>> masterGainSliders;
   std::vector<std::unique_ptr<juce::Label>> masterGainSliderLabels;
   std::vector<std::unique_ptr<CustomButton>> channelModeButtons;
   std::vector<std::unique_ptr<CustomIconButton>> filterModeButtons;
