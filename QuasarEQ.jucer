@@ -4,7 +4,7 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" version="6.0.4"
               companyName="Zalthyrexor" companyCopyright="Copyright (c) 2026 Zalthyrexor"
               pluginCode="K1wg" pluginManufacturerCode="Zlth" pluginVST3Category="EQ"
-              cppLanguageStandard="20" pluginFormats="buildVST3">
+              cppLanguageStandard="20" pluginFormats="buildStandalone">
   <MAINGROUP id="utedqW" name="qsr EQ 6">
     <GROUP id="{0EDF45D0-BD2D-4D51-8384-7B4FC15CAE2F}" name="Resources">
       <FILE id="cJv9Nd" name="bp.svg" compile="0" resource="1" file="Resources/bp.svg"/>

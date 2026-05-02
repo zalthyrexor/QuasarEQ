@@ -14,11 +14,21 @@ public:
         audioProcessor.apvts.addParameterListener(config::toID(prefix, i), this);
       }
     }
+    for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+      for (const auto& prefix : config::butterworthPrefixes) {
+        audioProcessor.apvts.addParameterListener(config::IndexToButterworthID(prefix, i), this);
+      }
+    }
   }
   ~VisualizerComponent() {
     for (int i = 0; i < config::BAND_COUNT; ++i) {
       for (const auto& prefix : config::bandParamPrefixes) {
         audioProcessor.apvts.removeParameterListener(config::toID(prefix, i), this);
+      }
+    }
+    for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+      for (const auto& prefix : config::butterworthPrefixes) {
+        audioProcessor.apvts.removeParameterListener(config::IndexToButterworthID(prefix, i), this);
       }
     }
   }
@@ -305,6 +315,21 @@ private:
         float f_ = std::tan(std::numbers::pi_v<float> *std::min(mapToLog(i, 0, size, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX) / sr, 0.4999f));
         curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b0, p0, p1, p2));
         curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b1, p0, p1, p2));
+      }
+    }
+    for (int b = 0; b < config::BUTTER_COUNT; ++b) {
+      auto load = [&](const juce::String& prefix) {
+        return apvts.getRawParameterValue(config::IndexToButterworthID(prefix, b))->load();
+      };
+      auto p0 = std::tan(std::numbers::pi_v<float> *std::min(load(config::ID_BAND_FREQ) / sr, 0.4999f));
+      auto p1 = 1.414;
+      auto p2 = 1.0f;
+      for (int c = 0; c < config::BUTTER_MAX; ++c) {
+        for (int i = 0; i < size; ++i) {
+          float f_ = std::tan(std::numbers::pi_v<float> *std::min(mapToLog(i, 0, size, config::PARAM_FREQ_MIN, config::PARAM_FREQ_MAX) / sr, 0.4999f));
+          curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(f_, zlth::dsp::Filter::FilterType::LowPass, p0, p1, p2));
+          curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(f_, zlth::dsp::Filter::FilterType::LowPass, p0, p1, p2));
+        }
       }
     }
     for (int i = 0; i < size; ++i) {

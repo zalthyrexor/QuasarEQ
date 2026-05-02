@@ -202,6 +202,46 @@ private:
   std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, sliderCount> bandAttachments;
 };
 
+class AAA: public juce::Component {
+public:
+  AAA(juce::AudioProcessorValueTreeState& apvts, int bandIndex) {
+    for (int i = 0; i < sliderCount; ++i) {
+      auto& s = bandSliders[i];
+      s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+      s.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
+      addAndMakeVisible(s);
+      bandAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, config::IndexToButterworthID(bandIDs[i], bandIndex), s);
+    }
+  }
+  ~AAA() override {
+  };
+  void paintOverChildren(juce::Graphics& g) override {
+    g.setColour(juce::Colours::white);
+    g.setFont(10.0f);
+    for (int i = 0; i < sliderCount; ++i) {
+      juce::Slider& s = bandSliders[i];
+      auto b = s.getBounds().toFloat();
+      auto knobArea = b.withTrimmedBottom((float)s.getTextBoxHeight());
+      g.drawText(config::bandUnits[i], knobArea.reduced(-2.0f, 4.0f), juce::Justification::bottomRight);
+    }
+  }
+  void resized() override {
+    auto bounds = getLocalBounds();
+    int controlHeight = bounds.getHeight() / sliderCount;
+    for (int i = 0; i < sliderCount; ++i) {
+      bandSliders[i].setBounds(bounds.removeFromTop(controlHeight).reduced(margin));
+    }
+    bandSliders[0].setTooltip("Gain (dB)");
+    bandSliders[1].setTooltip("Frequency (Hz)");
+  }
+private:
+  static constexpr int margin = 2;
+  static constexpr int sliderCount {2};
+  std::array<juce::Slider, sliderCount> bandSliders;
+  std::array<juce::String, sliderCount> bandIDs {config::ID_BAND_FREQ, config::ID_BAND_ORDER};
+  std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, sliderCount> bandAttachments;
+};
+
 class MyTooltipWindow: public juce::TooltipWindow {
 public:
   MyTooltipWindow(Component* p): TooltipWindow(p) {
@@ -277,12 +317,18 @@ public:
       addAndMakeVisible(*label);
       bandControlLabels.push_back(std::move(label));
     }
-    for (int i = 0; i < getMasterGainIDs().size(); ++i) {
+
+    for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+      butterControls.push_back(std::make_unique<AAA>(audioProcessor.apvts, i));
+      addAndMakeVisible(*butterControls.back());
+    }
+
+    for (int i = 0; i < config::ID_OUT_GAIN.size(); ++i) {
       auto slider = std::make_unique<juce::Slider>();
       slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
       slider->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 16);
       addAndMakeVisible(*slider);
-      masterGainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, getMasterGainIDs()[i], *slider));
+      masterGainAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, config::ID_OUT_GAIN[i], *slider));
       masterGainSliders.push_back(std::move(slider));
       auto label = std::make_unique<juce::Label>("", config::masterGainLabels[i]);
       label->setJustificationType(juce::Justification::horizontallyCentred);
@@ -342,6 +388,14 @@ public:
       bandControls[i]->setBounds(area);
     }
 
+    const int butterW = sectionD2.getWidth() / config::BUTTER_COUNT;
+    for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+      auto area = sectionD2.removeFromLeft(butterW);
+      butterControls[i]->setBounds(area);
+    }
+
+
+    
     infoLabel.setBounds(sectionE.reduced(margin));
   }
 
@@ -372,19 +426,13 @@ private:
   std::vector<std::unique_ptr<CustomButton>> channelModeButtons;
   std::vector<std::unique_ptr<CustomIconButton>> filterModeButtons;
   std::vector<std::unique_ptr<FilterBandControl>> bandControls;
+  std::vector<std::unique_ptr<AAA>> butterControls;
   std::vector<std::unique_ptr<juce::Label>> bandControlLabels;
   std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> masterGainAttachments;
-
+  
   MyTooltipWindow customTooltipWindow {this};
   juce::Label infoLabel;
 
   LongPressButton initializeButton {"RESET",config::initialize};
 
-  static auto getMasterGainIDs() -> const std::array<juce::String, 2>& {
-    static const std::array<juce::String, 2> ids
-    {
-      config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_1
-    };
-    return ids;
-  }
 };

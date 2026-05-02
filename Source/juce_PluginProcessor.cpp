@@ -7,12 +7,28 @@ QuasarEQAudioProcessor::QuasarEQAudioProcessor():
     withInput("Input", juce::AudioChannelSet::stereo(), true).
     withOutput("Output", juce::AudioChannelSet::stereo(), true)),
   apvts(*this, &undoManager, config::ID_PARAMETERS, createParameterLayout()) {
-  apvts.addParameterListener(config::ID_OUT_GAIN_0, this);
-  apvts.addParameterListener(config::ID_OUT_GAIN_1, this);
+  int bitIndex = 0;
+  for (int i = 0; i < config::ID_OUT_GAIN.size(); ++i) {
+    auto* bridge = new ParamListenerBridge(bitIndex, updateFlags);
+    bridges.add(bridge);
+    apvts.addParameterListener(config::ID_OUT_GAIN[i], bridge);
+    ++bitIndex;
+  }
   for (int i = 0; i < config::BAND_COUNT; ++i) {
     for (const auto& prefix : config::bandParamPrefixes) {
-      apvts.addParameterListener(config::toID(prefix, i), this);
+      auto* bridge = new ParamListenerBridge(bitIndex, updateFlags);
+      bridges.add(bridge);
+      apvts.addParameterListener(config::toID(prefix, i), bridge);
     }
+    ++bitIndex;
+  }
+  for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+    for (const auto& prefix : config::butterworthPrefixes) {
+      auto* bridge = new ParamListenerBridge(bitIndex, updateFlags);
+      bridges.add(bridge);
+      apvts.addParameterListener(config::IndexToButterworthID(prefix, i), bridge);
+    }
+    ++bitIndex;
   }
 }
 
@@ -36,8 +52,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
   auto gainAttrs = makeAttrs(2, config::bandUnits[0]);
   auto freqAttrs = makeAttrs(2, config::bandUnits[1]);
   auto qualAttrs = makeAttrs(2, config::bandUnits[2]);
-  layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_0, config::ID_OUT_GAIN_0, gainRange, config::PARAM_GAIN_DEF, gainAttrs));
-  layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN_1, config::ID_OUT_GAIN_1, gainRange, config::PARAM_GAIN_DEF, gainAttrs));
+  for (int i = 0; i < config::ID_OUT_GAIN.size(); ++i) {
+    layout.add(std::make_unique<juce::AudioParameterFloat>(config::ID_OUT_GAIN[i], config::ID_OUT_GAIN[i], gainRange, config::PARAM_GAIN_DEF, gainAttrs));
+  }
   for (int i = 0; i < config::BAND_COUNT; ++i) {
     const auto id = [i](auto prefix) { return config::toID(prefix, i); };
     float proportion = static_cast<float>(i + 1) / static_cast<float>(config::BAND_COUNT + 1);
@@ -49,6 +66,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout QuasarEQAudioProcessor::crea
     layout.add(std::make_unique<juce::AudioParameterChoice>(id(config::ID_BAND_CHANNEL), id(config::ID_BAND_CHANNEL), config::channelModes, config::PARAM_CHANNEL_DEFAULT));
     layout.add(std::make_unique<juce::AudioParameterBool>(id(config::ID_BAND_BYPASS), id(config::ID_BAND_BYPASS), config::PARAM_BYPASS_DEFAULT));
   }
+  for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+    const auto id = [i](auto prefix) { return config::IndexToButterworthID(prefix, i); };
+    float initialFreq = 500.0f;
+    layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_FREQ), id(config::ID_BAND_FREQ), freqRange, initialFreq, freqAttrs));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(id(config::ID_BAND_ORDER), id(config::ID_BAND_ORDER), freqRange, initialFreq, freqAttrs));
+  }
   return layout;
 }
 
@@ -58,8 +81,9 @@ void QuasarEQAudioProcessor::initializeAllParameters() const {
       p->setValueNotifyingHost(p->getDefaultValue());
     }
   };
-  reset(config::ID_OUT_GAIN_0);
-  reset(config::ID_OUT_GAIN_1);
+  for (int i = 0; i < config::ID_OUT_GAIN.size(); ++i) {
+    reset(config::ID_OUT_GAIN[i]);
+  }
   for (int i = 0; i < config::BAND_COUNT; ++i) {
     for (const auto& prefix : config::bandParamPrefixes) {
       reset(config::toID(prefix, i));
@@ -70,8 +94,7 @@ void QuasarEQAudioProcessor::initializeAllParameters() const {
 void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   channelFifo[0].prepare(samplesPerBlock);
   channelFifo[1].prepare(samplesPerBlock);
-  updateBands(PARAMS_MASK_BAND);
-  update_global();
+  updateBands(PARAMS_MASK_ALL);
 }
 
 void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
@@ -84,37 +107,35 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
   if (auto flags = updateFlags.exchange(0)) {
     updateBands(flags);
   }
-  if(updateGlobalFlag.exchange(false)){
-    update_global();
-  }
   const auto numSamples = static_cast<size_t>(buffer.getNumSamples());
-  std::span<float> span0 {buffer.getWritePointer(0), numSamples};
-  std::span<float> span1 {buffer.getWritePointer(1), numSamples};
-  zlth::simd::hadamard_butterfly(span0, span1);
-  for (int i = 0; i < config::BAND_COUNT; ++i) {
-    filters[0][i].process(span0);
-    filters[1][i].process(span1);
+  std::span<float> span[] {{buffer.getWritePointer(0), numSamples}, {buffer.getWritePointer(1), numSamples}};
+  zlth::simd::hadamard_butterfly(span[0], span[1]);
+  for(int c = 0; c < 2; ++c){
+    for (int i = 0; i < config::BAND_COUNT; ++i) {
+      filters[c][i].process(span[c]);
+    }
+    for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+      for (int j = 0; j < config::BUTTER_MAX; ++j) {
+        butters[c][j][i].process(span[c]);
+      }
+    }
+    gains[c].process(span[c]);
+    channelFifo[c].update(span[c]);
   }
-  gains[0].process(span0);
-  gains[1].process(span1);
-  channelFifo[0].update(span0);
-  channelFifo[1].update(span1);
-  zlth::simd::hadamard_butterfly(span0, span1);
+  zlth::simd::hadamard_butterfly(span[0], span[1]);
 }
 
-void QuasarEQAudioProcessor::parameterChanged(const juce::String& parameterID, float) {
-  if (parameterID == config::ID_OUT_GAIN_0 || parameterID == config::ID_OUT_GAIN_1) {
-    updateGlobalFlag.store(true);
-  }
-  else {
-    updateFlags.fetch_or(1u << config::toIndex(parameterID));
-  }
-}
-
-void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
+void QuasarEQAudioProcessor::updateBands(uint64_t flags) {
   const float sr = getSampleRate();
+  int bitIndex = 0;
+  for (int i = 0; i < config::ID_OUT_GAIN.size(); ++i) {
+    if (flags & (1ull << bitIndex)) {
+      gains[i].set_gain(zlth::unit::dbToMag(apvts.getRawParameterValue(config::ID_OUT_GAIN[i])->load()) * 0.5f);
+    }
+    ++bitIndex;
+  }
   for (int i = 0; i < config::BAND_COUNT; ++i) {
-    if (flags & (1u << i)) {
+    if (flags & (1ull << bitIndex)) {
       auto load = [this, i](const juce::String& prefix) {
         return apvts.getRawParameterValue(config::toID(prefix, i))->load();
       };
@@ -131,15 +152,25 @@ void QuasarEQAudioProcessor::updateBands(uint32_t flags) {
       filters[0][i].set_filter_type(b0);
       filters[1][i].set_filter_type(b1);
     }
+    ++bitIndex;
   }
-}
-
-void QuasarEQAudioProcessor::update_global() {
-  auto loadGlobal = [this](const juce::String& id) {
-    return zlth::unit::dbToMag(apvts.getRawParameterValue(id)->load()) * 0.5f;
-  };
-  gains[0].set_gain(loadGlobal(config::ID_OUT_GAIN_0));
-  gains[1].set_gain(loadGlobal(config::ID_OUT_GAIN_1));
+  for (int i = 0; i < config::BUTTER_COUNT; ++i) {
+    if (flags & (1ull << bitIndex)) {
+      auto load = [this, i](const juce::String& prefix) {
+        return apvts.getRawParameterValue(config::IndexToButterworthID(prefix, i))->load();
+      };
+      auto p0 = std::tan(std::numbers::pi_v<float> *std::min(load(config::ID_BAND_FREQ) / sr, 0.4999f));
+      auto p1 = 1.414;
+      auto p2 = 1.0f;
+      for (int j = 0; j < config::BUTTER_MAX; ++j) {
+        butters[0][j][i].set_coefficients(p0, p1, p2);
+        butters[1][j][i].set_coefficients(p0, p1, p2);
+        butters[0][j][i].set_filter_type(zlth::dsp::Filter::FilterType::LowPass);
+        butters[1][j][i].set_filter_type(zlth::dsp::Filter::FilterType::LowPass);
+      }
+    }
+    ++bitIndex;
+  }
 }
 
 void QuasarEQAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {

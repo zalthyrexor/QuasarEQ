@@ -10,6 +10,8 @@ namespace config {
   const std::array<float, 10> frequencies {20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f};
 
   inline constexpr int BAND_COUNT {8};
+  inline constexpr int BUTTER_COUNT {2};
+  inline constexpr int BUTTER_MAX {6};
 
   inline constexpr bool PARAM_BYPASS_DEFAULT {true};
 
@@ -47,9 +49,8 @@ namespace config {
   inline const juce::Colour textBackground {0xff000000};
   inline const juce::Colour pluginBackground {0xff202020};
 
+  inline const std::array<juce::String, 2> ID_OUT_GAIN {"OUT_GAIN_MID", "OUT_GAIN_SIDE"};
   inline const juce::String ID_PARAMETERS {"PARAMETERS"};
-  inline const juce::String ID_OUT_GAIN_0 {"OUT_GAIN_MID"};
-  inline const juce::String ID_OUT_GAIN_1 {"OUT_GAIN_SIDE"};
   inline const juce::String ID_BAND_FREQ {"FREQ"};
   inline const juce::String ID_BAND_GAIN {"GAIN"};
   inline const juce::String ID_BAND_QUAL {"Q"};
@@ -59,6 +60,10 @@ namespace config {
   inline const juce::StringArray channelModes {"STEREO", "MID", "SIDE"};
   inline const juce::StringArray filterModes {"HIGHPASS", "LOWPASS", "HIGHSHELF", "LOWSHELF", "TILT", "BELL", "NOTCH", "BANDPASS"};
   inline const std::array<juce::String, 6> bandParamPrefixes {ID_BAND_FREQ, ID_BAND_GAIN, ID_BAND_QUAL, ID_BAND_FILTER, ID_BAND_BYPASS, ID_BAND_CHANNEL};
+
+
+  inline const juce::String ID_BAND_ORDER {"ORDER"};
+  inline const std::array<juce::String, 2> butterworthPrefixes {ID_BAND_FREQ, ID_BAND_ORDER};
 
   inline const std::array<juce::String, 3> modeNames {"STEREO", "MID", "SIDE"};
   inline const std::array<juce::String, 2> masterGainLabels {"MID", "SIDE"};
@@ -95,5 +100,8 @@ namespace config {
   }
   inline int toIndex(const juce::String& parameterID) {
     return parameterID.getTrailingIntValue() - 1;
+  }
+  inline juce::String IndexToButterworthID(const juce::String& prefix, int index) {
+    return juce::String("Butterworth") + prefix + juce::String(index + 1);
   }
 }
