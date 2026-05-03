@@ -6,6 +6,7 @@
 #include "zlth_dsp_gain.h"
 #include "config.h"
 
+
 struct ParamListenerBridge: public juce::AudioProcessorValueTreeState::Listener {
   ParamListenerBridge(int index, std::atomic<uint64_t>& flags): paramIndex(index), updateFlags(flags) {
   }
@@ -33,9 +34,9 @@ public:
   bool isMidiEffect() const override;
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
-  void releaseResources() override;
-  void setCurrentProgram(int index) override;
-  void changeProgramName(int index, const juce::String& newName) override;
+  void releaseResources() override {};
+  void setCurrentProgram(int index) override {};
+  void changeProgramName(int index, const juce::String& newName) override {};
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
   double getTailLengthSeconds() const override;
@@ -45,14 +46,19 @@ public:
   juce::AudioProcessorValueTreeState apvts;
   juce::UndoManager undoManager;
   std::array<SampleFifo, 2> channelFifo {};
-  void updateBands(uint64_t flags);
   void initializeAllParameters() const;
+  void resetParam(const juce::String&) const;
 private:
+  void updateBands();
   static constexpr uint64_t PARAMS_MASK_ALL {~0ull};
   juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
   std::atomic<uint64_t> updateFlags {PARAMS_MASK_ALL};
-  std::array<std::array<zlth::dsp::Filter, config::BAND_COUNT>, 2> filters {};
-  std::array<std::array<std::array<zlth::dsp::Filter, config::BUTTER_COUNT>, config::BUTTER_MAX>, 2> butters {};
+  std::array<std::array<zlth::dsp::Filter, 2>, config::BIQUAD_COUNT> biquads {};
+  std::array<std::array<std::array<zlth::dsp::Filter, 2>, config::PARAM_ORDER_MAX>, config::BUTTER_COUNT> butters {};
   std::array<zlth::dsp::Gain, 2> gains {};
   juce::OwnedArray<ParamListenerBridge> bridges;
+
+  std::array<const std::atomic<float>*, config::CHANNEL_COUNT> globalGainTable;
+  std::array<std::array<const std::atomic<float>*, config::butterPrefixCount>, config::BUTTER_COUNT> butterTable;
+  std::array<std::array<const std::atomic<float>*, config::biquadPrefixCount>, config::BIQUAD_COUNT> biquadTable;
 };

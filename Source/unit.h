@@ -20,4 +20,10 @@ namespace zlth::unit {
   FORCEINLINE inline float magSqToDB(float value, float min = 1e-10f) {
     return 10.0f * std::log10(std::max(value, min));
   }
+  FORCEINLINE inline float inverseQ(float value, float min = 1e-4f) {
+    return 1.0f / std::max(value, min);
+  }
+  FORCEINLINE inline float prewarp(float value) {
+    return  std::tan(std::numbers::pi_v<float> *std::min(value, 0.4999f));
+  }
 }

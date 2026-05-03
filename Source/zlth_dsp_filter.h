@@ -6,19 +6,15 @@
 #include <numbers>
 #include <span>
 #include "forceinline.h"
+#include "config.h"
 
 namespace zlth::dsp {
   class Filter final {
   public:
     Filter() = default;
     ~Filter() = default;
-
-    enum class FilterType {
-      HighPass, LowPass, HighShelf, LowShelf, Tilt, Bell, Notch, BandPass, PassThrough
-    };
-
-    FORCEINLINE static std::complex<float> get_response(float g_eval, FilterType f, float p0, float p1, float p2) noexcept {
-      if (f == FilterType::PassThrough) {
+    FORCEINLINE static std::complex<float> get_response(float g_eval, config::FilterType f, float p0, float p1, float p2) noexcept {
+      if (f == config::FilterType::PassThrough) {
         return {1.0f, 0.0f};
       }
       float g_ {};
@@ -41,15 +37,15 @@ namespace zlth::dsp {
       if (std::exchange(crossfade_state, false)) {
         process_impl_crossfade(span);
       }
-      else if (cf != FilterType::PassThrough && std::exchange(lerp_state, false)) {
+      else if (cf != config::FilterType::PassThrough && std::exchange(lerp_state, false)) {
         process_impl_lerp(span);
       }
-      else if (cf != FilterType::PassThrough) {
+      else if (cf != config::FilterType::PassThrough) {
         process_impl(span);
       }
     }
 
-    FORCEINLINE void set_filter_type(zlth::dsp::Filter::FilterType f) {
+    FORCEINLINE void set_filter_type(config::FilterType f) {
       if (tf == f) {
         return;
       }
@@ -67,57 +63,57 @@ namespace zlth::dsp {
   private:
 
     template <typename Setter>
-    FORCEINLINE static void calculate_coefficients(FilterType f, float g_, float k_, float a_, Setter&& set) noexcept {
+    FORCEINLINE static void calculate_coefficients(config::FilterType f, float g_, float k_, float a_, Setter&& set) noexcept {
       switch (f) {
-        case FilterType::LowPass:
+        case config::FilterType::LowPass:
         {
           set(g_, k_, 0.0f, 0.0f, 1.0f);
           break;
         }
-        case FilterType::HighPass:
+        case config::FilterType::HighPass:
         {
           set(g_, k_, 1.0f, -k_, -1.0f);
           break;
         }
-        case FilterType::Notch:
+        case config::FilterType::Notch:
         {
           set(g_, k_, 1.0f, -k_, 0.0f);
           break;
         }
-        case FilterType::BandPass:
+        case config::FilterType::BandPass:
         {
           set(g_, k_, 0.0f, k_, 0.0f);
           break;
         }
-        case FilterType::Bell:
+        case config::FilterType::Bell:
         {
           const float a2 {a_ * a_};
           const float a4 {a2 * a2};
           set(g_, k_ / a2, 1.0f, k_ * (a4 - 1.0f) / a2, 0.0f);
           break;
         }
-        case FilterType::LowShelf:
+        case config::FilterType::LowShelf:
         {
           const float a2 {a_ * a_};
           const float a4 {a2 * a2};
           set(g_ / a_, k_, 1.0f, k_ * (a2 - 1.0f), a4 - 1.0f);
           break;
         }
-        case FilterType::HighShelf:
+        case config::FilterType::HighShelf:
         {
           const float a2 {a_ * a_};
           const float a4 {a2 * a2};
           set(g_ * a_, k_, a4, k_ * (a2 - a4), 1.0f - a4);
           break;
         }
-        case FilterType::Tilt:
+        case config::FilterType::Tilt:
         {
           const float a2 {a_ * a_};
           const float a4 {a2 * a2};
           set(g_ * a_, k_, a2, k_ * (1.0f - a2), (1.0f - a4) / a2);
           break;
         }
-        case FilterType::PassThrough:
+        case config::FilterType::PassThrough:
         {
           set(g_, k_, 1.0f, 0.0f, 0.0f);
           break;
@@ -174,7 +170,7 @@ namespace zlth::dsp {
     }
 
     void process_impl_crossfade(std::span<float> span) noexcept {
-      if (cf == FilterType::PassThrough) {
+      if (cf == config::FilterType::PassThrough) {
         ic1 = 0.0f;
         ic2 = 0.0f;
       }
@@ -229,8 +225,8 @@ namespace zlth::dsp {
     float tp0 {};
     float tp1 {};
     float tp2 {};
-    FilterType cf {FilterType::PassThrough};
-    FilterType tf {FilterType::PassThrough};
+    config::FilterType cf {config::FilterType::PassThrough};
+    config::FilterType tf {config::FilterType::PassThrough};
     bool lerp_state {};
     bool crossfade_state {};
   };
