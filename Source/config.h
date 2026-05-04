@@ -73,8 +73,8 @@ namespace config {
   inline constexpr float PARAM_GAIN_DB_DEF {0.0f};
 
   inline constexpr int PARAM_ORDER_MIN {1};
-  inline constexpr int PARAM_ORDER_MAX {6};
-  inline constexpr int PARAM_ORDER_DEF {6};
+  inline constexpr int PARAM_ORDER_MAX {8};
+  inline constexpr int PARAM_ORDER_DEF {8};
 
   inline constexpr int PARAM_FILTER_DEFAULT {(int)FilterType::Bell};
   inline constexpr int PARAM_BUTTER_DEFAULT {(int)ButterType::Flat};

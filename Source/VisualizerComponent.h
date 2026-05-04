@@ -288,48 +288,69 @@ private:
     return a.reduced(labelMargin).reduced(margin);
   }
 
-  std::array<std::vector<float>, 2> curvePoints {};
+  static float getButterworthQ(int k, int n) {
+    return 2.0f * std::sin((std::numbers::pi_v<float> *(2.0f * k + 1.0f)) / (2.0f * n));
+  }
+
+  std::array<juce::Path, 2> responseCurvePath;
+  std::vector<float> tanTable;
+  std::array<std::vector<float>, config::CHANNEL_COUNT> curvePoints {};
 
   void calculateResponseCurve() {
-    auto sr = static_cast<float>(audioProcessor.getSampleRate());
-    responseCurvePath[0].clear();
-    responseCurvePath[1].clear();
+    auto sampleRate = static_cast<float>(audioProcessor.getSampleRate());
+
     auto size = getCurveArea().getWidth();
+
+    tanTable.assign(size, 0.0f);
+    for (int i = 0; i < size; ++i) {
+      float freq = mapToLog(i, 0, size, config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX);
+      tanTable[i] = std::tan(std::numbers::pi_v<float> *std::min(freq / sampleRate, 0.4999f));
+    }
+    for (int i = 0; i < config::CHANNEL_COUNT; ++i){
+      responseCurvePath[i].clear();
+      curvePoints[i].assign(size, 1.0f);
+    }
+
     auto bounds = getCurveArea().toFloat();
     auto& apvts = audioProcessor.apvts;
-    curvePoints[0].assign(size, 1.0f);
-    curvePoints[1].assign(size, 1.0f);
-    for (int b = 0; b < config::BIQUAD_COUNT; ++b) {
-      auto load = [&](const juce::String& prefix) {
-        return apvts.getRawParameterValue(config::toBiquadID(prefix, b))->load();
+    for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
+      auto load = [&](config::BandAddressEnum index) {
+        return audioProcessor.biquadTable[i][(int)index]->load();
       };
-      auto p0 = zlth::unit::prewarp(load(config::ID_FREQ) / sr);
-      auto p1 = zlth::unit::inverseQ(load(config::ID_Q));;
-      auto p2 = zlth::unit::dbToMagFourthRoot(load(config::ID_GAIN));
-      bool isActive = load(config::ID_BYPASS) < 0.5f;
-      auto mode = static_cast<int>(load(config::ID_CHANNEL_MODE));
-      auto type = static_cast<config::FilterType>((int)load(config::ID_FILTER_SHAPE));
+      auto l0 = load(config::BandAddressEnum::freq);
+      auto l1 = load(config::BandAddressEnum::gain);
+      auto l2 = load(config::BandAddressEnum::q);
+      auto l3 = load(config::BandAddressEnum::bypass);
+      auto l4 = load(config::BandAddressEnum::shape);
+      auto l5 = load(config::BandAddressEnum::channel);
+      auto p0 = zlth::unit::prewarp(l0 / sampleRate);
+      auto p2 = zlth::unit::dbToMagFourthRoot(l1);
+      auto p1 = zlth::unit::inverseQ(l2);
+      bool isActive = l3 < 0.5f;
+      auto mode = static_cast<int>(l5);
+      auto type = static_cast<config::FilterType>((int)l4);
       auto b0 = (isActive && (mode == 0 || mode == 1)) ? type : config::FilterType::PassThrough;
       auto b1 = (isActive && (mode == 0 || mode == 2)) ? type : config::FilterType::PassThrough;
-      for (int i = 0; i < size; ++i) {
-        float f_ = std::tan(std::numbers::pi_v<float> *std::min(mapToLog(i, 0, size, config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX) / sr, 0.4999f));
-        curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b0, p0, p1, p2));
-        curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(f_, b1, p0, p1, p2));
+      for (int j = 0; j < size; ++j) {
+        curvePoints[0][j] *= std::norm(zlth::dsp::Filter::get_response(tanTable[j], b0, p0, p1, p2));
+        curvePoints[1][j] *= std::norm(zlth::dsp::Filter::get_response(tanTable[j], b1, p0, p1, p2));
       }
     }
     for (int b = 0; b < config::BUTTER_COUNT; ++b) {
       auto load = [&](const juce::String& prefix) {
         return apvts.getRawParameterValue(config::toButterID(prefix, b))->load();
       };
-      auto p0 = zlth::unit::prewarp(load(config::ID_FREQ) / sr);
-      auto p1 = 1.414;
+      auto p0 = zlth::unit::prewarp(load(config::ID_FREQ) / sampleRate);
+      auto l2 = load(config::ID_BYPASS);
       auto p2 = 1.0f;
       auto p3 = load(config::ID_ORDER);;
       for (int c = 0; c < config::PARAM_ORDER_MAX; ++c) {
         for (int i = 0; i < size; ++i) {
-          float f_ = std::tan(std::numbers::pi_v<float> *std::min(mapToLog(i, 0, size, config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX) / sr, 0.4999f));
-          curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(f_, c< p3 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
-          curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(f_, c< p3 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
+          auto p1 = getButterworthQ(c, p3);
+          if(!l2){
+            curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < p3 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
+            curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < p3 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
+          }
         }
       }
     }
@@ -435,6 +456,5 @@ private:
   juce::Path spectrumDb;
   juce::Path spectrumPeakDb;
 
-  std::array<juce::Path, 2> responseCurvePath;
   static constexpr int NoBandSelected = -1;
 };
