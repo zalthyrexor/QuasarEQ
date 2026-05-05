@@ -277,42 +277,21 @@ private:
       float freq = mapToLog(i, 0, size, config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX);
       tanTable[i] = std::tan(std::numbers::pi_v<float> *std::min(freq / sampleRate, 0.4999f));
     }
-    
-    int maxSize = (int)std::floor(mapFromLog(std::min(config::PARAM_FREQ_HZ_MAX, sampleRate / 2.0f), config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX, 0, size));
-
     for (int i = 0; i < config::CHANNEL_COUNT; ++i){
       responseCurvePath[i].clear();
       curvePoints[i].assign(size, 1.0f);
     }
-
-    auto bounds = getCurveArea().toFloat();
-    auto& apvts = audioProcessor.apvts;
-
-    for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
-      auto load = [&](config::BandAddressEnum index) {
-        return audioProcessor.biquadTable[i][(int)index]->load();
-      };
-      auto l0 = load(config::BandAddressEnum::freq);
-      auto l1 = load(config::BandAddressEnum::gain);
-      auto l2 = load(config::BandAddressEnum::q);
-      auto l3 = load(config::BandAddressEnum::bypass);
-      auto l4 = load(config::BandAddressEnum::shape);
-      auto l5 = load(config::BandAddressEnum::channel);
-      auto p0 = zlth::unit::prewarp(l0 / sampleRate);
-      auto p2 = zlth::unit::dbToMagFourthRoot(l1);
-      auto p1 = zlth::unit::inverseQ(l2);
-      bool isActive = l3 < 0.5f;
-      auto mode = static_cast<int>(l5);
-      auto type = static_cast<config::FilterType>((int)l4);
-      auto b0 = (isActive && (mode == 0 || mode == 1)) ? type : config::FilterType::PassThrough;
-      auto b1 = (isActive && (mode == 0 || mode == 2)) ? type : config::FilterType::PassThrough;
-      for (int j = 0; j < maxSize; ++j) {
-        curvePoints[0][j] *= std::norm(zlth::dsp::Filter::get_response(tanTable[j], b0, p0, p1, p2));
-        curvePoints[1][j] *= std::norm(zlth::dsp::Filter::get_response(tanTable[j], b1, p0, p1, p2));
+    for (auto& channelPair : audioProcessor.processors) {
+      for (int ch = 0; ch < config::CHANNEL_COUNT; ++ch) {
+        std::visit([&](auto& proc) {
+          if constexpr (std::is_same_v<std::decay_t<decltype(proc)>, zlth::dsp::Filter>) {
+            proc.update_curve(curvePoints[ch], tanTable);
+          }
+        }, channelPair[ch]);
       }
     }
-
-    for (int i = 0; i < maxSize; ++i) {
+    auto bounds = getCurveArea().toFloat();
+    for (int i = 0; i < size; ++i) {
       float x = remap(i, 0, size - 1, bounds.getX(), bounds.getRight());
       auto draw = [&](int j) {
         auto pos = editorGainToCurveArea(zlth::unit::magSqToDB(curvePoints[j][i]));

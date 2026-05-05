@@ -33,13 +33,11 @@ public:
   void initializeAllParameters() const;
   void resetParam(const juce::String&) const;
 
-  std::array<std::array<const std::atomic<float>*, config::butterPrefixCount>, config::BUTTER_COUNT> butterTable;
-  std::array<std::array<const std::atomic<float>*, config::biquadPrefixCount>, config::BIQUAD_COUNT> biquadTable;
+  using Processor = std::variant<zlth::dsp::Gain, zlth::dsp::Filter>;
+  std::vector<std::array<Processor, config::CHANNEL_COUNT>> processors;
 
 private:
   juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
 
-  using Processor = std::variant<zlth::dsp::Gain, zlth::dsp::Filter>;
-  std::vector<std::array<Processor, config::CHANNEL_COUNT>> processors;
   std::atomic<float> sampleRate {44100.0};
 };

@@ -25,17 +25,6 @@ QuasarEQAudioProcessor::QuasarEQAudioProcessor():AudioProcessor(BusesProperties(
       }
     );
   }
-
-  for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
-    for (int j = 0; j < config::biquadPrefixCount; ++j) {
-      biquadTable[i][j] = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[j], i));
-    }
-  }
-  for (int i = 0; i < config::BUTTER_COUNT; ++i) {
-    for (int j = 0; j < config::butterPrefixCount; ++j) {
-      butterTable[i][j] = apvts.getRawParameterValue(config::toButterID(config::butterPrefixes[j], i));
-    }
-  }
 }
 
 void QuasarEQAudioProcessor::initializeAllParameters() const {

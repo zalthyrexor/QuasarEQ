@@ -32,13 +32,35 @@ namespace zlth::dsp {
       l5(l5_),
       ch(ch_)
     {
+      auto sr__ = sr->load();
+      auto l0__ = l0->load();
+      auto l1__ = l1->load();
+      auto l2__ = l2->load();
+      auto l3__ = l3->load();
+      auto l4__ = l4->load();
+      auto l5__ = l5->load();
+      tp0 = zlth::unit::prewarp(l0__ / sr__);
+      tp1 = zlth::unit::inverseQ(l1__);
+      tp2 = zlth::unit::dbToMagFourthRoot(l2__);
+      tf = ((l3__ < 0.5f) && ((int)l5__ == 0 || (int)l5__ == (ch + 1))) ? (config::FilterType)(int)l4__ : config::FilterType::PassThrough;
     }
 
     ~Filter() = default;
 
-    FORCEINLINE static std::complex<float> get_response(float g_eval, config::FilterType f_, float p0_, float p1_, float p2_) noexcept {
+    FORCEINLINE void update_curve(std::span<float> curvePoints, std::span<float> table) const noexcept {
+      auto loadsr = sr->load();
+      auto load0 = l0->load();
+      auto load1 = l1->load();
+      auto load2 = l2->load();
+      auto load3 = l3->load();
+      auto load4 = l4->load();
+      auto load5 = l5->load();
+      auto p0_ = zlth::unit::prewarp(load0 / loadsr);
+      auto p1_ = zlth::unit::inverseQ(load1);
+      auto p2_ = zlth::unit::dbToMagFourthRoot(load2);
+      auto f_ = ((load3 < 0.5f) && ((int)load5 == 0 || (int)load5 == (ch + 1))) ? (config::FilterType)(int)load4 : config::FilterType::PassThrough;
       if (f_ == config::FilterType::PassThrough) {
-        return {1.0f, 0.0f};
+        return;
       }
       float g_ {};
       float k_ {};
@@ -52,103 +74,122 @@ namespace zlth::dsp {
         m1_ = m1__;
         m2_ = m2__;
       });
-      std::complex<float> s {0.0f, g_eval / g_};
-      return m0_ + (m1_ * s + m2_) / (1.0f + s * (s + k_));
+      for (int j = 0; j < curvePoints.size(); ++j) {
+        std::complex<float> s {0.0f, table[j] / g_};
+        curvePoints[j] *= std::norm(m0_ + (m1_ * s + m2_) / (1.0f + s * (s + k_)));
+      }
     }
 
-    FORCEINLINE void process(std::span<float> span) noexcept {
+    FORCEINLINE void process(std::span<float> span_) noexcept {
 
-      auto loadsr = sr->load();
-      auto load0 = l0->load();
-      auto load1 = l1->load();
-      auto load2 = l2->load();
-      auto load3 = l3->load();
-      auto load4 = l4->load();
-      auto load5 = l5->load();
+      auto sr_ = sr->load();
+      auto l0_ = l0->load();
+      auto l1_ = l1->load();
+      auto l2_ = l2->load();
+      auto l3_ = l3->load();
+      auto l4_ = l4->load();
+      auto l5_ = l5->load();
 
-      auto f = ((load3 < 0.5f) && ((int)load5 == 0 || (int)load5 == (ch + 1))) ? (config::FilterType)(int)load4 : config::FilterType::PassThrough;
+      bool crossfade_ {};
+      bool lerp_ {};
 
-      bool lerp_state {};
-      tp0 = zlth::unit::prewarp(load0 / loadsr);
-      tp1 = zlth::unit::inverseQ(load1);
-      tp2 = zlth::unit::dbToMagFourthRoot(load2);
-      lerp_state = true;
-
-      if (tf != f) {
-        tf = f;
-        process_impl_crossfade(span);
+      if ((csr != sr_) || (last_l0 != l0_) || (last_l1 != l1_) || (last_l2 != l2_)) {
+        lerp_ = true;
+        csr = sr_;
+        last_l0 = l0_;
+        last_l1 = l1_;
+        last_l2 = l2_;
+        tp0 = zlth::unit::prewarp(l0_ / sr_);
+        tp1 = zlth::unit::inverseQ(l1_);
+        tp2 = zlth::unit::dbToMagFourthRoot(l2_);
       }
-      else if (cf != config::FilterType::PassThrough && std::exchange(lerp_state, false)) {
-        process_impl_lerp(span);
+      if ((last_l3 != l3_) || (last_l4 != l4_) || (last_l5 != l5_)) {
+        crossfade_ = true;
+        last_l3 = l3_;
+        last_l4 = l4_;
+        last_l5 = l5_;
+        tf = ((l3_ < 0.5f) && ((int)l5_ == 0 || (int)l5_ == (ch + 1))) ? (config::FilterType)(int)l4_ : config::FilterType::PassThrough;
+      }
+
+      if (crossfade_) {
+        process_impl_crossfade(span_);
+      }
+      else if (lerp_ && cf != config::FilterType::PassThrough) {
+        process_impl_lerp(span_);
       }
       else if (cf != config::FilterType::PassThrough) {
-        for (auto& v0 : span) {
+        for (auto& v0 : span_) {
           process_single(v0);
         }
       }
+      cp0 = tp0;
+      cp1 = tp1;
+      cp2 = tp2;
+      cf = tf;
+      set_current_state();
     }
 
   private:
 
     template <typename Setter>
-    FORCEINLINE static void calculate_coefficients(config::FilterType f, float g_, float k_, float a_, Setter&& set) noexcept {
-      switch (f) {
+    FORCEINLINE static void calculate_coefficients(config::FilterType f_, float g_, float k_, float a1_, Setter&& set_) noexcept {
+      switch (f_) {
         case config::FilterType::LowPass:
         {
-          set(g_, k_, 0.0f, 0.0f, 1.0f);
+          set_(g_, k_, 0.0f, 0.0f, 1.0f);
           break;
         }
         case config::FilterType::HighPass:
         {
-          set(g_, k_, 1.0f, -k_, -1.0f);
+          set_(g_, k_, 1.0f, -k_, -1.0f);
           break;
         }
         case config::FilterType::Notch:
         {
-          set(g_, k_, 1.0f, -k_, 0.0f);
+          set_(g_, k_, 1.0f, -k_, 0.0f);
           break;
         }
         case config::FilterType::BandPass:
         {
-          set(g_, k_, 0.0f, k_, 0.0f);
+          set_(g_, k_, 0.0f, k_, 0.0f);
           break;
         }
         case config::FilterType::Bell:
         {
-          const float a2 {a_ * a_};
-          const float a4 {a2 * a2};
-          set(g_, k_ / a2, 1.0f, k_ * (a4 - 1.0f) / a2, 0.0f);
+          const float a2_ {a1_ * a1_};
+          const float a4_ {a2_ * a2_};
+          set_(g_, k_ / a2_, 1.0f, k_ * (a4_ - 1.0f) / a2_, 0.0f);
           break;
         }
         case config::FilterType::LowShelf:
         {
-          const float a2 {a_ * a_};
-          const float a4 {a2 * a2};
-          set(g_ / a_, k_, 1.0f, k_ * (a2 - 1.0f), a4 - 1.0f);
+          const float a2_ {a1_ * a1_};
+          const float a4_ {a2_ * a2_};
+          set_(g_ / a1_, k_, 1.0f, k_ * (a2_ - 1.0f), a4_ - 1.0f);
           break;
         }
         case config::FilterType::HighShelf:
         {
-          const float a2 {a_ * a_};
-          const float a4 {a2 * a2};
-          set(g_ * a_, k_, a4, k_ * (a2 - a4), 1.0f - a4);
+          const float a2_ {a1_ * a1_};
+          const float a4_ {a2_ * a2_};
+          set_(g_ * a1_, k_, a4_, k_ * (a2_ - a4_), 1.0f - a4_);
           break;
         }
         case config::FilterType::Tilt:
         {
-          const float a2 {a_ * a_};
-          const float a4 {a2 * a2};
-          set(g_ * a_, k_, a2, k_ * (1.0f - a2), (1.0f - a4) / a2);
+          const float a2_ {a1_ * a1_};
+          const float a4_ {a2_ * a2_};
+          set_(g_ * a1_, k_, a2_, k_ * (1.0f - a2_), (1.0f - a4_) / a2_);
           break;
         }
         case config::FilterType::PassThrough:
         {
-          set(g_, k_, 1.0f, 0.0f, 0.0f);
+          set_(g_, k_, 1.0f, 0.0f, 0.0f);
           break;
         }
         default:
         {
-          set(g_, k_, 1.0f, 0.0f, 0.0f);
+          set_(g_, k_, 1.0f, 0.0f, 0.0f);
           break;
         }
       }
@@ -185,10 +226,6 @@ namespace zlth::dsp {
         cp2 += dp2;
         set_current_state();
       }
-      cp0 = tp0;
-      cp1 = tp1;
-      cp2 = tp2;
-      set_current_state();
     }
 
     void process_impl_crossfade(std::span<float> span) noexcept {
@@ -226,11 +263,6 @@ namespace zlth::dsp {
         m2 /= size;
         a1 = 1.0f / (1.0f + g * (g + k));
       }
-      cp0 = tp0;
-      cp1 = tp1;
-      cp2 = tp2;
-      cf = tf;
-      set_current_state();
     }
 
     float g {1.0f};
@@ -249,6 +281,7 @@ namespace zlth::dsp {
     float tp2 {};
     config::FilterType cf {config::FilterType::PassThrough};
     config::FilterType tf {config::FilterType::PassThrough};
+    int ch;
     std::atomic<float>* sr;
     std::atomic<float>* l0;
     std::atomic<float>* l1;
@@ -256,6 +289,12 @@ namespace zlth::dsp {
     std::atomic<float>* l3;
     std::atomic<float>* l4;
     std::atomic<float>* l5;
-    int ch;
+    float csr;
+    float last_l0;
+    float last_l1;
+    float last_l2;
+    float last_l3;
+    float last_l4;
+    float last_l5;
   };
 }
