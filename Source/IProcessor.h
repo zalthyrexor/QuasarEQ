@@ -5,5 +5,5 @@
 class IProcessor {
 public:
   virtual ~IProcessor() = default;
-  virtual void process(std::initializer_list<std::span<float>> spans) = 0;
+  virtual void process(std::span<float> span) = 0;
 };

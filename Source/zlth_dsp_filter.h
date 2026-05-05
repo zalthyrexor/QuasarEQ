@@ -41,7 +41,9 @@ namespace zlth::dsp {
         process_impl_lerp(span);
       }
       else if (cf != config::FilterType::PassThrough) {
-        process_impl(span);
+        for (auto& v0 : span) {
+          process_single(v0);
+        }
       }
     }
 
@@ -143,12 +145,6 @@ namespace zlth::dsp {
       ic1 = 2.0f * v1 - ic1;
       ic2 = 2.0f * v2 - ic2;
       v0 = m0 * v0 + m1 * v1 + m2 * v2;
-    }
-
-    FORCEINLINE void process_impl(std::span<float> span) noexcept {
-      for (auto& v0 : span) {
-        process_single(v0);
-      }
     }
 
     void process_impl_lerp(std::span<float> span) noexcept {
