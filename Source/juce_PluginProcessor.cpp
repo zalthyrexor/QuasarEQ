@@ -6,11 +6,9 @@ QuasarEQAudioProcessor::QuasarEQAudioProcessor():AudioProcessor(BusesProperties(
   withInput("Input", juce::AudioChannelSet::stereo(), true).
   withOutput("Output", juce::AudioChannelSet::stereo(), true)), apvts(*this, &undoManager, config::ID_PARAMETERS, createParameterLayout()) {
 
-  processors.push_back({
-    std::make_unique<zlth::dsp::Gain>(apvts.getRawParameterValue(config::ID_OUT_GAIN[0])),
-    std::make_unique<zlth::dsp::Gain>(apvts.getRawParameterValue(config::ID_OUT_GAIN[1]))
-    }
-  );
+  for (int i = 0; i < config::CHANNEL_COUNT; ++i) {
+    processors.push_back(std::make_unique<zlth::dsp::Gain>(apvts.getRawParameterValue(config::ID_OUT_GAIN[i])));
+  }
 
   for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
     for (int j = 0; j < config::biquadPrefixCount; ++j) {
@@ -116,7 +114,11 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
   }
   updateBands();
   const auto numSamples = static_cast<size_t>(buffer.getNumSamples());
+
+
   std::span<float> span[] {{buffer.getWritePointer(0), numSamples}, {buffer.getWritePointer(1), numSamples}};
+  std::initializer_list<std::span<float>> spans {span[0], span[1]};
+
   zlth::simd::hadamard_butterfly(span[0], span[1]);
   for (int i = 0; i < config::CHANNEL_COUNT; ++i) {
     zlth::simd::mul_inplace(span[i], 0.5f);
@@ -135,9 +137,7 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
   }
 
   for (int i = 0; i < processors.size(); ++i) {
-    for (int j = 0; j < config::CHANNEL_COUNT; ++j) {
-      processors[i][j]->process(span[j]);
-    }
+    processors[i]->process(spans);
   }
 
   for(int i = 0; i < config::CHANNEL_COUNT; ++i){

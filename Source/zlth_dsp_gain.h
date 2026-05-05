@@ -10,20 +10,23 @@ namespace zlth::dsp {
   public:
     FORCEINLINE Gain(std::atomic<float>* g): gainParam(g) {
     }
-    FORCEINLINE void process(std::span<float> span) noexcept {
+    FORCEINLINE void process(std::initializer_list<std::span<float>> spans) noexcept {
       const float tp = zlth::unit::dbToMag(gainParam->load());
-      if (tp == cp) {
-        zlth::simd::mul_inplace(span, cp);
-      }
-      else {
-        const size_t numSamples = span.size();
-        const float deltaDiff = (tp - cp) / static_cast<float>(numSamples);
-        for (size_t i = 0; i < numSamples; ++i) {
-          span[i] *= cp;
-          cp += deltaDiff;
+      for (auto span : spans) {
+        float cp_ = cp;
+        if (tp == cp_) {
+          zlth::simd::mul_inplace(span, cp_);
         }
-        cp = tp;
+        else {
+          const size_t numSamples = span.size();
+          const float deltaDiff = (tp - cp_) / static_cast<float>(numSamples);
+          for (size_t i = 0; i < numSamples; ++i) {
+            span[i] *= cp_;
+            cp_ += deltaDiff;
+          }
+        }
       }
+      cp = tp;
     }
   private:
     float cp {1.0f};

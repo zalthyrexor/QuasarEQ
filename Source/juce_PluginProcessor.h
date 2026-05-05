@@ -40,7 +40,7 @@ private:
   void updateBands();
   juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
 
-  std::vector<std::array<std::unique_ptr<IProcessor>, 2>> processors;
+  std::vector<std::unique_ptr<IProcessor>> processors;
   std::array<std::array<zlth::dsp::Filter, config::CHANNEL_COUNT>, config::BIQUAD_COUNT> biquads {};
   std::array<std::array<std::array<zlth::dsp::Filter, config::CHANNEL_COUNT>, config::PARAM_ORDER_MAX>, config::BUTTER_COUNT> butters {};
 };
