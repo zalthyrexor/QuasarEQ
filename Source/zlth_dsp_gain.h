@@ -6,7 +6,7 @@
 #include "IProcessor.h"
 
 namespace zlth::dsp {
-  class Gain: public IProcessor {
+  class Gain {
   public:
     FORCEINLINE Gain(std::atomic<float>* g): gainParam(g) {
     }

@@ -7,8 +7,8 @@ QuasarEQAudioProcessor::QuasarEQAudioProcessor():AudioProcessor(BusesProperties(
   withOutput("Output", juce::AudioChannelSet::stereo(), true)), apvts(*this, &undoManager, config::ID_PARAMETERS, createParameterLayout()) {
 
   processors.push_back({
-    std::make_unique<zlth::dsp::Gain>(apvts.getRawParameterValue(config::ID_OUT_GAIN[0])),
-    std::make_unique<zlth::dsp::Gain>(apvts.getRawParameterValue(config::ID_OUT_GAIN[1]))
+    zlth::dsp::Gain(apvts.getRawParameterValue(config::ID_OUT_GAIN[0])),
+    zlth::dsp::Gain(apvts.getRawParameterValue(config::ID_OUT_GAIN[1]))
     }
   );
 
@@ -139,7 +139,9 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 
   for (auto& p : processors) {
     for (int j = 0; j < config::CHANNEL_COUNT; ++j) {
-      p[j]->process(span[j]);
+      std::visit([&](auto& arg) {
+        arg.process(span[j]);
+      }, p[j]);
     }
   }
 
