@@ -13,6 +13,20 @@ QuasarEQAudioProcessor::QuasarEQAudioProcessor():AudioProcessor(BusesProperties(
   );
 
   for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
+    auto* l0_ = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[(int)config::BandAddressEnum::freq], i));
+    auto* l1_ = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[(int)config::BandAddressEnum::q], i));
+    auto* l2_ = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[(int)config::BandAddressEnum::gain], i));
+    auto* l3_ = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[(int)config::BandAddressEnum::bypass], i));
+    auto* l4_ = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[(int)config::BandAddressEnum::shape], i));
+    auto* l5_ = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[(int)config::BandAddressEnum::channel], i));
+    processors.push_back({
+      zlth::dsp::Filter(&sampleRate, l0_, l1_, l2_, l3_, l4_, l5_, 0),
+      zlth::dsp::Filter(&sampleRate, l0_, l1_, l2_, l3_, l4_, l5_, 1)
+      }
+    );
+  }
+
+  for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
     for (int j = 0; j < config::biquadPrefixCount; ++j) {
       biquadTable[i][j] = apvts.getRawParameterValue(config::toBiquadID(config::biquadPrefixes[j], i));
     }
@@ -100,11 +114,11 @@ void QuasarEQAudioProcessor::resetParam (const juce::String& id) const{
   }
 }
 
-void QuasarEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
+void QuasarEQAudioProcessor::prepareToPlay(double sampleRate_, int samplesPerBlock) {
+  sampleRate.store(sampleRate_);
   for (int i = 0; i < config::CHANNEL_COUNT; ++i) {
     channelFifo[i].prepare(samplesPerBlock);
   }
-  updateBands();
 }
 
 void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
@@ -114,94 +128,21 @@ void QuasarEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
   for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i) {
     buffer.clear(i, 0, buffer.getNumSamples());
   }
-  updateBands();
   const auto numSamples = static_cast<size_t>(buffer.getNumSamples());
-
-
   std::span<float> span[] {{buffer.getWritePointer(0), numSamples}, {buffer.getWritePointer(1), numSamples}};
-
   zlth::simd::hadamard_butterfly(span[0], span[1]);
   for (int i = 0; i < config::CHANNEL_COUNT; ++i) {
     zlth::simd::mul_inplace(span[i], 0.5f);
   }
-  for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
-    for (int j = 0; j < config::CHANNEL_COUNT; ++j) {
-      biquads[i][j].process(span[j]);
-    }
-  }
-  for (int i = 0; i < config::BUTTER_COUNT; ++i) {
-    for (int j = 0; j < config::PARAM_ORDER_MAX; ++j) {
-      for (int k = 0; k < config::CHANNEL_COUNT; ++k) {
-        butters[i][j][k].process(span[k]);
-      }
-    }
-  }
-
   for (auto& p : processors) {
     for (int j = 0; j < config::CHANNEL_COUNT; ++j) {
-      std::visit([&](auto& arg) {
-        arg.process(span[j]);
-      }, p[j]);
+      std::visit([&](auto& arg) {arg.process(span[j]); }, p[j]);
     }
   }
-
   for(int i = 0; i < config::CHANNEL_COUNT; ++i){
     channelFifo[i].update(span[i]);
   }
   zlth::simd::hadamard_butterfly(span[0], span[1]);
-}
-
-void QuasarEQAudioProcessor::updateBands() {
-  const float sampleRate = getSampleRate();
-  for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
-
-    auto load = [&](config::BandAddressEnum index) {
-      return biquadTable[i][(int)index]->load();
-    };
-
-    auto l0 = load(config::BandAddressEnum::freq);
-    auto l1 = load(config::BandAddressEnum::gain);
-    auto l2 = load(config::BandAddressEnum::q);
-    auto l3 = load(config::BandAddressEnum::bypass);
-    auto l4 = load(config::BandAddressEnum::shape);
-    auto l5 = load(config::BandAddressEnum::channel);
-
-    auto p0 = zlth::unit::prewarp(l0 / sampleRate);
-    auto p2 = zlth::unit::dbToMagFourthRoot(l1);
-    auto p1 = zlth::unit::inverseQ(l2);
-
-    auto p3 = ((l3 < 0.5f) && ((int)l5 == 0 || (int)l5 == 1)) ? (config::FilterType)(int)l4 : config::FilterType::PassThrough;
-    auto p4 = ((l3 < 0.5f) && ((int)l5 == 0 || (int)l5 == 2)) ? (config::FilterType)(int)l4 : config::FilterType::PassThrough;
-
-    biquads[i][0].set_coefficients(p0, p1, p2);
-    biquads[i][1].set_coefficients(p0, p1, p2);
-    biquads[i][0].set_filter_type(p3);
-    biquads[i][1].set_filter_type(p4);
-  }
-  for (int i = 0; i < config::BUTTER_COUNT; ++i) {
-
-    auto load = [&](config::ButterAddressEnum index) {
-      return butterTable[i][(int)index]->load();
-    };
-
-    auto l0 = load(config::ButterAddressEnum::freq);
-    auto l1 = load(config::ButterAddressEnum::order);
-    auto l2 = load(config::ButterAddressEnum::bypass);
-    auto l3 = load(config::ButterAddressEnum::shape);
-    auto l4 = load(config::ButterAddressEnum::channel);
-
-    auto p0 = zlth::unit::prewarp(l0 / sampleRate);
-    auto p1 = 1.414;
-    auto p2 = 1.0f;
-
-    for (int j = 0; j < config::PARAM_ORDER_MAX; ++j) {
-      auto p1 = (j < l1) ? VisualizerComponent::getButterworthQ(j, l1) : 1.0f;
-      for (int k = 0; k < config::CHANNEL_COUNT; ++k) {
-        butters[i][j][k].set_coefficients(p0, p1, p2);
-        butters[i][j][k].set_filter_type(((j < l1) && !l2) ? config::ButterFilterTypeDef[i] : config::FilterType::PassThrough);
-      }
-    }
-  }
 }
 
 void QuasarEQAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {

@@ -19,7 +19,6 @@
     <FILE id="mSIDA4" name="config.h" compile="0" resource="0" file="Source/config.h"/>
     <FILE id="mmbi0V" name="cpp.hint" compile="0" resource="1" file="Source/cpp.hint"/>
     <FILE id="ZqFuNu" name="forceinline.h" compile="0" resource="0" file="Source/forceinline.h"/>
-    <FILE id="WvJIL5" name="IProcessor.h" compile="0" resource="0" file="Source/IProcessor.h"/>
     <FILE id="bez3IH" name="juce_LookAndFeel.h" compile="0" resource="0"
           file="Source/juce_LookAndFeel.h"/>
     <FILE id="zeQbzd" name="juce_PluginEditor.h" compile="0" resource="0"

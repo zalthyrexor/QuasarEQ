@@ -3,7 +3,6 @@
 #include <array>
 #include "forceinline.h"
 #include "zlth_simd.h"
-#include "IProcessor.h"
 
 namespace zlth::dsp {
   class Gain {

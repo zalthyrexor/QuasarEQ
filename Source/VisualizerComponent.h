@@ -311,27 +311,6 @@ private:
         curvePoints[1][j] *= std::norm(zlth::dsp::Filter::get_response(tanTable[j], b1, p0, p1, p2));
       }
     }
-    for (int b = 0; b < config::BUTTER_COUNT; ++b) {
-      auto load = [&](config::ButterAddressEnum index) {
-        return audioProcessor.butterTable[b][(int)index]->load();
-      };
-      auto l0 = load(config::ButterAddressEnum::freq);
-      auto l1 = load(config::ButterAddressEnum::order);
-      auto l2 = load(config::ButterAddressEnum::bypass);
-      auto l3 = load(config::ButterAddressEnum::shape);
-      auto l4 = load(config::ButterAddressEnum::channel);
-      auto p0 = zlth::unit::prewarp(l0 / sampleRate);
-      auto p2 = 1.0f;
-      for (int c = 0; c < config::PARAM_ORDER_MAX; ++c) {
-        for (int i = 0; i < maxSize; ++i) {
-          auto p1 = getButterworthQ(c, l1);
-          if(!l2){
-            curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < l1 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
-            curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < l1 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
-          }
-        }
-      }
-    }
 
     for (int i = 0; i < maxSize; ++i) {
       float x = remap(i, 0, size - 1, bounds.getX(), bounds.getRight());

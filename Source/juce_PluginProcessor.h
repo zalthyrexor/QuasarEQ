@@ -37,12 +37,9 @@ public:
   std::array<std::array<const std::atomic<float>*, config::biquadPrefixCount>, config::BIQUAD_COUNT> biquadTable;
 
 private:
-  void updateBands();
   juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
 
-  using Processor = std::variant<zlth::dsp::Gain>;
+  using Processor = std::variant<zlth::dsp::Gain, zlth::dsp::Filter>;
   std::vector<std::array<Processor, config::CHANNEL_COUNT>> processors;
-
-  std::array<std::array<zlth::dsp::Filter, config::CHANNEL_COUNT>, config::BIQUAD_COUNT> biquads {};
-  std::array<std::array<std::array<zlth::dsp::Filter, config::CHANNEL_COUNT>, config::PARAM_ORDER_MAX>, config::BUTTER_COUNT> butters {};
+  std::atomic<float> sampleRate {44100.0};
 };

@@ -7,14 +7,37 @@
 #include <span>
 #include "forceinline.h"
 #include "config.h"
+#include "unit.h"
 
 namespace zlth::dsp {
   class Filter final {
   public:
-    Filter() = default;
+
+    FORCEINLINE Filter(
+      std::atomic<float>* sr_,
+      std::atomic<float>* l0_, 
+      std::atomic<float>* l1_,
+      std::atomic<float>* l2_,
+      std::atomic<float>* l3_,
+      std::atomic<float>* l4_,
+      std::atomic<float>* l5_,
+      int ch_
+    ):
+      sr(sr_),
+      l0(l0_),
+      l1(l1_),
+      l2(l2_),
+      l3(l3_),
+      l4(l4_),
+      l5(l5_),
+      ch(ch_)
+    {
+    }
+
     ~Filter() = default;
-    FORCEINLINE static std::complex<float> get_response(float g_eval, config::FilterType f, float p0, float p1, float p2) noexcept {
-      if (f == config::FilterType::PassThrough) {
+
+    FORCEINLINE static std::complex<float> get_response(float g_eval, config::FilterType f_, float p0_, float p1_, float p2_) noexcept {
+      if (f_ == config::FilterType::PassThrough) {
         return {1.0f, 0.0f};
       }
       float g_ {};
@@ -22,7 +45,7 @@ namespace zlth::dsp {
       float m0_ {};
       float m1_ {};
       float m2_ {};
-      calculate_coefficients(f, p0, p1, p2, [&](float g__, float k__, float m0__, float m1__, float m2__) noexcept {
+      calculate_coefficients(f_, p0_, p1_, p2_, [&](float g__, float k__, float m0__, float m1__, float m2__) noexcept {
         g_ = g__;
         k_ = k__;
         m0_ = m0__;
@@ -34,7 +57,25 @@ namespace zlth::dsp {
     }
 
     FORCEINLINE void process(std::span<float> span) noexcept {
-      if (std::exchange(crossfade_state, false)) {
+
+      auto loadsr = sr->load();
+      auto load0 = l0->load();
+      auto load1 = l1->load();
+      auto load2 = l2->load();
+      auto load3 = l3->load();
+      auto load4 = l4->load();
+      auto load5 = l5->load();
+
+      auto f = ((load3 < 0.5f) && ((int)load5 == 0 || (int)load5 == (ch + 1))) ? (config::FilterType)(int)load4 : config::FilterType::PassThrough;
+
+      bool lerp_state {};
+      tp0 = zlth::unit::prewarp(load0 / loadsr);
+      tp1 = zlth::unit::inverseQ(load1);
+      tp2 = zlth::unit::dbToMagFourthRoot(load2);
+      lerp_state = true;
+
+      if (tf != f) {
+        tf = f;
         process_impl_crossfade(span);
       }
       else if (cf != config::FilterType::PassThrough && std::exchange(lerp_state, false)) {
@@ -45,21 +86,6 @@ namespace zlth::dsp {
           process_single(v0);
         }
       }
-    }
-
-    FORCEINLINE void set_filter_type(config::FilterType f) {
-      if (tf == f) {
-        return;
-      }
-      crossfade_state = true;
-      tf = f;
-    }
-
-    FORCEINLINE void set_coefficients(float p0, float p1, float p2) noexcept {
-      lerp_state = true;
-      tp0 = p0;
-      tp1 = p1;
-      tp2 = p2;
     }
 
   private:
@@ -223,7 +249,13 @@ namespace zlth::dsp {
     float tp2 {};
     config::FilterType cf {config::FilterType::PassThrough};
     config::FilterType tf {config::FilterType::PassThrough};
-    bool lerp_state {};
-    bool crossfade_state {};
+    std::atomic<float>* sr;
+    std::atomic<float>* l0;
+    std::atomic<float>* l1;
+    std::atomic<float>* l2;
+    std::atomic<float>* l3;
+    std::atomic<float>* l4;
+    std::atomic<float>* l5;
+    int ch;
   };
 }
