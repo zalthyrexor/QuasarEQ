@@ -33,8 +33,6 @@ public:
   void initializeAllParameters() const;
   void resetParam(const juce::String&) const;
 
-
-  std::array<const std::atomic<float>*, config::CHANNEL_COUNT> globalGainTable;
   std::array<std::array<const std::atomic<float>*, config::butterPrefixCount>, config::BUTTER_COUNT> butterTable;
   std::array<std::array<const std::atomic<float>*, config::biquadPrefixCount>, config::BIQUAD_COUNT> biquadTable;
 
@@ -42,7 +40,7 @@ private:
   void updateBands();
   juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout() const;
 
-  std::array<zlth::dsp::Gain, config::CHANNEL_COUNT> gains {};
+  std::vector<std::array<std::unique_ptr<IProcessor>, 2>> processors;
   std::array<std::array<zlth::dsp::Filter, config::CHANNEL_COUNT>, config::BIQUAD_COUNT> biquads {};
   std::array<std::array<std::array<zlth::dsp::Filter, config::CHANNEL_COUNT>, config::PARAM_ORDER_MAX>, config::BUTTER_COUNT> butters {};
 };

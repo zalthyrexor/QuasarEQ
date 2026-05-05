@@ -6,34 +6,12 @@
 #include "PathProducer.h"
 #include "zlth_dsp_fft_resampler510.h"
 
-class VisualizerComponent: public juce::Component, private juce::AsyncUpdater, public juce::AudioProcessorValueTreeState::Listener {
+class VisualizerComponent: public juce::Component, private juce::AsyncUpdater {
 public:
   VisualizerComponent(QuasarEQAudioProcessor& p): audioProcessor(p), pathProducer(audioProcessor.channelFifo), analyzerThread(pathProducer, *this) {
-    for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
-      for (const auto& prefix : config::biquadPrefixes) {
-        audioProcessor.apvts.addParameterListener(config::toBiquadID(prefix, i), this);
-      }
-    }
-    for (int i = 0; i < config::BUTTER_COUNT; ++i) {
-      for (const auto& prefix : config::butterPrefixes) {
-        audioProcessor.apvts.addParameterListener(config::toButterID(prefix, i), this);
-      }
-    }
   }
-  ~VisualizerComponent() {
-    for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
-      for (const auto& prefix : config::biquadPrefixes) {
-        audioProcessor.apvts.removeParameterListener(config::toBiquadID(prefix, i), this);
-      }
-    }
-    for (int i = 0; i < config::BUTTER_COUNT; ++i) {
-      for (const auto& prefix : config::butterPrefixes) {
-        audioProcessor.apvts.removeParameterListener(config::toButterID(prefix, i), this);
-      }
-    }
-  }
-  void parameterChanged(const juce::String& parameterID, float newValue) {
-    parametersNeedUpdate = true;
+  static float getButterworthQ(int k, int n) {
+    return 2.0f * std::sin((std::numbers::pi_v<float> *(2.0f * k + 1.0f)) / (2.0f * n));
   }
   void paint(juce::Graphics& g) override {
     g.drawImageAt(gridCache, 0, 0);
@@ -204,10 +182,7 @@ private:
         newPathAvailable = true;
       }
     }
-    if (parametersNeedUpdate) {
-      calculateResponseCurve();
-      parametersNeedUpdate = false;
-    }
+    calculateResponseCurve();
     if (newPathAvailable) {
       {
         juce::ScopedLock lock(pathLock);
@@ -288,9 +263,6 @@ private:
     return a.reduced(labelMargin).reduced(margin);
   }
 
-  static float getButterworthQ(int k, int n) {
-    return 2.0f * std::sin((std::numbers::pi_v<float> *(2.0f * k + 1.0f)) / (2.0f * n));
-  }
 
   std::array<juce::Path, 2> responseCurvePath;
   std::vector<float> tanTable;
@@ -298,7 +270,6 @@ private:
 
   void calculateResponseCurve() {
     auto sampleRate = static_cast<float>(audioProcessor.getSampleRate());
-
     auto size = getCurveArea().getWidth();
 
     tanTable.assign(size, 0.0f);
@@ -306,6 +277,9 @@ private:
       float freq = mapToLog(i, 0, size, config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX);
       tanTable[i] = std::tan(std::numbers::pi_v<float> *std::min(freq / sampleRate, 0.4999f));
     }
+    
+    int maxSize = (int)std::floor(mapFromLog(std::min(config::PARAM_FREQ_HZ_MAX, sampleRate / 2.0f), config::PARAM_FREQ_HZ_MIN, config::PARAM_FREQ_HZ_MAX, 0, size));
+
     for (int i = 0; i < config::CHANNEL_COUNT; ++i){
       responseCurvePath[i].clear();
       curvePoints[i].assign(size, 1.0f);
@@ -313,6 +287,7 @@ private:
 
     auto bounds = getCurveArea().toFloat();
     auto& apvts = audioProcessor.apvts;
+
     for (int i = 0; i < config::BIQUAD_COUNT; ++i) {
       auto load = [&](config::BandAddressEnum index) {
         return audioProcessor.biquadTable[i][(int)index]->load();
@@ -331,30 +306,34 @@ private:
       auto type = static_cast<config::FilterType>((int)l4);
       auto b0 = (isActive && (mode == 0 || mode == 1)) ? type : config::FilterType::PassThrough;
       auto b1 = (isActive && (mode == 0 || mode == 2)) ? type : config::FilterType::PassThrough;
-      for (int j = 0; j < size; ++j) {
+      for (int j = 0; j < maxSize; ++j) {
         curvePoints[0][j] *= std::norm(zlth::dsp::Filter::get_response(tanTable[j], b0, p0, p1, p2));
         curvePoints[1][j] *= std::norm(zlth::dsp::Filter::get_response(tanTable[j], b1, p0, p1, p2));
       }
     }
     for (int b = 0; b < config::BUTTER_COUNT; ++b) {
-      auto load = [&](const juce::String& prefix) {
-        return apvts.getRawParameterValue(config::toButterID(prefix, b))->load();
+      auto load = [&](config::ButterAddressEnum index) {
+        return audioProcessor.butterTable[b][(int)index]->load();
       };
-      auto p0 = zlth::unit::prewarp(load(config::ID_FREQ) / sampleRate);
-      auto l2 = load(config::ID_BYPASS);
+      auto l0 = load(config::ButterAddressEnum::freq);
+      auto l1 = load(config::ButterAddressEnum::order);
+      auto l2 = load(config::ButterAddressEnum::bypass);
+      auto l3 = load(config::ButterAddressEnum::shape);
+      auto l4 = load(config::ButterAddressEnum::channel);
+      auto p0 = zlth::unit::prewarp(l0 / sampleRate);
       auto p2 = 1.0f;
-      auto p3 = load(config::ID_ORDER);;
       for (int c = 0; c < config::PARAM_ORDER_MAX; ++c) {
-        for (int i = 0; i < size; ++i) {
-          auto p1 = getButterworthQ(c, p3);
+        for (int i = 0; i < maxSize; ++i) {
+          auto p1 = getButterworthQ(c, l1);
           if(!l2){
-            curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < p3 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
-            curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < p3 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
+            curvePoints[0][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < l1 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
+            curvePoints[1][i] *= std::norm(zlth::dsp::Filter::get_response(tanTable[i], c < l1 ? config::ButterFilterTypeDef[b] : config::FilterType::PassThrough, p0, p1, p2));
           }
         }
       }
     }
-    for (int i = 0; i < size; ++i) {
+
+    for (int i = 0; i < maxSize; ++i) {
       float x = remap(i, 0, size - 1, bounds.getX(), bounds.getRight());
       auto draw = [&](int j) {
         auto pos = editorGainToCurveArea(zlth::unit::magSqToDB(curvePoints[j][i]));
@@ -440,7 +419,6 @@ private:
   static constexpr int margin = 2;
 
   int draggingBand = NoBandSelected;
-  bool parametersNeedUpdate = true;
 
   QuasarEQAudioProcessor& audioProcessor;
   PathProducer pathProducer;
