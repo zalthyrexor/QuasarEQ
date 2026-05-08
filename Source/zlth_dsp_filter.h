@@ -1,72 +1,237 @@
 #pragma once
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <numbers>
 #include <span>
 #include "forceinline.h"
-#include "config.h"
-#include "unit.h"
-#include "zlth_dsp_filter_impl.h"
+
 namespace zlth::dsp {
   class Filter final {
   public:
-    FORCEINLINE Filter(
-      std::atomic<float>* r0_,
-      std::atomic<float>* r1_,
-      std::atomic<float>* r2_,
-      std::atomic<float>* r3_,
-      std::atomic<float>* r4_,
-      std::atomic<float>* r5_,
-      std::atomic<float>* r6_,
-      int ch_
-    ):
-      r {r0_, r1_, r2_, r3_, r4_, r5_, r6_},
-      ch {ch_} {
-    }
+    Filter() = default;
     ~Filter() = default;
-    FORCEINLINE void update_curve(std::span<float> curvePoints, std::span<float> table) const noexcept {
-      auto r0_ = r[PIdx::Freq]->load();
-      auto r1_ = r[PIdx::Q]->load();
-      auto r2_ = r[PIdx::Gain]->load();
-      auto r3_ = r[PIdx::Bypass]->load();
-      auto r4_ = r[PIdx::Type]->load();
-      auto r5_ = r[PIdx::Chan]->load();
-      auto r6_ = r[PIdx::SR]->load();
-      auto p0_ = zlth::unit::prewarp(r0_ / r6_);
-      auto p1_ = zlth::unit::inverseQ(r1_);
-      auto p2_ = zlth::unit::dbToMagFourthRoot(r2_);
-      auto p3_ = ((r3_ < 0.5f) && ((int)r5_ == 0 || (int)r5_ == (ch + 1))) ? (config::FilterType)(int)r4_ : config::FilterType::PassThrough;
-      if (p3_ == config::FilterType::PassThrough) {
+
+    enum class FilterType {
+      HighPass, LowPass, HighShelf, LowShelf, Tilt, Bell, Notch, BandPass, PassThrough
+    };
+
+    FORCEINLINE static std::complex<float> get_response(float g_eval, FilterType f, float p0, float p1, float p2) noexcept {
+      if (f == FilterType::PassThrough) {
+        return {1.0f, 0.0f};
+      }
+      float g_ {};
+      float k_ {};
+      float m0_ {};
+      float m1_ {};
+      float m2_ {};
+      calculate_coefficients(f, p0, p1, p2, [&](float g__, float k__, float m0__, float m1__, float m2__) noexcept {
+        g_ = g__;
+        k_ = k__;
+        m0_ = m0__;
+        m1_ = m1__;
+        m2_ = m2__;
+      });
+      std::complex<float> s {0.0f, g_eval / g_};
+      return m0_ + (m1_ * s + m2_) / (1.0f + s * (s + k_));
+    }
+
+    FORCEINLINE void process(std::span<float> span) noexcept {
+      if (std::exchange(crossfade_state, false)) {
+        process_impl_crossfade(span);
+      }
+      else if (cf != FilterType::PassThrough && std::exchange(lerp_state, false)) {
+        process_impl_lerp(span);
+      }
+      else if (cf != FilterType::PassThrough) {
+        process_impl(span);
+      }
+    }
+
+    FORCEINLINE void set_filter_type(zlth::dsp::Filter::FilterType f) {
+      if (tf == f) {
         return;
       }
-      for (int j = 0; j < curvePoints.size(); ++j) {
-        curvePoints[j] *= norm(f.get_response(table[j], p3_, p0_, p1_, p2_));
-      }
+      crossfade_state = true;
+      tf = f;
     }
-    FORCEINLINE void process(std::span<float> s_) noexcept {
-      float r_[7] {};
-      for (int i = 0; i < 7; ++i) {
-        r_[i] = r[i]->load(std::memory_order_relaxed);
-      }
-      if (c[PIdx::Freq] != r_[PIdx::Freq] || c[PIdx::Q] != r_[PIdx::Q] || c[PIdx::Gain] != r_[PIdx::Gain] || c[PIdx::SR] != r_[PIdx::SR]) {
-        auto p0_ = zlth::unit::prewarp(r_[PIdx::Freq] / r_[PIdx::SR]);
-        auto p1_ = zlth::unit::inverseQ(r_[PIdx::Q]);
-        auto p2_ = zlth::unit::dbToMagFourthRoot(r_[PIdx::Gain]);
-        f.set_coefficients(p0_, p1_, p2_);
-      }
-      if (c[PIdx::Bypass] != r_[PIdx::Bypass] || c[PIdx::Type] != r_[PIdx::Type] || c[PIdx::Chan] != r_[PIdx::Chan]) {
-        auto p3_ = ((r_[PIdx::Bypass] < 0.5f) && ((int)r_[PIdx::Chan] == 0 || (int)r_[PIdx::Chan] == (ch + 1))) ? (config::FilterType)(int)r_[PIdx::Type] : config::FilterType::PassThrough;
-        f.set_filter_type(p3_);
-      }
-      f.process(s_);
-      std::copy(std::begin(r_), std::end(r_), std::begin(c));
+
+    FORCEINLINE void set_coefficients(float p0, float p1, float p2) noexcept {
+      lerp_state = true;
+      tp0 = p0;
+      tp1 = p1;
+      tp2 = p2;
     }
+
   private:
-    using PIdx = config::PIdx;
-    zlth::dsp::FilterImpl f {};
-    std::atomic<float>* r[7] {};
-    float c[7] {};
-    int ch {};
+
+    template <typename Setter>
+    FORCEINLINE static void calculate_coefficients(FilterType f, float g_, float k_, float a_, Setter&& set) noexcept {
+      switch (f) {
+        case FilterType::LowPass:
+        {
+          set(g_, k_, 0.0f, 0.0f, 1.0f);
+          break;
+        }
+        case FilterType::HighPass:
+        {
+          set(g_, k_, 1.0f, -k_, -1.0f);
+          break;
+        }
+        case FilterType::Notch:
+        {
+          set(g_, k_, 1.0f, -k_, 0.0f);
+          break;
+        }
+        case FilterType::BandPass:
+        {
+          set(g_, k_, 0.0f, k_, 0.0f);
+          break;
+        }
+        case FilterType::Bell:
+        {
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
+          set(g_, k_ / a2, 1.0f, k_ * (a4 - 1.0f) / a2, 0.0f);
+          break;
+        }
+        case FilterType::LowShelf:
+        {
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
+          set(g_ / a_, k_, 1.0f, k_ * (a2 - 1.0f), a4 - 1.0f);
+          break;
+        }
+        case FilterType::HighShelf:
+        {
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
+          set(g_ * a_, k_, a4, k_ * (a2 - a4), 1.0f - a4);
+          break;
+        }
+        case FilterType::Tilt:
+        {
+          const float a2 {a_ * a_};
+          const float a4 {a2 * a2};
+          set(g_ * a_, k_, a2, k_ * (1.0f - a2), (1.0f - a4) / a2);
+          break;
+        }
+        case FilterType::PassThrough:
+        {
+          set(g_, k_, 1.0f, 0.0f, 0.0f);
+          break;
+        }
+        default:
+        {
+          set(g_, k_, 1.0f, 0.0f, 0.0f);
+          break;
+        }
+      }
+    }
+
+    FORCEINLINE void set_current_state() noexcept {
+      calculate_coefficients(cf, cp0, cp1, cp2, [&](float g_, float k_, float m0_, float m1_, float m2_) noexcept {
+        g = g_;
+        k = k_;
+        m0 = m0_;
+        m1 = m1_;
+        m2 = m2_;
+      });
+      a1 = 1.0f / (1.0f + g * (g + k));
+    }
+
+    FORCEINLINE void process_single(float& v0) {
+      const float v1 {a1 * (ic1 + g * (v0 - ic2))};
+      const float v2 {ic2 + g * v1};
+      ic1 = 2.0f * v1 - ic1;
+      ic2 = 2.0f * v2 - ic2;
+      v0 = m0 * v0 + m1 * v1 + m2 * v2;
+    }
+
+    FORCEINLINE void process_impl(std::span<float> span) noexcept {
+      for (auto& v0 : span) {
+        process_single(v0);
+      }
+    }
+
+    void process_impl_lerp(std::span<float> span) noexcept {
+      const size_t size {span.size()};
+      const float dp0 {(tp0 - cp0) / static_cast<float>(size)};
+      const float dp1 {(tp1 - cp1) / static_cast<float>(size)};
+      const float dp2 {(tp2 - cp2) / static_cast<float>(size)};
+      for (size_t i = 0; i < size; ++i) {
+        process_single(span[i]);
+        cp0 += dp0;
+        cp1 += dp1;
+        cp2 += dp2;
+        set_current_state();
+      }
+      cp0 = tp0;
+      cp1 = tp1;
+      cp2 = tp2;
+      set_current_state();
+    }
+
+    void process_impl_crossfade(std::span<float> span) noexcept {
+      if (cf == FilterType::PassThrough) {
+        ic1 = 0.0f;
+        ic2 = 0.0f;
+      }
+      const size_t size {span.size()};
+      const float dp0 {(tp0 - cp0) / static_cast<float>(size)};
+      const float dp1 {(tp1 - cp1) / static_cast<float>(size)};
+      const float dp2 {(tp2 - cp2) / static_cast<float>(size)};
+      for (size_t i = 0; i < size; ++i) {
+        process_single(span[i]);
+        cp0 += dp0;
+        cp1 += dp1;
+        cp2 += dp2;
+        calculate_coefficients(tf, cp0, cp1, cp2, [&](float g_, float k_, float m0_, float m1_, float m2_) noexcept {
+          g = g_ * i;
+          k = k_ * i;
+          m0 = m0_ * i;
+          m1 = m1_ * i;
+          m2 = m2_ * i;
+        });
+        calculate_coefficients(cf, cp0, cp1, cp2, [&](float g_, float k_, float m0_, float m1_, float m2_) noexcept {
+          g += g_ * (size - i);
+          k += k_ * (size - i);
+          m0 += m0_ * (size - i);
+          m1 += m1_ * (size - i);
+          m2 += m2_ * (size - i);
+        });
+        g /= size;
+        k /= size;
+        m0 /= size;
+        m1 /= size;
+        m2 /= size;
+        a1 = 1.0f / (1.0f + g * (g + k));
+      }
+      cp0 = tp0;
+      cp1 = tp1;
+      cp2 = tp2;
+      cf = tf;
+      set_current_state();
+    }
+
+    float g {1.0f};
+    float k {1.0f};
+    float m0 {1.0f};
+    float m1 {0.0f};
+    float m2 {0.0f};
+    float a1 {1.0f / 3.0f};
+    float ic1 {0.0f};
+    float ic2 {0.0f};
+    float cp0 {1.0f};
+    float cp1 {1.0f};
+    float cp2 {1.0f};
+    float tp0 {};
+    float tp1 {};
+    float tp2 {};
+    FilterType cf {FilterType::PassThrough};
+    FilterType tf {FilterType::PassThrough};
+    bool lerp_state {};
+    bool crossfade_state {};
   };
 }

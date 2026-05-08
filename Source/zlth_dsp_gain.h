@@ -7,27 +7,30 @@
 namespace zlth::dsp {
   class Gain {
   public:
-    FORCEINLINE Gain(std::atomic<float>* g): gainParam(g) {
+
+    FORCEINLINE void set_gain(float tp_) noexcept {
+      lerp_state = true;
+      tp = tp_;
     }
-    FORCEINLINE void update_curve(std::span<float> curvePoints, std::span<float> table) {
-    }
+
     FORCEINLINE void process(std::span<float> span) noexcept {
-      const float tp = zlth::unit::dbToMag(gainParam->load());
-      if (tp == cp) {
-        zlth::simd::mul_inplace(span, cp);
-      }
-      else {
+      if (std::exchange(lerp_state, false)) {
         const size_t numSamples = span.size();
         const float deltaDiff = (tp - cp) / static_cast<float>(numSamples);
         for (size_t i = 0; i < numSamples; ++i) {
-          span[i] *= cp;
           cp += deltaDiff;
+          span[i] *= cp;
         }
         cp = tp;
       }
+      else {
+        zlth::simd::mul_inplace(span, cp);
+      }
     }
+
   private:
+    float tp {1.0f};
     float cp {1.0f};
-    std::atomic<float>* gainParam;
+    bool lerp_state {};
   };
 }
